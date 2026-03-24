@@ -6,6 +6,7 @@ export interface BalanceConfig {
   shopSlots: number;
   benchSlots: number;
   boardSlots: number;
+  heroSelectionMs: number;
   tavernPhaseMs: number;
   roundEndMs: number;
   buyCost: number;
@@ -17,6 +18,9 @@ export interface BalanceConfig {
   tavernUpgradeBaseCost: number;
   tavernUpgradeStepCost: number;
   mergeCopiesRequired: number;
+  quickLobbyTimeoutMs: number;
+  privateLobbyTimeoutMs: number;
+  quickStartOnTimeoutFillBots: boolean;
 }
 
 export const BALANCE = balance as BalanceConfig;

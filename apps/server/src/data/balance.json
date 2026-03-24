@@ -4,6 +4,7 @@
   "shopSlots": 3,
   "benchSlots": 6,
   "boardSlots": 6,
+  "heroSelectionMs": 30000,
   "tavernPhaseMs": 45000,
   "roundEndMs": 5000,
   "buyCost": 3,
@@ -14,5 +15,8 @@
   "maxTavernTier": 6,
   "tavernUpgradeBaseCost": 4,
   "tavernUpgradeStepCost": 2,
-  "mergeCopiesRequired": 3
+  "mergeCopiesRequired": 3,
+  "quickLobbyTimeoutMs": 20000,
+  "privateLobbyTimeoutMs": 120000,
+  "quickStartOnTimeoutFillBots": true
 }

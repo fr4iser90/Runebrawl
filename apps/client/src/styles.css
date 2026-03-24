@@ -23,12 +23,33 @@ body {
   margin-bottom: 12px;
 }
 
+.top-nav {
+  padding: 12px 16px 0;
+}
+
+.nav-link {
+  color: #dbe4ff;
+  text-decoration: none;
+  padding: 6px 10px;
+  border: 1px solid #3a4368;
+  border-radius: 8px;
+  background: #2a3354;
+}
+
 .join-card {
   display: flex;
   gap: 8px;
 }
 
 input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #334;
+  background: #1f2435;
+  color: #fff;
+}
+
+select {
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid #334;
@@ -120,6 +141,82 @@ button:disabled {
   background: #1e2540;
 }
 
+.combat-board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.combat-subtitle {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.combat-arena {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.combat-side h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.pulse-attack {
+  border-color: #62c4ff;
+  box-shadow: 0 0 0 2px rgba(98, 196, 255, 0.35);
+}
+
+.pulse-hit {
+  border-color: #ff7b7b;
+  box-shadow: 0 0 0 2px rgba(255, 123, 123, 0.35);
+}
+
+.hp-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #151b2b;
+  border: 1px solid #2c3658;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #73dd9f, #49c57f);
+  transition: width 0.22s ease;
+}
+
+.damage-pop {
+  margin-top: 4px;
+  color: #ff8080;
+  font-weight: 700;
+  font-size: 12px;
+  animation: damage-pop-up 0.55s ease;
+}
+
+.dead-fade {
+  opacity: 0.45;
+  transition: opacity 0.25s ease;
+}
+
+@keyframes damage-pop-up {
+  0% {
+    transform: translateY(0px);
+    opacity: 0.4;
+  }
+  35% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-10px);
+    opacity: 0.2;
+  }
+}
+
 .slot-title {
   font-size: 12px;
   opacity: 0.8;
@@ -148,4 +245,40 @@ button:disabled {
 
 .error {
   color: #ff7b7b;
+}
+
+.admin-panel {
+  border: 1px solid #2d375a;
+  border-radius: 12px;
+  padding: 12px;
+  background: #1a2033;
+  margin: 12px 0;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1.5fr;
+  gap: 12px;
+}
+
+.admin-card {
+  border: 1px solid #31406a;
+  border-radius: 10px;
+  padding: 10px;
+  background: #202844;
+}
+
+.admin-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 13px;
 }

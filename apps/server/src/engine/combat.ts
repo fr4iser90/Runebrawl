@@ -8,11 +8,23 @@ interface CombatUnit extends UnitInstance {
   nextActionAt: number;
 }
 
+export interface CombatStepEvent {
+  type: "ATTACK" | "UNIT_DIED" | "ABILITY_TRIGGERED";
+  sourceOwnerId?: "A" | "B";
+  sourceSlotIndex?: number;
+  sourceUnitName?: string;
+  targetOwnerId?: "A" | "B";
+  targetSlotIndex?: number;
+  targetUnitName?: string;
+  message: string;
+}
+
 export interface CombatResult {
   winner: "A" | "B" | "DRAW";
   survivorsA: number;
   survivorsB: number;
   log: string[];
+  events: CombatStepEvent[];
 }
 
 function living(units: CombatUnit[]): CombatUnit[] {
@@ -57,26 +69,60 @@ function nextActor(all: CombatUnit[], rng: SeededRng): CombatUnit | undefined {
   return top;
 }
 
-function onDeath(unit: CombatUnit, allies: CombatUnit[], enemies: CombatUnit[], log: string[], rng: SeededRng): void {
+function onDeath(
+  unit: CombatUnit,
+  allies: CombatUnit[],
+  enemies: CombatUnit[],
+  log: string[],
+  events: CombatStepEvent[],
+  rng: SeededRng
+): void {
   if (unit.ability === "DEATH_BURST") {
     const target = selectTarget(unit, enemies, rng);
     if (!target) return;
     target.hp -= 2;
-    log.push(`${unit.name} death burst hits ${target.name} for 2.`);
+    const message = `${unit.name} death burst hits ${target.name} for 2.`;
+    log.push(message);
+    events.push({
+      type: "ABILITY_TRIGGERED",
+      sourceOwnerId: unit.ownerId as "A" | "B",
+      sourceSlotIndex: unit.slotIndex,
+      sourceUnitName: unit.name,
+      targetOwnerId: target.ownerId as "A" | "B",
+      targetSlotIndex: target.slotIndex,
+      targetUnitName: target.name,
+      message
+    });
     if (target.hp <= 0 && target.alive) {
       target.alive = false;
-      log.push(`${target.name} dies.`);
-      onDeath(target, enemies, allies, log, rng);
+      const deathMessage = `${target.name} dies.`;
+      log.push(deathMessage);
+      events.push({
+        type: "UNIT_DIED",
+        sourceOwnerId: target.ownerId as "A" | "B",
+        sourceSlotIndex: target.slotIndex,
+        sourceUnitName: target.name,
+        message: deathMessage
+      });
+      onDeath(target, enemies, allies, log, events, rng);
     }
   }
 }
 
-function onKill(attacker: CombatUnit, log: string[]): void {
+function onKill(attacker: CombatUnit, log: string[], events: CombatStepEvent[]): void {
   if (attacker.ability === "BLOODLUST") {
     attacker.attack += 1;
     attacker.hp += 1;
     attacker.maxHp += 1;
-    log.push(`${attacker.name} gains Bloodlust (+1/+1).`);
+    const message = `${attacker.name} gains Bloodlust (+1/+1).`;
+    log.push(message);
+    events.push({
+      type: "ABILITY_TRIGGERED",
+      sourceOwnerId: attacker.ownerId as "A" | "B",
+      sourceSlotIndex: attacker.slotIndex,
+      sourceUnitName: attacker.name,
+      message
+    });
   }
 }
 
@@ -87,6 +133,7 @@ export function simulateCombat(
 ): CombatResult {
   const rng = new SeededRng(seed);
   const log: string[] = [];
+  const events: CombatStepEvent[] = [];
 
   const a: CombatUnit[] = teamA.map((u, i) => ({
     ...u,
@@ -116,7 +163,18 @@ export function simulateCombat(
     const defender = selectTarget(attacker, defenders, rng);
     if (!defender) break;
 
-    log.push(`${attacker.name} attacks ${defender.name}.`);
+    const attackMessage = `${attacker.name} attacks ${defender.name}.`;
+    log.push(attackMessage);
+    events.push({
+      type: "ATTACK",
+      sourceOwnerId: attacker.ownerId as "A" | "B",
+      sourceSlotIndex: attacker.slotIndex,
+      sourceUnitName: attacker.name,
+      targetOwnerId: defender.ownerId as "A" | "B",
+      targetSlotIndex: defender.slotIndex,
+      targetUnitName: defender.name,
+      message: attackMessage
+    });
 
     defender.hp -= attacker.attack;
     attacker.hp -= defender.attack;
@@ -126,15 +184,31 @@ export function simulateCombat(
 
     if (defenderDied) {
       defender.alive = false;
-      log.push(`${defender.name} dies.`);
-      onKill(attacker, log);
-      onDeath(defender, defenders, attackers, log, rng);
+      const defenderDeathMessage = `${defender.name} dies.`;
+      log.push(defenderDeathMessage);
+      events.push({
+        type: "UNIT_DIED",
+        sourceOwnerId: defender.ownerId as "A" | "B",
+        sourceSlotIndex: defender.slotIndex,
+        sourceUnitName: defender.name,
+        message: defenderDeathMessage
+      });
+      onKill(attacker, log, events);
+      onDeath(defender, defenders, attackers, log, events, rng);
     }
 
     if (attackerDied) {
       attacker.alive = false;
-      log.push(`${attacker.name} dies.`);
-      onDeath(attacker, attackers, defenders, log, rng);
+      const attackerDeathMessage = `${attacker.name} dies.`;
+      log.push(attackerDeathMessage);
+      events.push({
+        type: "UNIT_DIED",
+        sourceOwnerId: attacker.ownerId as "A" | "B",
+        sourceSlotIndex: attacker.slotIndex,
+        sourceUnitName: attacker.name,
+        message: attackerDeathMessage
+      });
+      onDeath(attacker, attackers, defenders, log, events, rng);
     }
 
     if (attacker.alive) {
@@ -146,5 +220,5 @@ export function simulateCombat(
   const survivorsB = living(b).length;
   const winner = survivorsA === survivorsB ? "DRAW" : survivorsA > survivorsB ? "A" : "B";
 
-  return { winner, survivorsA, survivorsB, log };
+  return { winner, survivorsA, survivorsB, log, events };
 }
