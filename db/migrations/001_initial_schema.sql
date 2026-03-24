@@ -1,0 +1,45 @@
+CREATE TABLE IF NOT EXISTS units (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  tier INTEGER NOT NULL,
+  base_hp INTEGER NOT NULL,
+  base_attack INTEGER NOT NULL,
+  base_speed INTEGER NOT NULL,
+  ability_key TEXT
+);
+
+CREATE TABLE IF NOT EXISTS players (
+  id UUID PRIMARY KEY,
+  display_name TEXT NOT NULL,
+  mmr INTEGER NOT NULL DEFAULT 1000,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS matches (
+  id UUID PRIMARY KEY,
+  status TEXT NOT NULL,
+  round INTEGER NOT NULL DEFAULT 1,
+  winner_player_id UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ended_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS match_players (
+  id UUID PRIMARY KEY,
+  match_id UUID NOT NULL REFERENCES matches(id),
+  player_id UUID NOT NULL REFERENCES players(id),
+  health INTEGER NOT NULL,
+  gold INTEGER NOT NULL,
+  tavern_tier INTEGER NOT NULL,
+  is_eliminated BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS match_events (
+  id BIGSERIAL PRIMARY KEY,
+  match_id UUID NOT NULL REFERENCES matches(id),
+  round INTEGER NOT NULL,
+  event_type TEXT NOT NULL,
+  payload_json JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

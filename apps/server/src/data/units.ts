@@ -1,0 +1,16 @@
+import type { UnitDefinition } from "@runebrawl/shared";
+
+export const UNIT_POOL: UnitDefinition[] = [
+  { id: "stone_guard", name: "Stone Guard", role: "Tank", tier: 1, attack: 2, hp: 8, speed: 2, ability: "TAUNT" },
+  { id: "alley_blade", name: "Alley Blade", role: "Melee", tier: 1, attack: 4, hp: 5, speed: 4, ability: "NONE" },
+  { id: "ember_archer", name: "Ember Archer", role: "Ranged", tier: 1, attack: 3, hp: 4, speed: 5, ability: "NONE" },
+  { id: "wild_shaman", name: "Wild Shaman", role: "Support", tier: 2, attack: 2, hp: 6, speed: 3, ability: "BLOODLUST" },
+  { id: "grave_imp", name: "Grave Imp", role: "Melee", tier: 2, attack: 5, hp: 5, speed: 4, ability: "DEATH_BURST" },
+  { id: "iron_bulwark", name: "Iron Bulwark", role: "Tank", tier: 3, attack: 4, hp: 11, speed: 2, ability: "TAUNT" },
+  { id: "sky_sniper", name: "Sky Sniper", role: "Ranged", tier: 3, attack: 6, hp: 5, speed: 6, ability: "NONE" },
+  { id: "war_drummer", name: "War Drummer", role: "Support", tier: 4, attack: 4, hp: 8, speed: 3, ability: "BLOODLUST" }
+];
+
+export function unitsForTier(tier: number): UnitDefinition[] {
+  return UNIT_POOL.filter((u) => u.tier <= tier);
+}

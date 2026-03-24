@@ -1,0 +1,151 @@
+:root {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: #f6f7ff;
+  background: #121624;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.join-card {
+  display: flex;
+  gap: 8px;
+}
+
+input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #334;
+  background: #1f2435;
+  color: #fff;
+}
+
+button {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #3a4368;
+  background: #2a3354;
+  color: #fff;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1.2fr;
+  gap: 16px;
+}
+
+.tavern,
+.board,
+.sidebar {
+  border: 1px solid #2d375a;
+  border-radius: 12px;
+  padding: 12px;
+  background: #1a2033;
+}
+
+.stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.shop-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.shop-card {
+  background: #222b45;
+  border: 1px solid #34406d;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.unit-name {
+  font-weight: 700;
+}
+
+.unit-meta {
+  font-size: 13px;
+  opacity: 0.9;
+  margin: 4px 0 8px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.slot-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.slot {
+  border: 1px dashed #4b5888;
+  border-radius: 10px;
+  min-height: 100px;
+  padding: 8px;
+  background: #202844;
+}
+
+.bench-slot {
+  background: #1e2540;
+}
+
+.slot-title {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.slot-unit {
+  min-height: 36px;
+  margin: 6px 0;
+  font-size: 14px;
+}
+
+.sidebar ul {
+  margin: 0 0 12px;
+  padding-left: 18px;
+}
+
+.log {
+  height: 300px;
+  overflow: auto;
+  border: 1px solid #374267;
+  border-radius: 8px;
+  padding: 8px;
+  background: #171d31;
+  font-size: 13px;
+}
+
+.error {
+  color: #ff7b7b;
+}
