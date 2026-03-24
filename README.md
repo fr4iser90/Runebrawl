@@ -32,3 +32,15 @@ This repository now includes a runnable MVP:
    - `http://localhost:5173`
 4. Server health:
    - `http://localhost:3001/health`
+
+## Infra Upgrades Implemented
+
+- Reconnect support (`RECONNECT` intent with persisted `playerId`)
+- State sequence snapshots for recovery (`state.sequence`)
+- 8-player FFA fill target (bots auto-fill empty seats)
+- JSON-driven balance and unit data:
+  - `apps/server/src/data/balance.json`
+  - `apps/server/src/data/units.json`
+- Match history/replay endpoints:
+  - `GET /matches/:matchId/history`
+  - `GET /matches/:matchId/replay?from=<sequence>`

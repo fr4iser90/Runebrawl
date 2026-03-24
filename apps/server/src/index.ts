@@ -9,6 +9,31 @@ const game = new GameManager();
 await server.register(websocket);
 
 server.get("/health", async () => ({ ok: true }));
+server.get("/matches/:matchId/history", async (request, reply) => {
+  const { matchId } = request.params as { matchId: string };
+  const data = game.getMatchHistory(matchId);
+  if (!data) {
+    reply.status(404);
+    return { error: "Match not found" };
+  }
+  return data;
+});
+
+server.get("/matches/:matchId/replay", async (request, reply) => {
+  const { matchId } = request.params as { matchId: string };
+  const { from } = request.query as { from?: string };
+  const base = game.getMatchHistory(matchId);
+  if (!base) {
+    reply.status(404);
+    return { error: "Match not found" };
+  }
+  const fromSequence = from ? Number(from) : 0;
+  return {
+    matchId,
+    fromSequence,
+    events: game.getReplayEvents(matchId, Number.isFinite(fromSequence) ? fromSequence : 0)
+  };
+});
 
 server.register(async (instance) => {
   instance.get(
@@ -28,6 +53,16 @@ server.register(async (instance) => {
                   ? Buffer.concat(raw as Buffer[]).toString()
                   : Buffer.from(raw as ArrayBuffer).toString();
           const msg = JSON.parse(payload) as ClientIntent;
+          if (msg.type === "RECONNECT") {
+            if (playerId) return;
+            const ok = game.reconnect(msg.playerId, socket, msg.name);
+            if (!ok) {
+              socket.send(JSON.stringify({ type: "ERROR", message: "Reconnect failed, please join a new match." }));
+              return;
+            }
+            playerId = msg.playerId;
+            return;
+          }
           if (msg.type === "JOIN_MATCH") {
             if (playerId) return;
             playerId = game.join(msg.name, socket);

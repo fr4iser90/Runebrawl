@@ -1,6 +1,7 @@
 import type {
   ClientIntent,
   GamePhase,
+  MatchEvent,
   MatchPublicState,
   PlayerPublicState,
   ServerMessage,
@@ -10,15 +11,8 @@ import type {
 import { nanoid } from "nanoid";
 import { simulateCombat } from "./engine/combat.js";
 import { SeededRng } from "./engine/rng.js";
+import { BALANCE } from "./data/balance.js";
 import { unitsForTier } from "./data/units.js";
-
-const SHOP_SLOTS = 3;
-const BENCH_SLOTS = 6;
-const BOARD_SLOTS = 6;
-const MAX_PLAYERS = 4;
-const STARTING_HEALTH = 30;
-const TAVERN_PHASE_MS = 45_000;
-const ROUND_END_MS = 5_000;
 
 interface SocketLike {
   send: (data: string) => void;
@@ -43,11 +37,13 @@ interface PlayerInternal {
 
 interface MatchInternal {
   matchId: string;
+  sequence: number;
   round: number;
   phase: GamePhase;
   phaseEndsAt: number;
   players: PlayerInternal[];
   combatLog: string[];
+  events: MatchEvent[];
   seed: number;
 }
 
@@ -105,7 +101,7 @@ export class GameManager {
     const match = this.match;
     if (!match) throw new Error("No match");
 
-    if (match.players.filter((p) => !p.eliminated).length >= MAX_PLAYERS) {
+    if (match.players.filter((p) => !p.eliminated).length >= BALANCE.maxPlayers) {
       throw new Error("Match is full");
     }
 
@@ -115,15 +111,15 @@ export class GameManager {
       name: name.trim() || `Player-${playerId.slice(0, 4)}`,
       isBot: false,
       socket,
-      health: STARTING_HEALTH,
+      health: BALANCE.startingHealth,
       gold: 0,
       xp: 0,
       tavernTier: 1,
       lockedShop: false,
       ready: false,
-      shop: Array.from({ length: SHOP_SLOTS }, () => null),
-      bench: Array.from({ length: BENCH_SLOTS }, () => null),
-      board: Array.from({ length: BOARD_SLOTS }, () => null),
+      shop: Array.from({ length: BALANCE.shopSlots }, () => null),
+      bench: Array.from({ length: BALANCE.benchSlots }, () => null),
+      board: Array.from({ length: BALANCE.boardSlots }, () => null),
       eliminated: false
     };
 
@@ -135,6 +131,7 @@ export class GameManager {
       this.startTavernPhase();
     }
 
+    this.bumpSequence("PLAYER_JOINED", `${player.name} joined the match.`);
     this.broadcast();
     return playerId;
   }
@@ -146,7 +143,51 @@ export class GameManager {
     if (!player.isBot) {
       player.isBot = true;
       player.name = `${player.name} (Bot)`;
+      this.bumpSequence("PLAYER_DISCONNECTED", `${player.name} disconnected and became a bot.`);
+      this.broadcast();
     }
+  }
+
+  reconnect(playerId: string, socket: SocketLike, name?: string): boolean {
+    const match = this.match;
+    if (!match || match.phase === "FINISHED") return false;
+    const player = match.players.find((p) => p.playerId === playerId);
+    if (!player || player.eliminated) return false;
+
+    player.socket = socket;
+    player.isBot = false;
+    if (name?.trim()) player.name = name.trim();
+    if (player.name.endsWith(" (Bot)")) {
+      player.name = player.name.slice(0, -6);
+    }
+
+    this.send(socket, { type: "CONNECTED", playerId });
+    this.bumpSequence("PLAYER_RECONNECTED", `${player.name} reconnected.`);
+    this.broadcast();
+    return true;
+  }
+
+  getMatchHistory(matchId: string): { matchId: string; round: number; phase: GamePhase; sequence: number; players: Array<{ playerId: string; name: string; health: number; eliminated: boolean }> } | null {
+    const match = this.match;
+    if (!match || match.matchId !== matchId) return null;
+    return {
+      matchId: match.matchId,
+      round: match.round,
+      phase: match.phase,
+      sequence: match.sequence,
+      players: match.players.map((p) => ({
+        playerId: p.playerId,
+        name: p.name,
+        health: p.health,
+        eliminated: p.eliminated
+      }))
+    };
+  }
+
+  getReplayEvents(matchId: string, fromSequence = 0): MatchEvent[] {
+    const match = this.match;
+    if (!match || match.matchId !== matchId) return [];
+    return match.events.filter((event) => event.sequence >= fromSequence);
   }
 
   handleIntent(playerId: string, intent: ClientIntent): void {
@@ -154,53 +195,81 @@ export class GameManager {
     if (!match || match.phase === "FINISHED") return;
     const player = match.players.find((p) => p.playerId === playerId && !p.eliminated);
     if (!player) return;
+    let actionLabel: string | null = null;
 
     switch (intent.type) {
       case "BUY_UNIT":
         this.buyUnit(player, intent.shopIndex);
+        actionLabel = `${player.name} bought from shop slot ${intent.shopIndex + 1}.`;
         break;
       case "REROLL_SHOP":
         this.reroll(player);
+        actionLabel = `${player.name} rerolled the shop.`;
         break;
       case "LOCK_SHOP":
         if (match.phase === "TAVERN" || match.phase === "POSITIONING") {
           player.lockedShop = intent.locked;
+          actionLabel = `${player.name} ${intent.locked ? "locked" : "unlocked"} the shop.`;
         }
         break;
       case "UPGRADE_TAVERN":
         this.upgradeTavern(player);
+        actionLabel = `${player.name} tried to upgrade tavern tier.`;
         break;
       case "SELL_UNIT":
         this.sellUnit(player, intent.zone, intent.index);
+        actionLabel = `${player.name} sold a unit from ${intent.zone} slot ${intent.index + 1}.`;
         break;
       case "MOVE_UNIT":
         this.moveUnit(player, intent.from, intent.fromIndex, intent.to, intent.toIndex);
+        actionLabel = `${player.name} moved a unit ${intent.from}[${intent.fromIndex + 1}] -> ${intent.to}[${intent.toIndex + 1}].`;
         break;
       case "READY_FOR_COMBAT":
         if (match.phase === "TAVERN" || match.phase === "POSITIONING") {
           player.ready = true;
+          actionLabel = `${player.name} is ready for combat.`;
         }
         break;
       default:
         break;
     }
+    if (actionLabel) this.bumpSequence("INTENT_APPLIED", actionLabel);
     this.broadcast();
   }
 
   private createMatch(): MatchInternal {
     return {
       matchId: nanoid(10),
+      sequence: 0,
       round: 0,
       phase: "ROUND_END",
       phaseEndsAt: now() + 500,
       players: [],
       combatLog: [],
+      events: [],
       seed: Math.floor(Math.random() * 100000)
     };
   }
 
   private send(socket: SocketLike, message: ServerMessage): void {
     socket.send(JSON.stringify(message));
+  }
+
+  private bumpSequence(type: string, message: string): void {
+    const match = this.match;
+    if (!match) return;
+    match.sequence += 1;
+    const event: MatchEvent = {
+      sequence: match.sequence,
+      at: now(),
+      round: match.round,
+      type,
+      message
+    };
+    match.events.push(event);
+    if (match.events.length > 2000) {
+      match.events = match.events.slice(-2000);
+    }
   }
 
   private broadcast(): void {
@@ -210,6 +279,7 @@ export class GameManager {
       if (!p.socket) continue;
       const state: MatchPublicState = {
         matchId: match.matchId,
+        sequence: match.sequence,
         round: match.round,
         phase: match.phase,
         phaseEndsAt: match.phaseEndsAt,
@@ -231,6 +301,7 @@ export class GameManager {
       match.phase = "FINISHED";
       match.phaseEndsAt = now() + 999999999;
       match.combatLog.push(`${alive[0].name} wins the match.`);
+      this.bumpSequence("MATCH_FINISHED", `${alive[0].name} wins the match.`);
       this.broadcast();
       return;
     }
@@ -256,21 +327,21 @@ export class GameManager {
   private ensureBots(): void {
     const match = this.match;
     if (!match) return;
-    while (match.players.length < MAX_PLAYERS) {
+    while (match.players.length < BALANCE.maxPlayers) {
       const id = nanoid(10);
       match.players.push({
         playerId: id,
         name: `Bot-${id.slice(0, 4)}`,
         isBot: true,
-        health: STARTING_HEALTH,
+        health: BALANCE.startingHealth,
         gold: 0,
         xp: 0,
         tavernTier: 1,
         lockedShop: false,
         ready: false,
-        shop: Array.from({ length: SHOP_SLOTS }, () => null),
-        bench: Array.from({ length: BENCH_SLOTS }, () => null),
-        board: Array.from({ length: BOARD_SLOTS }, () => null),
+        shop: Array.from({ length: BALANCE.shopSlots }, () => null),
+        bench: Array.from({ length: BALANCE.benchSlots }, () => null),
+        board: Array.from({ length: BALANCE.boardSlots }, () => null),
         eliminated: false
       });
     }
@@ -282,13 +353,14 @@ export class GameManager {
     this.ensureBots();
     match.round += 1;
     match.phase = "TAVERN";
-    match.phaseEndsAt = now() + TAVERN_PHASE_MS;
+    match.phaseEndsAt = now() + BALANCE.tavernPhaseMs;
     match.combatLog = [`Round ${match.round} started.`];
+    this.bumpSequence("ROUND_STARTED", `Round ${match.round} started.`);
 
     for (const p of match.players) {
       if (p.eliminated) continue;
       p.ready = false;
-      p.gold = Math.min(10, 3 + match.round);
+      p.gold = Math.min(BALANCE.maxGold, BALANCE.baseGoldPerRound + match.round);
       p.xp += 1;
       if (!p.lockedShop) {
         p.shop = this.rollShop(p.tavernTier, match.seed + match.round + p.gold);
@@ -308,11 +380,11 @@ export class GameManager {
       let loops = 20;
       while (loops > 0) {
         loops -= 1;
-        if (p.gold >= 3) {
+        if (p.gold >= BALANCE.buyCost) {
           const buyable = p.shop.findIndex((u) => !!u);
           if (buyable >= 0) {
             this.buyUnit(p, buyable);
-          } else if (p.gold >= 1) {
+          } else if (p.gold >= BALANCE.rerollCost) {
             this.reroll(p);
           } else {
             break;
@@ -331,6 +403,7 @@ export class GameManager {
     if (!match) return;
     match.phase = "COMBAT";
     match.combatLog = [`Combat starts for round ${match.round}.`];
+    this.bumpSequence("COMBAT_STARTED", `Combat started for round ${match.round}.`);
 
     const alive = match.players.filter((p) => !p.eliminated);
     const rng = new SeededRng(match.seed + match.round * 173);
@@ -354,7 +427,8 @@ export class GameManager {
     }
 
     match.phase = "ROUND_END";
-    match.phaseEndsAt = now() + ROUND_END_MS;
+    match.phaseEndsAt = now() + BALANCE.roundEndMs;
+    this.bumpSequence("ROUND_ENDED", `Round ${match.round} ended.`);
     this.broadcast();
   }
 
@@ -375,20 +449,23 @@ export class GameManager {
       const damage = Math.max(1, result.survivorsA + a.tavernTier);
       b.health -= damage;
       match.combatLog.push(`${a.name} wins and deals ${damage} damage to ${b.name}.`);
+      this.bumpSequence("COMBAT_RESULT", `${a.name} defeated ${b.name} for ${damage} damage.`);
     } else if (result.winner === "B") {
       const damage = Math.max(1, result.survivorsB + b.tavernTier);
       a.health -= damage;
       match.combatLog.push(`${b.name} wins and deals ${damage} damage to ${a.name}.`);
+      this.bumpSequence("COMBAT_RESULT", `${b.name} defeated ${a.name} for ${damage} damage.`);
     } else {
       match.combatLog.push("Draw round. No damage dealt.");
+      this.bumpSequence("COMBAT_RESULT", `${a.name} and ${b.name} drew.`);
     }
   }
 
   private rollShop(tier: number, seed: number): (UnitDefinition | null)[] {
     const rng = new SeededRng(seed);
     const pool = unitsForTier(tier);
-    if (pool.length === 0) return Array.from({ length: SHOP_SLOTS }, () => null);
-    return Array.from({ length: SHOP_SLOTS }, () => pool[rng.int(pool.length)]);
+    if (pool.length === 0) return Array.from({ length: BALANCE.shopSlots }, () => null);
+    return Array.from({ length: BALANCE.shopSlots }, () => pool[rng.int(pool.length)]);
   }
 
   private buyUnit(player: PlayerInternal, shopIndex: number): void {
@@ -397,13 +474,13 @@ export class GameManager {
     if (shopIndex < 0 || shopIndex >= player.shop.length) return;
     const unit = player.shop[shopIndex];
     if (!unit) return;
-    if (player.gold < 3) return;
+    if (player.gold < BALANCE.buyCost) return;
 
     const benchSlot = firstEmpty(player.bench);
     const boardSlot = firstEmpty(player.board);
     if (benchSlot < 0 && boardSlot < 0) return;
 
-    player.gold -= 3;
+    player.gold -= BALANCE.buyCost;
     const instance = cloneUnitFromDef(unit);
     if (benchSlot >= 0) {
       player.bench[benchSlot] = instance;
@@ -417,9 +494,9 @@ export class GameManager {
   private mergeDuplicates(player: PlayerInternal, unitId: string): void {
     const all = [...player.board, ...player.bench];
     const matches = all.filter((u): u is UnitInstance => !!u && u.unitId === unitId && u.level === 1);
-    if (matches.length < 3) return;
+    if (matches.length < BALANCE.mergeCopiesRequired) return;
 
-    const consumedIds = matches.slice(0, 3).map((u) => u.instanceId);
+    const consumedIds = matches.slice(0, BALANCE.mergeCopiesRequired).map((u) => u.instanceId);
     const upgradedFrom = matches[0];
     const upgraded: UnitInstance = {
       ...upgradedFrom,
@@ -457,16 +534,16 @@ export class GameManager {
   private reroll(player: PlayerInternal): void {
     const match = this.match;
     if (!match || match.phase === "COMBAT" || player.eliminated) return;
-    if (player.gold < 1) return;
-    player.gold -= 1;
+    if (player.gold < BALANCE.rerollCost) return;
+    player.gold -= BALANCE.rerollCost;
     player.shop = this.rollShop(player.tavernTier, match.seed + match.round + player.gold + player.xp);
   }
 
   private upgradeTavern(player: PlayerInternal): void {
     const match = this.match;
     if (!match || match.phase === "COMBAT" || player.eliminated) return;
-    const cost = 4 + player.tavernTier * 2;
-    if (player.tavernTier >= 6 || player.gold < cost) return;
+    const cost = BALANCE.tavernUpgradeBaseCost + player.tavernTier * BALANCE.tavernUpgradeStepCost;
+    if (player.tavernTier >= BALANCE.maxTavernTier || player.gold < cost) return;
     player.gold -= cost;
     player.tavernTier += 1;
   }
@@ -477,7 +554,7 @@ export class GameManager {
     const arr = zone === "bench" ? player.bench : player.board;
     if (index < 0 || index >= arr.length || !arr[index]) return;
     arr[index] = null;
-    player.gold += 1;
+    player.gold += BALANCE.sellRefund;
   }
 
   private moveUnit(

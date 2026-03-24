@@ -43,6 +43,7 @@ export interface PlayerPublicState {
 
 export interface MatchPublicState {
   matchId: string;
+  sequence: number;
   round: number;
   phase: GamePhase;
   phaseEndsAt: number;
@@ -51,8 +52,17 @@ export interface MatchPublicState {
   combatLog: string[];
 }
 
+export interface MatchEvent {
+  sequence: number;
+  at: number;
+  round: number;
+  type: string;
+  message: string;
+}
+
 export type ClientIntent =
   | { type: "JOIN_MATCH"; name: string }
+  | { type: "RECONNECT"; playerId: string; name?: string }
   | { type: "BUY_UNIT"; shopIndex: number }
   | { type: "REROLL_SHOP" }
   | { type: "LOCK_SHOP"; locked: boolean }

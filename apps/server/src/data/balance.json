@@ -1,0 +1,18 @@
+{
+  "maxPlayers": 8,
+  "startingHealth": 30,
+  "shopSlots": 3,
+  "benchSlots": 6,
+  "boardSlots": 6,
+  "tavernPhaseMs": 45000,
+  "roundEndMs": 5000,
+  "buyCost": 3,
+  "rerollCost": 1,
+  "sellRefund": 1,
+  "maxGold": 10,
+  "baseGoldPerRound": 3,
+  "maxTavernTier": 6,
+  "tavernUpgradeBaseCost": 4,
+  "tavernUpgradeStepCost": 2,
+  "mergeCopiesRequired": 3
+}

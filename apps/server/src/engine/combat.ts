@@ -5,6 +5,7 @@ interface CombatUnit extends UnitInstance {
   ownerId: string;
   slotIndex: number;
   alive: boolean;
+  nextActionAt: number;
 }
 
 export interface CombatResult {
@@ -14,27 +15,51 @@ export interface CombatResult {
   log: string[];
 }
 
-function firstAlive(units: CombatUnit[]): CombatUnit | undefined {
-  return units.find((u) => u.alive);
-}
-
 function living(units: CombatUnit[]): CombatUnit[] {
   return units.filter((u) => u.alive);
 }
 
-function selectTarget(enemy: CombatUnit[], rng: SeededRng): CombatUnit | undefined {
-  const taunts = enemy.filter((u) => u.alive && u.ability === "TAUNT");
+function isFrontline(slotIndex: number): boolean {
+  return slotIndex < 3;
+}
+
+function selectTarget(attacker: CombatUnit, enemy: CombatUnit[], rng: SeededRng): CombatUnit | undefined {
+  const aliveEnemies = enemy.filter((u) => u.alive);
+  if (aliveEnemies.length === 0) return undefined;
+
+  const taunts = aliveEnemies.filter((u) => u.ability === "TAUNT");
   if (taunts.length > 0) {
     return taunts[rng.int(taunts.length)];
   }
-  const alive = enemy.filter((u) => u.alive);
+
+  if (attacker.role === "Melee" || attacker.role === "Tank") {
+    const frontline = aliveEnemies.filter((u) => isFrontline(u.slotIndex));
+    if (frontline.length > 0) {
+      return frontline[rng.int(frontline.length)];
+    }
+  }
+
+  return aliveEnemies[rng.int(aliveEnemies.length)];
+}
+
+function nextActor(all: CombatUnit[], rng: SeededRng): CombatUnit | undefined {
+  const alive = all.filter((u) => u.alive);
   if (alive.length === 0) return undefined;
-  return alive[rng.int(alive.length)];
+  alive.sort((a, b) => {
+    if (a.nextActionAt !== b.nextActionAt) return a.nextActionAt - b.nextActionAt;
+    if (a.speed !== b.speed) return b.speed - a.speed;
+    if (a.slotIndex !== b.slotIndex) return a.slotIndex - b.slotIndex;
+    return a.ownerId.localeCompare(b.ownerId);
+  });
+  const top = alive[0];
+  const tied = alive.filter((u) => u.nextActionAt === top.nextActionAt && u.speed === top.speed);
+  if (tied.length > 1) return tied[rng.int(tied.length)];
+  return top;
 }
 
 function onDeath(unit: CombatUnit, allies: CombatUnit[], enemies: CombatUnit[], log: string[], rng: SeededRng): void {
   if (unit.ability === "DEATH_BURST") {
-    const target = selectTarget(enemies, rng);
+    const target = selectTarget(unit, enemies, rng);
     if (!target) return;
     target.hp -= 2;
     log.push(`${unit.name} death burst hits ${target.name} for 2.`);
@@ -63,21 +88,33 @@ export function simulateCombat(
   const rng = new SeededRng(seed);
   const log: string[] = [];
 
-  const a: CombatUnit[] = teamA.map((u, i) => ({ ...u, ownerId: "A", slotIndex: i, alive: true }));
-  const b: CombatUnit[] = teamB.map((u, i) => ({ ...u, ownerId: "B", slotIndex: i, alive: true }));
+  const a: CombatUnit[] = teamA.map((u, i) => ({
+    ...u,
+    ownerId: "A",
+    slotIndex: i,
+    alive: true,
+    nextActionAt: 100 / Math.max(1, u.speed)
+  }));
+  const b: CombatUnit[] = teamB.map((u, i) => ({
+    ...u,
+    ownerId: "B",
+    slotIndex: i,
+    alive: true,
+    nextActionAt: 100 / Math.max(1, u.speed)
+  }));
 
-  let turn = 0;
   let maxIterations = 300;
 
   while (living(a).length > 0 && living(b).length > 0 && maxIterations > 0) {
     maxIterations -= 1;
-    const teamTurn = turn % 2 === 0 ? "A" : "B";
-    const attackers = teamTurn === "A" ? a : b;
-    const defenders = teamTurn === "A" ? b : a;
-    const attacker = firstAlive(attackers);
-    const defender = selectTarget(defenders, rng);
+    const attacker = nextActor([...a, ...b], rng);
+    if (!attacker) break;
+    if (!attacker.alive) continue;
 
-    if (!attacker || !defender) break;
+    const attackers = attacker.ownerId === "A" ? a : b;
+    const defenders = attacker.ownerId === "A" ? b : a;
+    const defender = selectTarget(attacker, defenders, rng);
+    if (!defender) break;
 
     log.push(`${attacker.name} attacks ${defender.name}.`);
 
@@ -100,7 +137,9 @@ export function simulateCombat(
       onDeath(attacker, attackers, defenders, log, rng);
     }
 
-    turn += 1;
+    if (attacker.alive) {
+      attacker.nextActionAt += 100 / Math.max(1, attacker.speed);
+    }
   }
 
   const survivorsA = living(a).length;

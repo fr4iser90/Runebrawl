@@ -8,6 +8,7 @@ const error = ref("");
 const state = ref<MatchPublicState | null>(null);
 const ws = ref<WebSocket | null>(null);
 const nowTs = ref(Date.now());
+const storedPlayerId = ref<string | null>(localStorage.getItem("runebrawl.playerId"));
 let clock: number | null = null;
 
 const dragging = ref<{ zone: "bench" | "board"; index: number } | null>(null);
@@ -25,7 +26,7 @@ const secondsLeft = computed(() => {
 });
 
 function connect(): void {
-  if (!name.value.trim()) {
+  if (!name.value.trim() && !storedPlayerId.value) {
     error.value = "Enter a name first.";
     return;
   }
@@ -35,13 +36,24 @@ function connect(): void {
 
   socket.onopen = () => {
     connected.value = true;
-    send({ type: "JOIN_MATCH", name: name.value.trim() });
+    if (storedPlayerId.value) {
+      send({ type: "RECONNECT", playerId: storedPlayerId.value, name: name.value.trim() || undefined });
+    } else {
+      send({ type: "JOIN_MATCH", name: name.value.trim() });
+    }
   };
 
   socket.onmessage = (event) => {
     const message = JSON.parse(event.data as string) as ServerMessage;
     if (message.type === "ERROR") {
       error.value = message.message;
+      if (message.message.toLowerCase().includes("reconnect")) {
+        storedPlayerId.value = null;
+        localStorage.removeItem("runebrawl.playerId");
+      }
+    } else if (message.type === "CONNECTED") {
+      storedPlayerId.value = message.playerId;
+      localStorage.setItem("runebrawl.playerId", message.playerId);
     } else if (message.type === "MATCH_STATE") {
       state.value = message.state;
     }
@@ -116,6 +128,10 @@ onMounted(() => {
   clock = window.setInterval(() => {
     nowTs.value = Date.now();
   }, 250);
+
+  if (storedPlayerId.value) {
+    connect();
+  }
 });
 </script>
 
@@ -124,13 +140,13 @@ onMounted(() => {
     <header class="header">
       <h1>Runebrawl MVP</h1>
       <div v-if="state" class="round">
-        Round {{ state.round }} | Phase: {{ state.phase }} | {{ secondsLeft }}s
+        Round {{ state.round }} | Phase: {{ state.phase }} | Seq {{ state.sequence }} | {{ secondsLeft }}s
       </div>
     </header>
 
     <div v-if="!connected" class="join-card">
       <input v-model="name" placeholder="Your name" />
-      <button @click="connect">Join Match</button>
+      <button @click="connect">{{ storedPlayerId ? "Reconnect / Join" : "Join Match" }}</button>
     </div>
 
     <p v-if="error" class="error">{{ error }}</p>
