@@ -1,6 +1,25 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import type { ClientIntent, CombatReplayEvent, LobbySummary, MatchPublicState, ServerMessage, UnitInstance } from "@runebrawl/shared";
+import type {
+  AbilityKey,
+  ClientIntent,
+  CombatReplayEvent,
+  LobbySummary,
+  MatchPublicState,
+  ServerMessage,
+  UnitDefinition,
+  UnitInstance,
+  UnitRole
+} from "@runebrawl/shared";
+import roleTankIcon from "../assets/icons/role-tank.svg";
+import roleMeleeIcon from "../assets/icons/role-melee.svg";
+import roleRangedIcon from "../assets/icons/role-ranged.svg";
+import roleSupportIcon from "../assets/icons/role-support.svg";
+import abilityTauntIcon from "../assets/icons/ability-taunt.svg";
+import abilityDeathBurstIcon from "../assets/icons/ability-death-burst.svg";
+import abilityBloodlustIcon from "../assets/icons/ability-bloodlust.svg";
+import abilityLifestealIcon from "../assets/icons/ability-lifesteal.svg";
+import abilityNoneIcon from "../assets/icons/ability-none.svg";
 
 const name = ref("");
 const connected = ref(false);
@@ -107,6 +126,30 @@ const replayEnemyBoard = ref<(ReplayUnit | null)[]>([]);
 const recentDamageBySlot = ref<Record<string, string>>({});
 const deadSlots = ref<Record<string, boolean>>({});
 const replayDuelId = ref<string | null>(null);
+
+const ABILITY_LABELS: Record<AbilityKey, string> = {
+  NONE: "No Ability",
+  TAUNT: "Taunt",
+  DEATH_BURST: "Death Burst",
+  BLOODLUST: "Bloodlust",
+  LIFESTEAL: "Lifesteal"
+};
+
+const ABILITY_DESCRIPTIONS: Record<AbilityKey, string> = {
+  NONE: "No special effect.",
+  TAUNT: "Enemies prioritize attacking this unit when possible.",
+  DEATH_BURST: "On death: deals 2 damage to a random enemy.",
+  BLOODLUST: "On kill: gains +1 attack and +1 max health.",
+  LIFESTEAL: "On hit: heals for 50% of damage dealt (min 1)."
+};
+
+const ABILITY_ICON_PATHS: Record<AbilityKey, string> = {
+  NONE: abilityNoneIcon,
+  TAUNT: abilityTauntIcon,
+  DEATH_BURST: abilityDeathBurstIcon,
+  BLOODLUST: abilityBloodlustIcon,
+  LIFESTEAL: abilityLifestealIcon
+};
 
 function connect(): void {
   if (!name.value.trim() && !storedPlayerId.value) {
@@ -290,6 +333,73 @@ function onDrop(toZone: "bench" | "board", toIndex: number): void {
 function unitLabel(unit: UnitInstance | null): string {
   if (!unit) return "Empty";
   return `${unit.name} [${unit.attack}/${unit.hp}] L${unit.level}`;
+}
+
+function roleIconPath(role: UnitRole): string {
+  switch (role) {
+    case "Tank":
+      return roleTankIcon;
+    case "Melee":
+      return roleMeleeIcon;
+    case "Ranged":
+      return roleRangedIcon;
+    case "Support":
+      return roleSupportIcon;
+    default:
+      return roleSupportIcon;
+  }
+}
+
+function abilityIconPath(ability: AbilityKey): string {
+  return ABILITY_ICON_PATHS[ability];
+}
+
+function abilityLabel(ability: AbilityKey): string {
+  return ABILITY_LABELS[ability];
+}
+
+function abilityDescription(ability: AbilityKey): string {
+  return ABILITY_DESCRIPTIONS[ability];
+}
+
+const abilityKeysByLogMessage = computed(() => {
+  const buckets: Record<string, AbilityKey[]> = {};
+  for (const event of state.value?.combatEvents ?? []) {
+    if (event.type !== "ABILITY_TRIGGERED" || !event.abilityKey) continue;
+    if (!buckets[event.message]) buckets[event.message] = [];
+    buckets[event.message].push(event.abilityKey);
+  }
+  return buckets;
+});
+
+const enrichedCombatLog = computed(() => {
+  const lines = state.value?.combatLog ?? [];
+  const consumedPerMessage: Record<string, number> = {};
+  return lines.map((line) => {
+    const bucket = abilityKeysByLogMessage.value[line] ?? [];
+    const offset = consumedPerMessage[line] ?? 0;
+    consumedPerMessage[line] = offset + 1;
+    const ability = bucket[offset] ?? null;
+    if (!ability) {
+      return { line, hint: "" };
+    }
+    return {
+      line,
+      hint: `Hint: ${abilityLabel(ability)} - ${abilityDescription(ability)}`
+    };
+  });
+});
+
+function unitTierClass(unit: UnitDefinition | null): string {
+  if (!unit) return "";
+  if (unit.tier <= 2) return "tier-low";
+  if (unit.tier <= 4) return "tier-mid";
+  return "tier-high";
+}
+
+function unitQuickMeta(unit: UnitInstance | null): string {
+  if (!unit) return "Empty";
+  return `${unit.name} [${unit.attack}/${unit.hp}]`;
 }
 
 function unitLabelReplay(unit: ReplayUnit | null): string {
@@ -545,10 +655,23 @@ onMounted(() => {
           </div>
         </div>
         <div v-if="!isHeroSelection" class="shop-row">
-          <div v-for="(unit, idx) in me.shop" :key="idx" class="shop-card">
-            <div class="unit-name">{{ unit?.name ?? "Sold out" }}</div>
+          <div v-for="(unit, idx) in me.shop" :key="idx" class="shop-card" :class="unitTierClass(unit)">
+            <div class="unit-name" v-if="unit">
+              <img class="unit-icon" :src="roleIconPath(unit.role)" alt="" />
+              <span>{{ unit.name }}</span>
+            </div>
+            <div class="unit-name" v-else>Sold out</div>
             <div v-if="unit" class="unit-meta">
-              {{ unit.role }} | {{ unit.attack }}/{{ unit.hp }} | SPD {{ unit.speed }}
+              <span class="meta-chip">T{{ unit.tier }}</span>
+              <span class="meta-chip">
+                <img class="chip-icon" :src="roleIconPath(unit.role)" alt="" />
+                {{ unit.role }}
+              </span>
+              <span class="meta-chip" :title="`${abilityLabel(unit.ability)}: ${abilityDescription(unit.ability)}`">
+                <img class="chip-icon" :src="abilityIconPath(unit.ability)" alt="" />
+                {{ abilityLabel(unit.ability) }}
+              </span>
+              <div class="unit-meta-line">ATK {{ unit.attack }} | HP {{ unit.hp }} | SPD {{ unit.speed }}</div>
             </div>
             <button :disabled="!isBuyPhase || !unit" @click="buy(idx)">Buy (3)</button>
           </div>
@@ -589,7 +712,15 @@ onMounted(() => {
             @drop="onDrop('board', idx)"
           >
             <div class="slot-title">Board {{ idx + 1 }}</div>
-            <div class="slot-unit">{{ unitLabel(unit) }}</div>
+            <div class="slot-unit">{{ unitQuickMeta(unit) }}</div>
+            <div
+              v-if="unit"
+              class="slot-mini-meta"
+              :title="`${abilityLabel(unit.ability)}: ${abilityDescription(unit.ability)}`"
+            >
+              <img class="chip-icon" :src="abilityIconPath(unit.ability)" alt="" />
+              {{ abilityLabel(unit.ability) }}
+            </div>
             <button v-if="unit && isBuyPhase" @click="sell('board', idx)">Sell (+1)</button>
           </div>
         </div>
@@ -606,7 +737,15 @@ onMounted(() => {
             @drop="onDrop('bench', idx)"
           >
             <div class="slot-title">Bench {{ idx + 1 }}</div>
-            <div class="slot-unit">{{ unitLabel(unit) }}</div>
+            <div class="slot-unit">{{ unitQuickMeta(unit) }}</div>
+            <div
+              v-if="unit"
+              class="slot-mini-meta"
+              :title="`${abilityLabel(unit.ability)}: ${abilityDescription(unit.ability)}`"
+            >
+              <img class="chip-icon" :src="abilityIconPath(unit.ability)" alt="" />
+              {{ abilityLabel(unit.ability) }}
+            </div>
             <button v-if="unit && isBuyPhase" @click="sell('bench', idx)">Sell (+1)</button>
           </div>
         </div>
@@ -673,8 +812,9 @@ onMounted(() => {
 
         <h3>Combat Log</h3>
         <div class="log">
-          <div v-for="(line, idx) in state.combatLog" :key="idx">
-            {{ line }}
+          <div v-for="(entry, idx) in enrichedCombatLog" :key="idx" class="log-entry">
+            <div>{{ entry.line }}</div>
+            <div v-if="entry.hint" class="log-hint">{{ entry.hint }}</div>
           </div>
         </div>
       </aside>

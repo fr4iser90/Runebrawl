@@ -5,6 +5,9 @@ This folder contains the core architecture and design documents for a browser-ba
 ## Documents
 
 - `docs/CHANGELOG.md` - Chronological project changes and milestones
+- `docs/ASSETS.md` - Asset workflow notes (placeholder to production)
+- `docs/EXECUTION_PLAN.md` - Concrete 2-sprint execution plan (stabilization first)
+- `docs/SPRINT1_TASKS.md` - Concrete Sprint 1 implementation backlog
 - `docs/OVERVIEW.md` - Current implementation overview (feature and system status)
 - `docs/GDD.md` - Game Design Document (autobattle gameplay, shop loop, unit systems)
 - `docs/TDD.md` - Technical Design Document (server architecture, data model, combat engine)

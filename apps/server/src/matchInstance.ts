@@ -17,6 +17,7 @@ import { findHeroById, randomHeroOptions } from "./data/heroes.js";
 import { unitsForTier } from "./data/units.js";
 import { simulateCombat } from "./engine/combat.js";
 import { SeededRng } from "./engine/rng.js";
+import { applyEffect } from "./rules/effectRegistry.js";
 
 interface SocketLike {
   send: (data: string) => void;
@@ -813,7 +814,12 @@ export class MatchInstance {
     if (!player.hero) return;
     if (player.hero.powerType !== "PASSIVE") return;
     if (player.hero.powerKey === "BONUS_GOLD") {
-      player.gold = Math.min(BALANCE.maxGold, player.gold + 1);
+      applyEffect(
+        "GAIN_GOLD",
+        { type: "ROUND_START", round: this.match.round, playerId: player.playerId },
+        { player, maxGold: BALANCE.maxGold },
+        { amount: 1 }
+      );
     }
   }
 
@@ -918,6 +924,7 @@ export class MatchInstance {
         targetOwnerId: event.targetOwnerId,
         targetSlotIndex: event.targetSlotIndex,
         targetUnitName: event.targetUnitName,
+        abilityKey: event.abilityKey,
         message: event.message
       });
     }

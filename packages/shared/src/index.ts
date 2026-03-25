@@ -1,7 +1,7 @@
 export type GamePhase = "LOBBY" | "HERO_SELECTION" | "TAVERN" | "POSITIONING" | "COMBAT" | "ROUND_END" | "FINISHED";
 
 export type UnitRole = "Tank" | "Melee" | "Ranged" | "Support";
-export type AbilityKey = "NONE" | "DEATH_BURST" | "TAUNT" | "BLOODLUST";
+export type AbilityKey = "NONE" | "DEATH_BURST" | "TAUNT" | "BLOODLUST" | "LIFESTEAL";
 export type HeroPowerType = "PASSIVE" | "ACTIVE";
 export type HeroPowerKey = "BONUS_GOLD" | "WAR_DRUM" | "RECRUITER" | "FORTIFY";
 
@@ -86,6 +86,7 @@ export interface CombatReplayEvent {
   targetOwnerId?: "A" | "B";
   targetSlotIndex?: number;
   targetUnitName?: string;
+  abilityKey?: AbilityKey;
   message: string;
 }
 

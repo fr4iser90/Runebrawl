@@ -106,14 +106,56 @@ button:disabled {
   padding: 10px;
 }
 
+.shop-card.tier-low {
+  border-color: #3a5079;
+}
+
+.shop-card.tier-mid {
+  border-color: #5b4ea0;
+}
+
+.shop-card.tier-high {
+  border-color: #9b5e25;
+}
+
 .unit-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 700;
+}
+
+.unit-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .unit-meta {
   font-size: 13px;
   opacity: 0.9;
   margin: 4px 0 8px;
+}
+
+.unit-meta-line {
+  margin-top: 6px;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  margin: 0 4px 4px 0;
+  border-radius: 999px;
+  border: 1px solid #445380;
+  background: #263152;
+  font-size: 11px;
+  cursor: help;
+}
+
+.chip-icon {
+  width: 12px;
+  height: 12px;
 }
 
 .actions {
@@ -228,6 +270,16 @@ button:disabled {
   font-size: 14px;
 }
 
+.slot-mini-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  opacity: 0.85;
+  margin-bottom: 6px;
+  cursor: help;
+}
+
 .sidebar ul {
   margin: 0 0 12px;
   padding-left: 18px;
@@ -241,6 +293,16 @@ button:disabled {
   padding: 8px;
   background: #171d31;
   font-size: 13px;
+}
+
+.log-entry {
+  margin-bottom: 6px;
+}
+
+.log-hint {
+  font-size: 11px;
+  opacity: 0.75;
+  color: #b9c4eb;
 }
 
 .error {

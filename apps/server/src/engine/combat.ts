@@ -1,8 +1,10 @@
-import type { UnitInstance } from "@runebrawl/shared";
+import type { AbilityKey, UnitInstance } from "@runebrawl/shared";
 import { SeededRng } from "./rng.js";
+import { applyEffect } from "../rules/effectRegistry.js";
+import type { GameEvent } from "../rules/events.js";
 
 interface CombatUnit extends UnitInstance {
-  ownerId: string;
+  ownerId: "A" | "B";
   slotIndex: number;
   alive: boolean;
   nextActionAt: number;
@@ -16,6 +18,7 @@ export interface CombatStepEvent {
   targetOwnerId?: "A" | "B";
   targetSlotIndex?: number;
   targetUnitName?: string;
+  abilityKey?: AbilityKey;
   message: string;
 }
 
@@ -25,6 +28,28 @@ export interface CombatResult {
   survivorsB: number;
   log: string[];
   events: CombatStepEvent[];
+}
+
+function pushAbilityTriggeredEvent(
+  events: CombatStepEvent[],
+  payload: Omit<CombatStepEvent, "type"> & { abilityKey: AbilityKey }
+): void {
+  if (!payload.abilityKey) {
+    throw new Error("Combat integrity violation: ABILITY_TRIGGERED event requires abilityKey.");
+  }
+  events.push({
+    type: "ABILITY_TRIGGERED",
+    ...payload
+  });
+}
+
+function assertCombatEventsIntegrity(events: CombatStepEvent[]): void {
+  for (const event of events) {
+    if (event.type !== "ABILITY_TRIGGERED") continue;
+    if (!event.abilityKey) {
+      throw new Error("Combat integrity violation: ABILITY_TRIGGERED event missing abilityKey.");
+    }
+  }
 }
 
 function living(units: CombatUnit[]): CombatUnit[] {
@@ -77,50 +102,100 @@ function onDeath(
   events: CombatStepEvent[],
   rng: SeededRng
 ): void {
-  if (unit.ability === "DEATH_BURST") {
-    const target = selectTarget(unit, enemies, rng);
-    if (!target) return;
-    target.hp -= 2;
-    const message = `${unit.name} death burst hits ${target.name} for 2.`;
-    log.push(message);
-    events.push({
-      type: "ABILITY_TRIGGERED",
+  if (unit.ability !== "DEATH_BURST") return;
+  const target = selectTarget(unit, enemies, rng);
+  if (!target) return;
+  const beforeLogLen = log.length;
+  const event: GameEvent = {
+    type: "UNIT_DIED",
+    ownerId: unit.ownerId as "A" | "B",
+    slotIndex: unit.slotIndex,
+    unitName: unit.name
+  };
+  applyEffect(
+    "DEATH_BURST_ON_DEATH",
+    event,
+    { sourceUnit: unit, targetUnit: target, log },
+    { damage: 2 }
+  );
+  const newLogs = log.slice(beforeLogLen);
+  for (const message of newLogs) {
+    pushAbilityTriggeredEvent(events, {
       sourceOwnerId: unit.ownerId as "A" | "B",
       sourceSlotIndex: unit.slotIndex,
       sourceUnitName: unit.name,
       targetOwnerId: target.ownerId as "A" | "B",
       targetSlotIndex: target.slotIndex,
       targetUnitName: target.name,
+      abilityKey: "DEATH_BURST",
       message
     });
-    if (target.hp <= 0 && target.alive) {
-      target.alive = false;
-      const deathMessage = `${target.name} dies.`;
-      log.push(deathMessage);
-      events.push({
-        type: "UNIT_DIED",
-        sourceOwnerId: target.ownerId as "A" | "B",
-        sourceSlotIndex: target.slotIndex,
-        sourceUnitName: target.name,
-        message: deathMessage
-      });
-      onDeath(target, enemies, allies, log, events, rng);
-    }
+  }
+  if (target.hp <= 0 && target.alive) {
+    target.alive = false;
+    const deathMessage = `${target.name} dies.`;
+    log.push(deathMessage);
+    events.push({
+      type: "UNIT_DIED",
+      sourceOwnerId: target.ownerId as "A" | "B",
+      sourceSlotIndex: target.slotIndex,
+      sourceUnitName: target.name,
+      message: deathMessage
+    });
+    onDeath(target, enemies, allies, log, events, rng);
   }
 }
 
-function onKill(attacker: CombatUnit, log: string[], events: CombatStepEvent[]): void {
-  if (attacker.ability === "BLOODLUST") {
-    attacker.attack += 1;
-    attacker.hp += 1;
-    attacker.maxHp += 1;
-    const message = `${attacker.name} gains Bloodlust (+1/+1).`;
-    log.push(message);
-    events.push({
-      type: "ABILITY_TRIGGERED",
+function onKill(attacker: CombatUnit, defeated: CombatUnit, log: string[], events: CombatStepEvent[]): void {
+  if (attacker.ability !== "BLOODLUST") return;
+  const beforeLogLen = log.length;
+  const event: GameEvent = {
+    type: "UNIT_DIED",
+    ownerId: defeated.ownerId as "A" | "B",
+    slotIndex: defeated.slotIndex,
+    unitName: defeated.name,
+    killerOwnerId: attacker.ownerId as "A" | "B",
+    killerSlotIndex: attacker.slotIndex,
+    killerUnitName: attacker.name
+  };
+  applyEffect("BLOODLUST_ON_KILL", event, { attacker, log });
+  const newLogs = log.slice(beforeLogLen);
+  for (const message of newLogs) {
+    pushAbilityTriggeredEvent(events, {
       sourceOwnerId: attacker.ownerId as "A" | "B",
       sourceSlotIndex: attacker.slotIndex,
       sourceUnitName: attacker.name,
+      abilityKey: "BLOODLUST",
+      message
+    });
+  }
+}
+
+function applyOnHitEffects(
+  attacker: CombatUnit,
+  defender: CombatUnit,
+  hitEvent: GameEvent,
+  log: string[],
+  events: CombatStepEvent[]
+): void {
+  const beforeLogLen = log.length;
+  switch (attacker.ability) {
+    case "LIFESTEAL":
+      applyEffect("LIFESTEAL_ON_HIT", hitEvent, { sourceUnit: attacker, log }, { ratio: 0.5 });
+      break;
+    default:
+      break;
+  }
+  const newLogs = log.slice(beforeLogLen);
+  for (const message of newLogs) {
+    pushAbilityTriggeredEvent(events, {
+      sourceOwnerId: attacker.ownerId,
+      sourceSlotIndex: attacker.slotIndex,
+      sourceUnitName: attacker.name,
+      targetOwnerId: defender.ownerId,
+      targetSlotIndex: defender.slotIndex,
+      targetUnitName: defender.name,
+      abilityKey: attacker.ability,
       message
     });
   }
@@ -175,9 +250,22 @@ export function simulateCombat(
       targetUnitName: defender.name,
       message: attackMessage
     });
-
-    defender.hp -= attacker.attack;
-    attacker.hp -= defender.attack;
+    const hitEvent: GameEvent = {
+      type: "ATTACK_HIT",
+      sourceOwnerId: attacker.ownerId,
+      sourceSlotIndex: attacker.slotIndex,
+      sourceUnitName: attacker.name,
+      targetOwnerId: defender.ownerId,
+      targetSlotIndex: defender.slotIndex,
+      targetUnitName: defender.name,
+      damageToTarget: attacker.attack,
+      damageToSource: defender.attack
+    };
+    applyEffect("RESOLVE_ATTACK_HIT", hitEvent, {
+      sourceUnit: attacker,
+      targetUnit: defender
+    });
+    applyOnHitEffects(attacker, defender, hitEvent, log, events);
 
     const defenderDied = defender.hp <= 0 && defender.alive;
     const attackerDied = attacker.hp <= 0 && attacker.alive;
@@ -193,7 +281,7 @@ export function simulateCombat(
         sourceUnitName: defender.name,
         message: defenderDeathMessage
       });
-      onKill(attacker, log, events);
+      onKill(attacker, defender, log, events);
       onDeath(defender, defenders, attackers, log, events, rng);
     }
 
@@ -219,6 +307,7 @@ export function simulateCombat(
   const survivorsA = living(a).length;
   const survivorsB = living(b).length;
   const winner = survivorsA === survivorsB ? "DRAW" : survivorsA > survivorsB ? "A" : "B";
+  assertCombatEventsIntegrity(events);
 
   return { winner, survivorsA, survivorsB, log, events };
 }

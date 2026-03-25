@@ -6,6 +6,7 @@ Browser-based multiplayer autobattler inspired by genre-defining games such as H
 
 See `docs/README.md` for:
 - `docs/CHANGELOG.md` (chronological project updates)
+- `docs/EXECUTION_PLAN.md` (next 2 sprints execution plan)
 - `docs/OVERVIEW.md` (current implementation status)
 - `docs/GDD.md` (game design)
 - `docs/TDD.md` (technical architecture)
