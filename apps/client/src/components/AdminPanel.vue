@@ -896,18 +896,26 @@ onBeforeUnmount(() => {
                 :class="`portrait-frame-variant portrait-frame-variant--${adminPortraitPreviewFrame} portrait-frame-preview-svg`"
               >
                 <div class="shop-card admin-portrait-mini-shop" :class="adminPreviewTierClass(entry.tier)">
-                  <div class="portrait-slot portrait-slot-unit admin-portrait-mini-slot portrait-slot--svg-frame">
-                    <div class="portrait-frame-stack">
-                      <img class="portrait-image portrait-frame-stack__art" :src="entry.src" :alt="entry.name" loading="lazy" />
-                      <PortraitFrameSvg :frame-id="adminPortraitPreviewFrame" :tier-class="adminPreviewTierClass(entry.tier)" />
+                  <div class="unit-card-chrome">
+                    <div class="unit-card-chrome__content">
+                      <div class="portrait-slot portrait-slot-unit admin-portrait-mini-slot portrait-slot--svg-frame">
+                        <div class="portrait-frame-stack">
+                          <img class="portrait-image portrait-frame-stack__art" :src="entry.src" :alt="entry.name" loading="lazy" />
+                        </div>
+                      </div>
+                      <div class="unit-name">
+                        <span>{{ entry.name }}</span>
+                      </div>
+                      <div class="unit-meta">
+                        <span class="meta-chip">T{{ entry.tier }}</span>
+                        <span class="meta-chip">{{ entry.role }}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div class="unit-name">
-                    <span>{{ entry.name }}</span>
-                  </div>
-                  <div class="unit-meta">
-                    <span class="meta-chip">T{{ entry.tier }}</span>
-                    <span class="meta-chip">{{ entry.role }}</span>
+                    <PortraitFrameSvg
+                      :frame-id="adminPortraitPreviewFrame"
+                      :tier-class="adminPreviewTierClass(entry.tier)"
+                      scope="unitShopCard"
+                    />
                   </div>
                 </div>
               </div>

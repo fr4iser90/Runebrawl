@@ -1,23 +1,67 @@
 /**
  * Portrait / shop-card preview frames (Suggest wizard, Admin).
- * Parent gets .portrait-frame-variant + .portrait-frame-variant--<id>
- * SVG overlays: PortraitFrameSvg.vue + .portrait-frame-preview-svg
+ *
+ * --- Unit shop card layout (preview tooling; target for live shop later) ---
+ *
+ * .shop-card
+ *   └── .unit-card-chrome (position relative; flex column; fills card)
+ *         ├── .unit-card-chrome__content (z-index 0; padding = safe inset inside SVG stroke)
+ *         │     ├── .portrait-slot  — PortraitRegion (flex-grow; art only)
+ *         │     ├── .unit-name      — TitleRow
+ *         │     └── .unit-meta      — StatRow (T#, role, …)
+ *         └── PortraitFrameSvg (scope=unitShopCard) — full-card stroke layer, z-index 1
+ *
+ * Below the card (admin): .portrait-preview-meta — technical id + loaded/missing (not player-facing chrome).
  */
 
 .portrait-frame-variant .shop-card {
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
-/* —— SVG preview mode: art fills slot; frame is drawn by PortraitFrameSvg —— */
 .portrait-frame-preview-svg .shop-card.tier-low,
 .portrait-frame-preview-svg .shop-card.tier-mid,
 .portrait-frame-preview-svg .shop-card.tier-high {
   border: 1px solid rgba(70, 90, 140, 0.45);
   box-shadow: 0 8px 22px rgba(6, 10, 22, 0.42);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .portrait-frame-preview-svg .shop-card:hover {
   border-color: rgba(100, 120, 190, 0.55);
+}
+
+/* Chrome: portrait + text live inside the same framed box */
+.unit-card-chrome {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+.unit-card-chrome__content {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 8px 10px 10px;
+  gap: 5px;
+}
+
+.portrait-frame-preview-svg .unit-card-chrome__content .unit-name,
+.portrait-frame-preview-svg .unit-card-chrome__content .unit-meta {
+  position: relative;
+  z-index: 0;
+}
+
+.portrait-frame-preview-svg .unit-card-chrome__content .unit-meta {
+  margin-bottom: 0;
+  margin-top: 0;
 }
 
 .portrait-slot.portrait-slot--svg-frame {
@@ -26,6 +70,15 @@
   background: #0a0f1c;
   box-shadow: none;
   overflow: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  margin-bottom: 0 !important;
+}
+
+/* Fixed heights from global .portrait-slot-unit are overridden inside chrome */
+.portrait-frame-preview-svg .unit-card-chrome__content > .portrait-slot--svg-frame.portrait-slot-unit {
+  height: auto;
 }
 
 .portrait-frame-stack {
@@ -59,9 +112,10 @@
 
 /* Admin portrait grid: compact shop preview */
 .admin-portrait-mini-shop.shop-card {
-  padding: 8px;
+  padding: 0;
   margin: 0 0 8px;
   pointer-events: none;
+  min-height: 168px;
 }
 
 .admin-portrait-mini-shop.shop-card:hover {
@@ -73,7 +127,12 @@
   margin-bottom: 0;
 }
 
-.admin-portrait-mini-slot.portrait-slot--svg-frame.portrait-slot-unit {
-  /* height comes from .admin-portrait-mini-slot.portrait-slot-unit */
-  margin-bottom: 0;
+.portrait-frame-preview-svg .admin-portrait-mini-shop .unit-card-chrome__content > .admin-portrait-mini-slot.portrait-slot-unit {
+  min-height: 72px;
+  flex: 1 1 0;
+}
+
+/* Suggest column: enough height so portrait band + title + chips match SVG proportions */
+.portrait-frame-preview-svg .suggest-preview-shop-card.shop-card {
+  min-height: 300px;
 }

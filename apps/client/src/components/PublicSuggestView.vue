@@ -670,27 +670,31 @@ function resetWizard(): void {
               </label>
               <div class="suggest-portrait-shop-preview portrait-frame-preview-svg" :class="portraitPreviewWrapperClass(row)">
                 <div class="shop-card suggest-preview-shop-card" :class="previewTierClass(row.tier)">
-                  <div class="portrait-slot portrait-slot-unit suggest-preview-portrait-slot portrait-slot--svg-frame">
-                    <div class="portrait-frame-stack">
-                      <img
-                        v-if="row.portraitPreviewUrl"
-                        :src="row.portraitPreviewUrl"
-                        class="portrait-image portrait-frame-stack__art"
-                        :style="portraitFocusStyle(row)"
-                        alt=""
-                      />
-                      <div v-else class="suggest-preview-empty-ph portrait-frame-stack__art">
-                        {{ t("suggest.portraitPlaceholder") }}
+                  <div class="unit-card-chrome">
+                    <div class="unit-card-chrome__content">
+                      <div class="portrait-slot portrait-slot-unit suggest-preview-portrait-slot portrait-slot--svg-frame">
+                        <div class="portrait-frame-stack">
+                          <img
+                            v-if="row.portraitPreviewUrl"
+                            :src="row.portraitPreviewUrl"
+                            class="portrait-image portrait-frame-stack__art"
+                            :style="portraitFocusStyle(row)"
+                            alt=""
+                          />
+                          <div v-else class="suggest-preview-empty-ph portrait-frame-stack__art">
+                            {{ t("suggest.portraitPlaceholder") }}
+                          </div>
+                        </div>
                       </div>
-                      <PortraitFrameSvg :frame-id="row.portraitFrameId" :tier-class="previewTierClass(row.tier)" />
+                      <div class="unit-name">
+                        <span>{{ row.name.trim() || "—" }}</span>
+                      </div>
+                      <div class="unit-meta">
+                        <span class="meta-chip">T{{ row.tier }}</span>
+                        <span class="meta-chip">{{ row.role }}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div class="unit-name">
-                    <span>{{ row.name.trim() || "—" }}</span>
-                  </div>
-                  <div class="unit-meta">
-                    <span class="meta-chip">T{{ row.tier }}</span>
-                    <span class="meta-chip">{{ row.role }}</span>
+                    <PortraitFrameSvg :frame-id="row.portraitFrameId" :tier-class="previewTierClass(row.tier)" scope="unitShopCard" />
                   </div>
                 </div>
               </div>
