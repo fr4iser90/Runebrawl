@@ -1231,6 +1231,11 @@ onBeforeUnmount(() => {
 onMounted(() => {
   window.addEventListener("runebrawl:open-settings", handleGlobalOpenSettings as EventListener);
   const params = new URLSearchParams(window.location.search);
+  const invite = params.get("invite")?.trim();
+  if (invite) {
+    inviteCodeInput.value = invite.toUpperCase();
+    joinMode.value = "joinPrivate";
+  }
   if (import.meta.env.DEV && params.get("rb_mock") === "1") {
     const requestedPhase = params.get("rb_phase")?.toUpperCase() as GamePhase | undefined;
     const phase: GamePhase = requestedPhase && ["LOBBY", "HERO_SELECTION", "TAVERN", "POSITIONING", "COMBAT", "ROUND_END", "FINISHED"].includes(requestedPhase) ? requestedPhase : "LOBBY";

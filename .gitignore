@@ -10,3 +10,4 @@ apps/server/node_modules
 packages/shared/node_modules
 apps/client/playwright-report
 apps/client/test-results
+docker-compose.traefik.yml

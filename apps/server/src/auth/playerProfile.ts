@@ -24,6 +24,7 @@ function normalizeDisplayName(value: string | undefined): string {
 export class PlayerProfileService {
   private readonly pool: Pool | null;
   private readonly memoryProfiles = new Map<string, string>();
+  private databaseAvailable = true;
 
   constructor(connectionString?: string) {
     const normalized = connectionString?.trim() ?? "";
@@ -38,38 +39,48 @@ export class PlayerProfileService {
   async ensureProfile(accountId: string, preferredDisplayName?: string): Promise<PlayerProfile> {
     const normalizedAccountId = normalizeAccountId(accountId);
     const desiredDisplayName = normalizeDisplayName(preferredDisplayName);
-    if (!this.pool) {
+    if (!this.pool || !this.databaseAvailable) {
       const existing = this.memoryProfiles.get(normalizedAccountId);
       const displayName = existing ?? desiredDisplayName;
       this.memoryProfiles.set(normalizedAccountId, displayName);
       return { accountId: normalizedAccountId, displayName };
     }
 
-    const playerUuid = stableUuidFromString(`player:${normalizedAccountId}`);
-    await this.pool.query(
-      `INSERT INTO players (id, display_name)
-       VALUES ($1::uuid, $2)
-       ON CONFLICT (id) DO UPDATE
-       SET display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), players.display_name)`,
-      [playerUuid, desiredDisplayName]
-    );
-    const row = await this.pool.query<{ display_name: string }>(
-      `SELECT display_name
-       FROM players
-       WHERE id = $1::uuid
-       LIMIT 1`,
-      [playerUuid]
-    );
-    return {
-      accountId: normalizedAccountId,
-      displayName: row.rows[0]?.display_name ?? desiredDisplayName
-    };
+    try {
+      const playerUuid = stableUuidFromString(`player:${normalizedAccountId}`);
+      await this.pool.query(
+        `INSERT INTO players (id, display_name)
+         VALUES ($1::uuid, $2)
+         ON CONFLICT (id) DO UPDATE
+         SET display_name = COALESCE(NULLIF(EXCLUDED.display_name, ''), players.display_name)`,
+        [playerUuid, desiredDisplayName]
+      );
+      const row = await this.pool.query<{ display_name: string }>(
+        `SELECT display_name
+         FROM players
+         WHERE id = $1::uuid
+         LIMIT 1`,
+        [playerUuid]
+      );
+      const resolved = row.rows[0]?.display_name ?? desiredDisplayName;
+      this.memoryProfiles.set(normalizedAccountId, resolved);
+      return {
+        accountId: normalizedAccountId,
+        displayName: resolved
+      };
+    } catch {
+      this.databaseAvailable = false;
+      const existing = this.memoryProfiles.get(normalizedAccountId);
+      const displayName = existing ?? desiredDisplayName;
+      this.memoryProfiles.set(normalizedAccountId, displayName);
+      return { accountId: normalizedAccountId, displayName };
+    }
   }
 
   async updateDisplayName(accountId: string, displayName: string): Promise<PlayerProfile> {
     const normalizedAccountId = normalizeAccountId(accountId);
     const normalizedName = normalizeDisplayName(displayName);
-    if (!this.pool) {
+    if (!this.pool || !this.databaseAvailable) {
       this.memoryProfiles.set(normalizedAccountId, normalizedName);
       return {
         accountId: normalizedAccountId,
@@ -77,17 +88,27 @@ export class PlayerProfileService {
       };
     }
 
-    const playerUuid = stableUuidFromString(`player:${normalizedAccountId}`);
-    await this.pool.query(
-      `INSERT INTO players (id, display_name)
-       VALUES ($1::uuid, $2)
-       ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name`,
-      [playerUuid, normalizedName]
-    );
-    return {
-      accountId: normalizedAccountId,
-      displayName: normalizedName
-    };
+    try {
+      const playerUuid = stableUuidFromString(`player:${normalizedAccountId}`);
+      await this.pool.query(
+        `INSERT INTO players (id, display_name)
+         VALUES ($1::uuid, $2)
+         ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name`,
+        [playerUuid, normalizedName]
+      );
+      this.memoryProfiles.set(normalizedAccountId, normalizedName);
+      return {
+        accountId: normalizedAccountId,
+        displayName: normalizedName
+      };
+    } catch {
+      this.databaseAvailable = false;
+      this.memoryProfiles.set(normalizedAccountId, normalizedName);
+      return {
+        accountId: normalizedAccountId,
+        displayName: normalizedName
+      };
+    }
   }
 }
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onBeforeUnmount, ref } from "vue";
 import type { MatchPublicState } from "@runebrawl/shared";
 import { useI18n } from "../../i18n/useI18n";
 
@@ -29,6 +30,36 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const copiedInvite = ref(false);
+let copiedResetTimer: number | null = null;
+
+async function shareInviteLink(inviteCode: string): Promise<void> {
+  const url = `${window.location.origin}/?invite=${encodeURIComponent(inviteCode)}`;
+  if (navigator.share) {
+    try {
+      await navigator.share({ url });
+      copiedInvite.value = true;
+    } catch {
+      // Ignore abort/cancel and fall back to clipboard only when possible.
+    }
+  }
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(url);
+      copiedInvite.value = true;
+      if (copiedResetTimer !== null) window.clearTimeout(copiedResetTimer);
+      copiedResetTimer = window.setTimeout(() => {
+        copiedInvite.value = false;
+      }, 1600);
+    } catch {
+      copiedInvite.value = false;
+    }
+  }
+}
+
+onBeforeUnmount(() => {
+  if (copiedResetTimer !== null) window.clearTimeout(copiedResetTimer);
+});
 </script>
 
 <template>
@@ -41,6 +72,9 @@ const { t } = useI18n();
           {{ t("game.players") }}: {{ props.state.players.length }} / {{ props.state.maxPlayers }}
         </span>
         <span v-if="props.state.isPrivate && props.state.inviteCode" class="stat-pill">{{ t("game.code") }}: {{ props.state.inviteCode }}</span>
+        <button v-if="props.state.isPrivate && props.state.inviteCode" @click="shareInviteLink(props.state.inviteCode)">
+          {{ copiedInvite ? t("game.invite.copied") : t("game.invite.copyLink") }}
+        </button>
       </div>
     </header>
 
