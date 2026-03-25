@@ -52,15 +52,17 @@ const { t } = useI18n();
 <template>
   <section class="combat-screen combat-board">
     <h2>{{ t("game.combatView") }}</h2>
-    <div class="combat-subtitle">
-      <span v-if="props.myDuelMeta">{{ props.myDuelMeta.meName }} {{ t("game.vs") }} {{ props.myDuelMeta.opponentName }}</span>
-      <span v-else-if="props.hasNoDuelThisRound">{{ t("game.noDuelThisRound") }}</span>
-      <span v-else>{{ t("game.waitingDuel") }}</span>
-    </div>
-    <div v-if="props.activeTargetLine" class="target-line" :class="{ hit: props.activeTargetLine.isHit }">
-      <span class="target-name">{{ props.activeTargetLine.source }}</span>
-      <span class="target-arrow">→</span>
-      <span class="target-name">{{ props.activeTargetLine.target }}</span>
+    <div class="combat-info-bar">
+      <div class="combat-subtitle">
+        <span v-if="props.myDuelMeta">{{ props.myDuelMeta.meName }} {{ t("game.vs") }} {{ props.myDuelMeta.opponentName }}</span>
+        <span v-else-if="props.hasNoDuelThisRound">{{ t("game.noDuelThisRound") }}</span>
+        <span v-else>{{ t("game.waitingDuel") }}</span>
+      </div>
+      <div v-if="props.activeTargetLine" class="target-line" :class="{ hit: props.activeTargetLine.isHit }">
+        <span class="target-name">{{ props.activeTargetLine.source }}</span>
+        <span class="target-arrow">→</span>
+        <span class="target-name">{{ props.activeTargetLine.target }}</span>
+      </div>
     </div>
     <div class="combat-arena" v-if="props.myCombatOpponent">
       <div class="combat-side">

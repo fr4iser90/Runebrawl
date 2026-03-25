@@ -93,7 +93,7 @@ onBeforeUnmount(() => {
         :style="{ '--stagger-index': heroIdx }"
       >
         <div class="portrait-slot portrait-slot-hero hero-select-portrait">
-          <img class="portrait-image" :src="props.heroPortraitPath(hero.id)" :alt="hero.name" loading="lazy" />
+          <img class="portrait-image portrait-image-contain" :src="props.heroPortraitPath(hero.id)" :alt="hero.name" loading="lazy" />
         </div>
         <h3 class="hero-select-name">{{ hero.name }}</h3>
         <p class="hero-select-desc">{{ hero.description }}</p>

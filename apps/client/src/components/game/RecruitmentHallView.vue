@@ -133,7 +133,7 @@ onBeforeUnmount(() => {
     <div v-if="props.isHeroSelection" class="shop-row hero-row">
       <div v-for="(hero, heroIdx) in props.me.heroOptions" :key="hero.id" class="shop-card hero-card">
         <div class="portrait-slot portrait-slot-hero">
-          <img class="portrait-image" :src="props.heroPortraitPath(hero.id)" :alt="hero.name" loading="lazy" />
+          <img class="portrait-image portrait-image-contain" :src="props.heroPortraitPath(hero.id)" :alt="hero.name" loading="lazy" />
         </div>
         <div class="unit-name">{{ hero.name }}</div>
         <div class="unit-meta">{{ hero.description }}</div>

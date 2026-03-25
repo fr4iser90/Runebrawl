@@ -83,6 +83,39 @@ All notable project changes are documented in this file.
     - added phase-specific UI accent tokens in the scene system (panel borders, stat pills, CTA gradients, hover glow)
     - added phase-specific component accents (hero card rims, combat slot/target highlights, match end rank styling)
     - added staggered micro-animations for hero cards and match-end placements (reduced-motion aware)
+    - improved viewport responsiveness for portraits/layout:
+      - hero portraits switched to `contain` mode to avoid cropping
+      - portrait slot sizes now scale with viewport via `clamp`/`vh`
+      - scene content uses bounded height with internal scroll on small viewports
+    - added mobile touch pass:
+      - increased tap target size (`44px`) for controls on small screens
+      - compact spacing/readability adjustments for headers, pills, and panels
+      - sticky recruitment hall action bar on phones for constant button access
+    - added mobile combat UX pass:
+      - compact combat info bar (`vs` + target line)
+      - larger combat slot hit areas and clearer mobile slot typography
+      - reduced mobile combat log height for better above-the-fold focus
+    - added landscape-phone responsive pass (`max-height`):
+      - compressed paddings/header density for short viewports
+      - tighter portrait/card/combat slot sizing
+      - reduced ornament and log heights to keep key controls visible
+    - added tiny-viewport pass (`max-width: 380px`) for very small phones:
+      - tighter spacing and typography for headers/stats/cards
+      - smaller portrait/slot sizing with stable action controls
+      - compact combat/log sizing to reduce overflow risk
+    - added horizontal overflow hardening pass:
+      - `min-width: 0` guards for grid/flex children
+      - overflow wrapping for pills/player rows/target labels
+      - explicit `overflow-x: hidden` on app/scene/log containers
+    - added Playwright UI smoke/layout test setup in client:
+      - `apps/client/playwright.config.ts` and `apps/client/tests/e2e/layout-and-flow.spec.ts`
+      - scripts: `test:e2e` and `test:e2e:ui` in `@runebrawl/client` plus root `test:e2e`
+      - basic responsive overflow checks + private lobby flow smoke tests
+    - added Playwright visual regression baseline tests:
+      - `apps/client/tests/e2e/visual.spec.ts` (menu desktop/mobile + lobby mobile snapshots)
+      - scripts: `test:e2e:visual` and `test:e2e:visual:update`
+    - added dev-only mock phase hook in `GameClient.vue` (`?rb_mock=1&rb_phase=...`) for deterministic visual tests
+    - expanded visual snapshots with mocked `COMBAT` and `FINISHED` screens
 
 ### Improved
 

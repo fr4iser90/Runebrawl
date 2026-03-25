@@ -10,7 +10,10 @@
     "dev": "concurrently \"npm run dev -w @runebrawl/server\" \"npm run dev -w @runebrawl/client\"",
     "build": "npm run build -w @runebrawl/shared && npm run build -w @runebrawl/server && npm run build -w @runebrawl/client",
     "typecheck": "npm run typecheck -w @runebrawl/shared && npm run typecheck -w @runebrawl/server && npm run typecheck -w @runebrawl/client",
-    "validate:community-content": "node ./community/validate-content.mjs"
+    "validate:community-content": "node ./community/validate-content.mjs",
+    "test:e2e": "npm run test:e2e -w @runebrawl/client",
+    "test:e2e:visual": "npm run test:e2e:visual -w @runebrawl/client",
+    "test:e2e:visual:update": "npm run test:e2e:visual:update -w @runebrawl/client"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

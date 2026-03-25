@@ -5,6 +5,7 @@ import type {
   ClientIntent,
   CombatReplayEvent,
   ErrorCode,
+  GamePhase,
   LobbySummary,
   MatchPublicState,
   ServerMessage,
@@ -327,6 +328,7 @@ const replayEnemyBoard = ref<(ReplayUnit | null)[]>([]);
 const recentDamageBySlot = ref<Record<string, string>>({});
 const deadSlots = ref<Record<string, boolean>>({});
 const replayDuelId = ref<string | null>(null);
+const devMockPhase = ref<GamePhase | null>(null);
 
 const ABILITY_ICON_PATHS: Record<AbilityKey, string> = {
   NONE: abilityNoneIcon,
@@ -335,6 +337,134 @@ const ABILITY_ICON_PATHS: Record<AbilityKey, string> = {
   BLOODLUST: abilityBloodlustIcon,
   LIFESTEAL: abilityLifestealIcon
 };
+
+function mockUnit(seed: number, name: string, role: UnitRole, ability: AbilityKey): UnitInstance {
+  return {
+    instanceId: `mock-${seed}`,
+    unitId: `mock_unit_${seed}`,
+    level: 1,
+    attack: 2 + (seed % 3),
+    hp: 4 + (seed % 4),
+    maxHp: 4 + (seed % 4),
+    speed: 1 + (seed % 3),
+    ability,
+    role,
+    name
+  };
+}
+
+function buildMockState(phase: GamePhase): MatchPublicState {
+  const now = Date.now();
+  const meId = "mock-me";
+  const enemyId = "mock-enemy";
+  const meBoard: (UnitInstance | null)[] = [
+    mockUnit(1, "Stoneguard", "Tank", "TAUNT"),
+    mockUnit(2, "Flame Archer", "Ranged", "BLOODLUST"),
+    null
+  ];
+  const enemyBoard: (UnitInstance | null)[] = [
+    mockUnit(3, "Bone Medic", "Support", "NONE"),
+    mockUnit(4, "Iron Ravager", "Melee", "DEATH_BURST"),
+    null
+  ];
+
+  const combatEvents: CombatReplayEvent[] =
+    phase === "COMBAT" || phase === "ROUND_END"
+      ? [
+          {
+            round: 4,
+            duelId: "mock-duel-1",
+            aPlayerId: meId,
+            aPlayerName: "You",
+            bPlayerId: enemyId,
+            bPlayerName: "Bot-Vex",
+            type: "ATTACK",
+            sourceOwnerId: "A",
+            sourceSlotIndex: 0,
+            sourceUnitName: "Stoneguard",
+            targetOwnerId: "B",
+            targetSlotIndex: 1,
+            targetUnitName: "Iron Ravager",
+            message: "Stoneguard attacks Iron Ravager."
+          },
+          {
+            round: 4,
+            duelId: "mock-duel-1",
+            aPlayerId: meId,
+            aPlayerName: "You",
+            bPlayerId: enemyId,
+            bPlayerName: "Bot-Vex",
+            type: "DUEL_RESULT",
+            message: "You wins and deals 4 damage to Bot-Vex."
+          }
+        ]
+      : [];
+
+  return {
+    matchId: "mock-match",
+    sequence: 1,
+    maxPlayers: 2,
+    isPrivate: true,
+    inviteCode: "MOCK42",
+    creatorPlayerId: meId,
+    round: 4,
+    phase,
+    phaseEndsAt: now + 30_000,
+    yourPlayerId: meId,
+    combatLog: combatEvents.map((e) => e.message),
+    combatEvents,
+    players: [
+      {
+        playerId: meId,
+        name: "You",
+        health: phase === "FINISHED" ? 18 : 24,
+        gold: 8,
+        xp: 2,
+        tavernTier: 2,
+        lockedShop: false,
+        ready: true,
+        hero: {
+          id: "mock-hero-a",
+          name: "Aria",
+          description: "Active (1): Buff a random ally this recruitment hall phase.",
+          powerType: "ACTIVE",
+          powerKey: "WAR_DRUM",
+          powerCost: 1
+        },
+        heroSelected: true,
+        heroPowerUsedThisTurn: false,
+        heroOptions: [],
+        shop: [],
+        bench: [mockUnit(5, "Scout", "Melee", "NONE"), null, null],
+        board: meBoard
+      },
+      {
+        playerId: enemyId,
+        name: "Bot-Vex",
+        health: phase === "FINISHED" ? 0 : 12,
+        gold: 0,
+        xp: 0,
+        tavernTier: 2,
+        lockedShop: false,
+        ready: true,
+        hero: {
+          id: "mock-hero-b",
+          name: "Matron",
+          description: "Passive: First unit gets +1/+1 each round.",
+          powerType: "PASSIVE",
+          powerKey: "FORTIFY",
+          powerCost: 0
+        },
+        heroSelected: true,
+        heroPowerUsedThisTurn: false,
+        heroOptions: [],
+        shop: [],
+        bench: [null, null, null],
+        board: enemyBoard
+      }
+    ]
+  };
+}
 
 async function connect(): Promise<void> {
   if (!name.value.trim() && !storedPlayerId.value) {
@@ -923,9 +1053,22 @@ onBeforeUnmount(() => {
 });
 
 onMounted(() => {
+  const params = new URLSearchParams(window.location.search);
+  if (import.meta.env.DEV && params.get("rb_mock") === "1") {
+    const requestedPhase = params.get("rb_phase")?.toUpperCase() as GamePhase | undefined;
+    const phase: GamePhase = requestedPhase && ["LOBBY", "HERO_SELECTION", "TAVERN", "POSITIONING", "COMBAT", "ROUND_END", "FINISHED"].includes(requestedPhase) ? requestedPhase : "LOBBY";
+    devMockPhase.value = phase;
+    connected.value = true;
+    state.value = buildMockState(phase);
+  }
+
   clock = window.setInterval(() => {
     nowTs.value = Date.now();
   }, 250);
+
+  if (devMockPhase.value) {
+    return;
+  }
 
   if (storedPlayerId.value) {
     void connect();

@@ -22,10 +22,13 @@
 
 body {
   margin: 0;
+  overflow-x: hidden;
 }
 
 .app {
   padding: 16px;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 .game-scene {
@@ -95,6 +98,9 @@ body {
   position: relative;
   z-index: 3;
   padding: 14px;
+  max-height: calc(100vh - 110px);
+  overflow: auto;
+  overflow-x: hidden;
 }
 
 .round-result-overlay {
@@ -322,6 +328,10 @@ textarea:focus-visible {
   gap: 16px;
 }
 
+.layout > * {
+  min-width: 0;
+}
+
 .layout-combat {
   grid-template-columns: minmax(0, 2.4fr) minmax(280px, 1fr);
 }
@@ -347,6 +357,7 @@ textarea:focus-visible {
   display: flex;
   gap: 12px;
   margin-bottom: 12px;
+  min-width: 0;
 }
 
 .stat-pill {
@@ -357,6 +368,9 @@ textarea:focus-visible {
   border: 1px solid var(--scene-pill-border);
   border-radius: 999px;
   background: var(--scene-pill-bg);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .shop-row {
@@ -432,7 +446,7 @@ textarea:focus-visible {
 
 .hero-select-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
 }
 
@@ -453,7 +467,9 @@ textarea:focus-visible {
 }
 
 .hero-select-portrait {
-  height: 210px;
+  height: auto;
+  aspect-ratio: 4 / 5;
+  max-height: min(38vh, 320px);
 }
 
 .hero-select-name {
@@ -500,6 +516,10 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
   gap: 12px;
+}
+
+.lobby-grid > * {
+  min-width: 0;
 }
 
 .lobby-card {
@@ -551,6 +571,7 @@ textarea:focus-visible {
   border-radius: 10px;
   background: rgba(31, 43, 72, 0.86);
   padding: 8px 10px;
+  min-width: 0;
 }
 
 .match-end-list li.is-me {
@@ -581,6 +602,8 @@ textarea:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .match-end-health {
@@ -657,17 +680,17 @@ textarea:focus-visible {
 }
 
 .portrait-slot-unit {
-  height: 120px;
+  height: clamp(96px, 18vh, 150px);
   margin-bottom: 8px;
 }
 
 .portrait-slot-hero {
-  height: 132px;
+  height: clamp(120px, 24vh, 260px);
   margin-bottom: 8px;
 }
 
 .portrait-slot-mini {
-  height: 72px;
+  height: clamp(56px, 11vh, 88px);
   margin-bottom: 6px;
 }
 
@@ -682,6 +705,12 @@ textarea:focus-visible {
   object-fit: cover;
   object-position: center top;
   display: block;
+}
+
+.portrait-image-contain {
+  object-fit: contain;
+  object-position: center center;
+  background: linear-gradient(180deg, rgba(20, 28, 49, 0.78), rgba(15, 22, 39, 0.86));
 }
 
 .unit-icon {
@@ -728,6 +757,10 @@ textarea:focus-visible {
   flex-wrap: wrap;
 }
 
+.actions button {
+  min-height: 36px;
+}
+
 .slot-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(120px, 1fr));
@@ -758,16 +791,26 @@ textarea:focus-visible {
   opacity: 0.9;
 }
 
+.combat-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
 .target-line {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   width: fit-content;
+  max-width: 100%;
   padding: 4px 10px;
   border: 1px solid #5f77b4;
   border-radius: 999px;
   background: #253357;
   box-shadow: 0 0 0 2px rgba(105, 134, 199, 0.22);
+  overflow-wrap: anywhere;
 }
 
 .target-line.hit {
@@ -1003,6 +1046,7 @@ textarea:focus-visible {
   background: #1d2742;
   padding: 7px 8px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .layout.phase-hero_selection .tavern {
@@ -1028,6 +1072,7 @@ textarea:focus-visible {
   padding: 8px;
   background: #171d31;
   font-size: 13px;
+  overflow-x: hidden;
 }
 
 .log-entry {
@@ -1086,6 +1131,7 @@ textarea:focus-visible {
 @media (max-width: 980px) {
   .scene-content {
     padding: 10px;
+    max-height: calc(100vh - 90px);
   }
 
   .scene-ornament-top,
@@ -1137,6 +1183,50 @@ textarea:focus-visible {
 }
 
 @media (max-width: 700px) {
+  .app {
+    padding: 10px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .header .actions {
+    justify-content: space-between;
+  }
+
+  .game-scene {
+    border-radius: 12px;
+  }
+
+  .tavern,
+  .board,
+  .sidebar,
+  .lobby-screen,
+  .hero-select-screen,
+  .combat-screen,
+  .match-end-screen {
+    padding: 10px;
+  }
+
+  .stats {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .stat-pill {
+    font-size: 12px;
+  }
+
+  input,
+  select,
+  button,
+  .actions button {
+    min-height: 44px;
+  }
+
   .join-card,
   .actions {
     flex-direction: column;
@@ -1152,8 +1242,267 @@ textarea:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .scene-content {
+    max-height: calc(100vh - 74px);
+  }
+
+  .hall-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--scene-panel-border);
+    border-radius: 10px;
+    background: rgba(18, 27, 48, 0.94);
+    box-shadow: 0 -8px 16px rgba(8, 12, 24, 0.35);
+    backdrop-filter: blur(3px);
+  }
+
+  .slot-row {
+    gap: 6px;
+  }
+
   .combat-arena {
     grid-template-columns: 1fr;
+  }
+
+  .combat-screen .slot-row {
+    grid-template-columns: repeat(3, minmax(90px, 1fr));
+    gap: 8px;
+  }
+
+  .combat-screen .slot {
+    min-height: 118px;
+    padding: 10px 8px;
+  }
+
+  .combat-screen .slot-title {
+    font-size: 11px;
+  }
+
+  .combat-screen .slot-unit {
+    font-size: 13px;
+    min-height: 32px;
+  }
+
+  .combat-info-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .combat-subtitle {
+    border: 1px solid var(--scene-pill-border);
+    border-radius: 9px;
+    background: var(--scene-pill-bg);
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .combat-screen .target-line {
+    width: 100%;
+    justify-content: center;
+    font-size: 12px;
+    min-height: 34px;
+  }
+
+  .log {
+    height: 180px;
+    font-size: 12px;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .app {
+    padding: 8px;
+  }
+
+  .header {
+    margin-bottom: 8px;
+  }
+
+  .header h1 {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.1;
+  }
+
+  .scene-content {
+    padding: 8px;
+    max-height: calc(100vh - 64px);
+  }
+
+  .scene-ornament-top,
+  .scene-ornament-bottom {
+    height: 92px;
+    opacity: 0.18;
+  }
+
+  .tavern,
+  .board,
+  .sidebar,
+  .lobby-screen,
+  .hero-select-screen,
+  .combat-screen,
+  .match-end-screen {
+    padding: 8px;
+  }
+
+  .stats {
+    margin-bottom: 8px;
+  }
+
+  .stat-pill {
+    font-size: 11px;
+    padding: 2px 7px;
+  }
+
+  .portrait-slot-unit {
+    height: clamp(78px, 24vh, 118px);
+  }
+
+  .portrait-slot-hero,
+  .hero-select-portrait {
+    max-height: min(30vh, 188px);
+  }
+
+  .portrait-slot-mini {
+    height: clamp(50px, 12vh, 74px);
+  }
+
+  .shop-row,
+  .hero-row,
+  .hero-select-grid {
+    gap: 6px;
+  }
+
+  .shop-card,
+  .hero-select-card {
+    padding: 8px;
+  }
+
+  .combat-screen .slot {
+    min-height: 92px;
+    padding: 7px;
+  }
+
+  .combat-screen .slot-unit {
+    font-size: 12px;
+    min-height: 28px;
+  }
+
+  .log {
+    height: 132px;
+    font-size: 11px;
+  }
+
+  .hall-actions {
+    bottom: 0;
+    padding: 8px;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 380px) {
+  .app {
+    padding: 8px;
+  }
+
+  .header h1 {
+    font-size: 22px;
+    line-height: 1.1;
+  }
+
+  .header .round {
+    font-size: 11px;
+  }
+
+  .scene-content {
+    padding: 8px;
+    max-height: calc(100vh - 68px);
+  }
+
+  .stats {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .stat-pill {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+
+  .shop-card,
+  .hero-select-card,
+  .lobby-card {
+    padding: 8px;
+  }
+
+  .portrait-slot-unit {
+    height: clamp(84px, 16vh, 116px);
+  }
+
+  .portrait-slot-hero,
+  .hero-select-portrait {
+    max-height: min(28vh, 172px);
+  }
+
+  .portrait-slot-mini {
+    height: clamp(48px, 9vh, 66px);
+  }
+
+  .slot-row {
+    gap: 6px;
+  }
+
+  .slot {
+    min-height: 88px;
+    padding: 7px;
+  }
+
+  .slot-title {
+    font-size: 11px;
+  }
+
+  .slot-unit {
+    font-size: 12px;
+  }
+
+  .actions {
+    gap: 6px;
+  }
+
+  .actions button,
+  button {
+    min-height: 42px;
+    font-size: 13px;
+    padding: 7px 8px;
+  }
+
+  .hotkey-hint {
+    font-size: 10px;
+    padding: 1px 5px;
+  }
+
+  .hall-actions {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .combat-screen .slot {
+    min-height: 98px;
+  }
+
+  .target-line {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .log {
+    height: 150px;
+    font-size: 11px;
   }
 }
 
