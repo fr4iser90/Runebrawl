@@ -5,6 +5,7 @@ export type AbilityKey = "NONE" | "DEATH_BURST" | "TAUNT" | "BLOODLUST" | "LIFES
 export type SynergyKey = "BERSERKER";
 export type HeroPowerType = "PASSIVE" | "ACTIVE";
 export type HeroPowerKey = "BONUS_GOLD" | "WAR_DRUM" | "RECRUITER" | "FORTIFY";
+export type BotDifficulty = "EASY" | "NORMAL" | "HARD";
 
 export interface HeroDefinition {
   id: string;
@@ -138,7 +139,7 @@ export type ClientIntent =
   | { type: "JOIN_PRIVATE_MATCH"; name: string; accountId?: string; inviteCode: string }
   | { type: "RECONNECT"; playerId: string; accountId?: string; matchId?: string; name?: string }
   | { type: "READY_LOBBY"; ready: boolean }
-  | { type: "ADD_BOT_TO_LOBBY" }
+  | { type: "ADD_BOT_TO_LOBBY"; difficulty?: BotDifficulty }
   | { type: "KICK_PLAYER"; targetPlayerId: string }
   | { type: "FORCE_START" }
   | { type: "SELECT_HERO"; heroId: string }

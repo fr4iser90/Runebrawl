@@ -116,6 +116,31 @@ All notable project changes are documented in this file.
       - scripts: `test:e2e:visual` and `test:e2e:visual:update`
     - added dev-only mock phase hook in `GameClient.vue` (`?rb_mock=1&rb_phase=...`) for deterministic visual tests
     - expanded visual snapshots with mocked `COMBAT` and `FINISHED` screens
+    - redesigned initial menu flow with mode-first UX:
+      - name-first entry + primary actions for `Solo Practice`, `Quick Match`, and `Create Private`
+      - advanced section for region/mmr/invite/manual join controls
+    - added solo practice presets (`Easy/Normal/Hard`) with automatic private lobby bootstrap:
+      - auto-fill bots to 8 players with selected difficulty
+      - auto-ready and auto-force-start when lobby is full
+    - polished initial menu presentation (mode-first visual hierarchy):
+      - stronger card styling for solo vs multiplayer actions
+      - dedicated visual treatment for easy/normal/hard solo CTAs
+      - clearer top banner/lead text for onboarding flow
+    - polished hero selection card readability:
+      - larger hero name hierarchy and compact power-type badges (passive/active+cost)
+      - clamped description lines to reduce text wall and keep card actions visible
+    - added hero-selection game-feel polish:
+      - passive/active accent stripes on hero cards
+      - subtle hover parallax on cards/portraits
+      - short confirm flash effect on hero select interaction
+    - polished hero-selection CTA copy and microcopy:
+      - dedicated title/subtitle for hero selection stage
+      - clearer CTA states (`Pick Hero` / `Locked In`)
+      - explicit hotkey hint line for faster onboarding
+    - added hero-selection countdown emphasis:
+      - visible seconds-left timer in hero selection header
+      - urgency styling + pulse when less than 10s remain (reduced-motion aware)
+    - added server regression test for hero-selection timeout fallback (auto-pick + transition to tavern)
 
 ### Improved
 

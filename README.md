@@ -25,7 +25,7 @@ This repository now includes a runnable MVP:
 - `apps/client` - Vue 3 frontend (recruitment hall top, board/bench bottom, status/combat log)
 - `packages/shared` - Shared game protocol/types
 - `db/migrations` - Initial database schema
-- `docker-compose.yml` - PostgreSQL service
+- `docker-compose.yml` - PostgreSQL + server + client services
 
 ## Run Local
 
@@ -39,6 +39,19 @@ This repository now includes a runnable MVP:
    - `http://localhost:5173`
 5. Server health:
    - `http://localhost:3001/health`
+
+## Run With Docker Compose
+
+1. Start all services:
+   - `docker compose up --build`
+2. Open UI:
+   - `http://localhost:5173`
+3. Server health:
+   - `http://localhost:3001/health`
+
+Notes:
+- Server uses container-internal DB URL (`postgres`) automatically in Compose.
+- Hot-reload works via bind mounts for `apps/client`, `apps/server`, and shared packages.
 
 ## Infra Upgrades Implemented
 

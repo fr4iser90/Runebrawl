@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type { HeroDefinition, MatchPublicState } from "@runebrawl/shared";
 import { useI18n } from "../../i18n/useI18n";
 
@@ -16,6 +16,7 @@ interface PlayerView {
 const props = defineProps<{
   state: MatchPublicState;
   me: PlayerView;
+  secondsLeft: number;
   statPlayersIcon: string;
   statGoldIcon: string;
   statHealthIcon: string;
@@ -29,6 +30,27 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const canSelect = computed(() => !props.me.heroSelected);
+const isUrgent = computed(() => canSelect.value && props.secondsLeft > 0 && props.secondsLeft <= 10);
+const selectingHeroId = ref<string | null>(null);
+let selectFxTimer: number | null = null;
+
+function heroPowerLine(hero: HeroDefinition): string {
+  if (hero.powerType === "PASSIVE") return t("game.heroSelect.passive");
+  return t("game.heroSelect.activeCost", { cost: hero.powerCost });
+}
+
+function onSelectHero(heroId: string): void {
+  if (!canSelect.value) return;
+  selectingHeroId.value = heroId;
+  if (selectFxTimer !== null) {
+    window.clearTimeout(selectFxTimer);
+  }
+  selectFxTimer = window.setTimeout(() => {
+    selectingHeroId.value = null;
+    selectFxTimer = null;
+  }, 420);
+  emit("selectHero", heroId);
+}
 
 const isTypingTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
@@ -61,13 +83,20 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
+  if (selectFxTimer !== null) {
+    window.clearTimeout(selectFxTimer);
+  }
 });
 </script>
 
 <template>
   <section class="hero-select-screen">
     <header class="hero-select-header">
-      <h2>{{ t("game.chooseHero") }}</h2>
+      <div>
+        <h2>{{ t("game.heroSelect.title") }}</h2>
+        <p class="slot-title">{{ t("game.heroSelect.subtitle") }}</p>
+      </div>
+      <span class="hero-select-timer" :class="{ urgent: isUrgent }">{{ t("game.heroSelect.secondsLeft", { seconds: props.secondsLeft }) }}</span>
       <div class="stats">
         <span class="stat-pill">
           <img class="chip-icon" :src="props.statPlayersIcon" alt="" />
@@ -90,15 +119,24 @@ onBeforeUnmount(() => {
         v-for="(hero, heroIdx) in props.me.heroOptions"
         :key="hero.id"
         class="shop-card hero-card hero-select-card anim-stagger-in"
+        :class="[
+          hero.powerType === 'PASSIVE' ? 'hero-variant-passive' : 'hero-variant-active',
+          selectingHeroId === hero.id ? 'hero-selected-pulse' : ''
+        ]"
         :style="{ '--stagger-index': heroIdx }"
       >
         <div class="portrait-slot portrait-slot-hero hero-select-portrait">
           <img class="portrait-image portrait-image-contain" :src="props.heroPortraitPath(hero.id)" :alt="hero.name" loading="lazy" />
         </div>
         <h3 class="hero-select-name">{{ hero.name }}</h3>
+        <div class="hero-select-meta">
+          <span class="meta-chip hero-power-chip" :class="{ 'hero-power-passive': hero.powerType === 'PASSIVE', 'hero-power-active': hero.powerType === 'ACTIVE' }">
+            {{ heroPowerLine(hero) }}
+          </span>
+        </div>
         <p class="hero-select-desc">{{ hero.description }}</p>
-        <button class="cta-primary cta-with-hint" :class="{ 'cta-next': canSelect }" :disabled="!canSelect" @click="emit('selectHero', hero.id)">
-          <span>{{ canSelect ? t("game.selectHero") : t("game.heroSelected") }}</span>
+        <button class="cta-primary cta-with-hint" :class="{ 'cta-next': canSelect }" :disabled="!canSelect" @click="onSelectHero(hero.id)">
+          <span>{{ canSelect ? t("game.heroSelect.pickCta") : t("game.heroSelect.lockedCta") }}</span>
           <span v-if="canSelect" class="hotkey-hint">{{ heroIdx + 1 }}</span>
         </button>
       </article>
@@ -106,7 +144,7 @@ onBeforeUnmount(() => {
 
     <footer class="hero-select-footer">
       <p v-if="props.me.heroSelected && props.me.hero" class="slot-title">{{ t("game.heroLocked", { hero: props.me.hero.name }) }}</p>
-      <p v-else class="slot-title">{{ t("game.chooseHero") }} (1 / 2 / 3, Enter)</p>
+      <p v-else class="slot-title">{{ t("game.heroSelect.hotkeysHint") }}</p>
     </footer>
   </section>
 </template>

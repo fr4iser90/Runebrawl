@@ -189,5 +189,46 @@ describe("match instance flow guards", () => {
       stopMatchTimer(match);
     }
   });
+
+  it("auto-picks heroes on hero-selection timeout for players without selection", () => {
+    const match = new MatchInstance({
+      maxPlayers: 2,
+      isPrivate: true,
+      fillBotsOnStart: false,
+      timeoutFillBotsStart: false
+    });
+    try {
+      match.joinHuman("Alpha", makeSocket());
+      match.joinHuman("Beta", makeSocket());
+
+      const internal = match as unknown as {
+        match: {
+          phase: string;
+          phaseEndsAt: number;
+          players: Array<{ eliminated: boolean; heroSelected: boolean; hero: { id: string } | null; heroOptions: Array<{ id: string }> }>;
+        };
+        startHeroSelectionPhase: () => void;
+        tick: () => void;
+      };
+
+      internal.startHeroSelectionPhase();
+      expect(internal.match.phase).toBe("HERO_SELECTION");
+      expect(internal.match.players.some((p) => !p.eliminated && !p.heroSelected)).toBe(true);
+
+      // Simulate selection timeout reached.
+      internal.match.phaseEndsAt = Date.now() - 1;
+      internal.tick();
+
+      expect(internal.match.phase).toBe("TAVERN");
+      for (const player of internal.match.players) {
+        if (player.eliminated) continue;
+        expect(player.heroSelected).toBe(true);
+        expect(player.hero).toBeTruthy();
+        expect(player.heroOptions.some((h) => h.id === player.hero?.id)).toBe(true);
+      }
+    } finally {
+      stopMatchTimer(match);
+    }
+  });
 });
 

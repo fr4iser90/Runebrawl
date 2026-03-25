@@ -508,11 +508,12 @@ export class MatchInstance {
     }
   }
 
-  addBot(requestedByPlayerId: string): boolean {
+  addBot(requestedByPlayerId: string, forcedDifficulty?: BotDifficulty): boolean {
     if (this.match.phase !== "LOBBY") return false;
     if (this.match.creatorPlayerId !== requestedByPlayerId) return false;
     if (!this.isJoinable()) return false;
-    this.match.players.push(this.createBotPlayer(this.nextBotDifficulty()));
+    const difficulty = forcedDifficulty ?? this.nextBotDifficulty();
+    this.match.players.push(this.createBotPlayer(difficulty));
     this.bumpSequence("BOT_ADDED", `Bot added by lobby admin.`);
     this.broadcast();
     return true;
@@ -549,7 +550,7 @@ export class MatchInstance {
       return;
     }
     if (intent.type === "ADD_BOT_TO_LOBBY") {
-      this.addBot(playerId);
+      this.addBot(playerId, intent.difficulty);
       return;
     }
     if (intent.type === "KICK_PLAYER") {

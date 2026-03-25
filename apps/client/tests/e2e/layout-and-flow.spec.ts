@@ -14,12 +14,8 @@ async function enterPrivateLobby(page: Page): Promise<void> {
   const menu = page.locator(".menu-screen");
   await expect(menu).toBeVisible();
 
-  await menu.locator("select").first().selectOption("createPrivate");
-  await menu.locator("input").nth(0).fill(`pw-${Date.now().toString(36)}`);
-  await menu.locator("input").nth(1).fill("EU");
-  await menu.locator("input").nth(2).fill("1000");
-  await menu.locator("input").nth(3).fill("2");
-  await menu.locator("button").first().click();
+  await menu.locator(".menu-identity input").fill(`pw-${Date.now().toString(36)}`);
+  await menu.getByRole("button", { name: /Create Private|Private Lobby erstellen/i }).click();
 
   await expect(page.locator(".lobby-screen")).toBeVisible({ timeout: 20_000 });
 }

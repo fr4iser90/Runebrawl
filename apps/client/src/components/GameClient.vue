@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type {
   AbilityKey,
+  BotDifficulty,
   ClientIntent,
   CombatReplayEvent,
   ErrorCode,
@@ -57,6 +58,7 @@ const region = ref("EU");
 const mmr = ref(1000);
 const openLobbies = ref<LobbySummary[]>([]);
 const selectedOpenLobby = ref("");
+const soloPracticeDifficulty = ref<BotDifficulty | null>(null);
 const animatingShopIndex = ref<number | null>(null);
 const showSettings = ref(false);
 const animationSpeed = ref<"slow" | "normal" | "fast">(
@@ -532,6 +534,7 @@ async function connect(): Promise<void> {
       localStorage.setItem("runebrawl.matchId", message.matchId);
     } else if (message.type === "MATCH_STATE") {
       state.value = message.state;
+      handleSoloPracticeLobbyAutomation(message.state);
     }
   };
 
@@ -547,6 +550,31 @@ async function connect(): Promise<void> {
 function send(intent: ClientIntent): void {
   if (!ws.value || ws.value.readyState !== WebSocket.OPEN) return;
   ws.value.send(JSON.stringify(intent));
+}
+
+function handleSoloPracticeLobbyAutomation(currentState: MatchPublicState): void {
+  if (!soloPracticeDifficulty.value) return;
+  if (currentState.phase !== "LOBBY") return;
+  if (!currentState.yourPlayerId || currentState.creatorPlayerId !== currentState.yourPlayerId) return;
+
+  const targetPlayers = Math.max(2, Math.min(8, currentState.maxPlayers));
+  const missingBots = Math.max(0, targetPlayers - currentState.players.length);
+  if (missingBots > 0) {
+    send({ type: "ADD_BOT_TO_LOBBY", difficulty: soloPracticeDifficulty.value });
+    return;
+  }
+
+  const meState = currentState.players.find((p) => p.playerId === currentState.yourPlayerId);
+  if (meState && !meState.ready) {
+    send({ type: "READY_LOBBY", ready: true });
+    return;
+  }
+
+  const allReady = currentState.players.length > 0 && currentState.players.every((p) => p.ready);
+  if (allReady) {
+    send({ type: "FORCE_START" });
+    soloPracticeDifficulty.value = null;
+  }
 }
 
 function resetActiveSession(): void {
@@ -662,6 +690,7 @@ async function joinOpenLobby(matchId: string): Promise<void> {
       localStorage.setItem("runebrawl.matchId", message.matchId);
     } else if (message.type === "MATCH_STATE") {
       state.value = message.state;
+      handleSoloPracticeLobbyAutomation(message.state);
     }
   };
   socket.onclose = () => {
@@ -672,6 +701,36 @@ async function joinOpenLobby(matchId: string): Promise<void> {
 function joinSelectedOpenLobby(): void {
   if (!selectedOpenLobby.value) return;
   void joinOpenLobby(selectedOpenLobby.value);
+}
+
+function startQuickFromMenu(): void {
+  joinMode.value = "quick";
+  soloPracticeDifficulty.value = null;
+  void connect();
+}
+
+function startCreatePrivateFromMenu(): void {
+  joinMode.value = "createPrivate";
+  soloPracticeDifficulty.value = null;
+  void connect();
+}
+
+function startJoinPrivateFromMenu(): void {
+  joinMode.value = "joinPrivate";
+  soloPracticeDifficulty.value = null;
+  void connect();
+}
+
+function reconnectFromMenu(): void {
+  soloPracticeDifficulty.value = null;
+  void connect();
+}
+
+function startSoloPractice(difficulty: BotDifficulty): void {
+  joinMode.value = "createPrivate";
+  privateMaxPlayers.value = 8;
+  soloPracticeDifficulty.value = difficulty;
+  void connect();
 }
 
 function sell(zone: "bench" | "board", index: number): void {
@@ -1092,7 +1151,6 @@ onMounted(() => {
 
     <MenuScreen
       :connected="connected"
-      :join-mode="joinMode"
       :name="name"
       :region="region"
       :mmr="mmr"
@@ -1102,14 +1160,17 @@ onMounted(() => {
       :selected-open-lobby="selectedOpenLobby"
       :stored-player-id="storedPlayerId"
       :stored-match-id="storedMatchId"
-      @update:join-mode="joinMode = $event"
       @update:name="name = $event"
       @update:region="region = $event"
       @update:mmr="mmr = $event"
       @update:invite-code-input="inviteCodeInput = $event"
       @update:private-max-players="privateMaxPlayers = $event"
       @update:selected-open-lobby="selectedOpenLobby = $event"
-      @connect="connect"
+      @start-quick="startQuickFromMenu"
+      @start-create-private="startCreatePrivateFromMenu"
+      @start-join-private="startJoinPrivateFromMenu"
+      @start-solo="startSoloPractice"
+      @reconnect="reconnectFromMenu"
       @refresh-lobbies="loadOpenLobbies"
       @join-selected-open-lobby="joinSelectedOpenLobby"
     />
@@ -1156,6 +1217,7 @@ onMounted(() => {
               v-else-if="isHeroSelection"
               :state="state"
               :me="me"
+              :seconds-left="secondsLeft"
               :stat-players-icon="statPlayersIcon"
               :stat-gold-icon="statGoldIcon"
               :stat-health-icon="statHealthIcon"
