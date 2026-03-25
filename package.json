@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "concurrently \"npm run dev -w @runebrawl/server\" \"npm run dev -w @runebrawl/client\"",
     "build": "npm run build -w @runebrawl/shared && npm run build -w @runebrawl/server && npm run build -w @runebrawl/client",
-    "typecheck": "npm run typecheck -w @runebrawl/shared && npm run typecheck -w @runebrawl/server && npm run typecheck -w @runebrawl/client"
+    "typecheck": "npm run typecheck -w @runebrawl/shared && npm run typecheck -w @runebrawl/server && npm run typecheck -w @runebrawl/client",
+    "validate:community-content": "node ./community/validate-content.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

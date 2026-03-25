@@ -7,6 +7,7 @@ Browser-based multiplayer autobattler inspired by genre-defining games such as H
 See `docs/README.md` for:
 - `docs/CHANGELOG.md` (chronological project updates)
 - `docs/COMBAT_SYSTEM.md` (combat architecture and event flow)
+- `docs/COMMUNITY_CONTENT_PIPELINE.md` (community contribution flow for content packs)
 - `docs/EXECUTION_PLAN.md` (next 2 sprints execution plan)
 - `docs/OVERVIEW.md` (current implementation status)
 - `docs/GDD.md` (game design)
@@ -21,7 +22,7 @@ Runebrawl is an original game project. All trademarks and game titles referenced
 
 This repository now includes a runnable MVP:
 - `apps/server` - Fastify + WebSocket authoritative game server
-- `apps/client` - Vue 3 frontend (tavern top, board/bench bottom, status/combat log)
+- `apps/client` - Vue 3 frontend (recruitment hall top, board/bench bottom, status/combat log)
 - `packages/shared` - Shared game protocol/types
 - `db/migrations` - Initial database schema
 - `docker-compose.yml` - PostgreSQL service
@@ -30,11 +31,13 @@ This repository now includes a runnable MVP:
 
 1. Install dependencies:
    - `npm install`
-2. Start app:
+2. Create local env:
+   - `cp .env.example .env`
+3. Start app:
    - `npm run dev`
-3. Open UI:
+4. Open UI:
    - `http://localhost:5173`
-4. Server health:
+5. Server health:
    - `http://localhost:3001/health`
 
 ## Infra Upgrades Implemented
@@ -109,3 +112,4 @@ This repository now includes a runnable MVP:
 - Environment variables:
   - `ADMIN_USERNAME` (default: `admin`)
   - `ADMIN_PASSWORD` (default: `change-me`, change this immediately)
+  - `PLAYER_SESSION_SECRET` (required in production; signs player identity session cookies)

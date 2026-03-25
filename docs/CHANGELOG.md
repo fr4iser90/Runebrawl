@@ -19,6 +19,70 @@ All notable project changes are documented in this file.
   - Visual combat updates: HP bars, floating damage numbers, death fade
 - Documentation:
   - Added `docs/OVERVIEW.md` with current implementation status
+  - Added `docs/COMMUNITY_CONTENT_PIPELINE.md` for community-driven content submissions/review flow
+- Community contribution foundation:
+  - Added root `CONTRIBUTING.md` with autobattler-specific contribution rules and process
+  - Added PR template (`.github/PULL_REQUEST_TEMPLATE.md`) with content validation checklist
+  - Added issue templates for content and mechanic proposals under `.github/ISSUE_TEMPLATE/`
+  - Added `community/content-pack-template/` with starter files (`metadata.json`, `units.json`, `heroes.json`, `playtest-notes.md`)
+  - Added `community/README.md` describing submission folder usage
+  - Added community content auto-validation script (`community/validate-content.mjs`) and npm command (`validate:community-content`)
+  - Added GitHub Action workflow (`.github/workflows/community-content-validation.yml`) to fail PRs on invalid community content packs
+  - Added admin community submission endpoints for list/detail/import:
+    - `GET /admin/content/submissions`
+    - `GET /admin/content/submissions/:submissionId`
+    - `POST /admin/content/submissions/:submissionId/import-draft`
+  - Added admin UI import flow for community submissions (preview + import into content draft)
+  - Added community approve+publish endpoint:
+    - `POST /admin/content/submissions/:submissionId/approve-publish`
+  - Added content publish audit + rollback endpoints:
+    - `GET /admin/content/publish-history`
+    - `POST /admin/content/publish-history/:auditId/rollback`
+  - Added publish audit history in Admin UI with rollback action and EN/DE localization
+  - Added PostgreSQL-backed content audit persistence:
+    - new migration `db/migrations/003_content_publish_audit.sql`
+    - new SQL adapter `apps/server/src/admin/sqlContentAuditStore.ts`
+    - server now hydrates content publish history from DB on startup (when `DATABASE_URL` is set)
+    - publish/rollback actions now persist audit snapshots to DB for restart-safe rollback history
+  - Terminology update:
+    - player-facing "Tavern" labels renamed to "Recruitment Hall" (EN) / "Rekrutierungshalle" (DE) in UI/i18n
+    - hero descriptions updated from "tavern phase" to "recruitment hall phase"
+  - UI structure pass (Sprint A start):
+    - extracted join flow UI into `MenuScreen.vue`
+    - extracted recruitment/hero shop area into `RecruitmentHallView.vue`
+    - added `SettingsModal.vue` with client-side animation speed and reduced-motion toggles
+    - wired animation playback timing to settings (`slow/normal/fast`, reduced motion)
+  - UI structure pass (Sprint A part 2):
+    - extracted board/combat presentation to `BoardBenchView.vue`
+    - extracted player list + combat log panel to `PlayersSidebar.vue`
+    - improved sidebar player row readability with dedicated `player-list` card styling
+  - UI polish pass (Sprint A part 3):
+    - polished `RecruitmentHallView.vue` hierarchy (header/status/economy/actions grouping)
+    - improved hero selection emphasis with dedicated hero card styling and primary CTA treatment
+    - added responsive layout breakpoints for game layout/shop grids/combat arena
+    - added micro-UX interaction polish:
+      - shop/hero card hover feedback
+      - contextual "next action" CTA glow (hero select / ready)
+      - subtle phase emphasis borders for recruitment/combat sections
+    - added accessibility and keyboard usability polish:
+      - `:focus-visible` ring states for inputs/buttons/selects/textareas
+      - recruitment hall shortcuts (`1/2/3` hero pick, `Enter`/`R` ready)
+      - reduced-motion behavior extended to CTA pulse and transitions
+    - added visible hotkey badges in recruitment hall CTAs (`1/2/3`, `Enter/R`)
+    - extended recruitment hall shortcuts with `Q/W/E` for reroll/upgrade/lock (+ visible badges)
+    - separated hero selection into dedicated `HeroSelectionView.vue` screen for cleaner view architecture
+    - added scene-layer wrapper in `GameClient.vue` (`game-scene`, backdrop, vignette) for phase-specific visual theming
+    - added dedicated `LobbyView.vue` and phased screen routing (`Lobby` -> `Hero Selection` -> `Main Layout`)
+    - extracted combat section into dedicated `CombatView.vue` with separate combat screen routing and layout
+    - added dedicated `RoundResultOverlay.vue` for `ROUND_END` with localized win/loss/draw/no-duel summaries
+    - added dedicated `MatchEndView.vue` for `FINISHED` phase with placements and replay/menu actions
+    - updated `docs/VIEWS.md` to reflect the implemented view routing and current screen architecture
+    - added phase transition animations in `GameClient.vue` (`Transition` with `phase-screen` enter/leave states)
+    - added placeholder phase background assets (`apps/client/src/assets/backgrounds/*.svg`) and wired them into `scene-*` backdrops
+    - added decorative foreground scene ornaments (`scene-ornament-top/bottom`) with subtle phase-specific tinting
+    - added phase-specific UI accent tokens in the scene system (panel borders, stat pills, CTA gradients, hover glow)
+    - added phase-specific component accents (hero card rims, combat slot/target highlights, match end rank styling)
+    - added staggered micro-animations for hero cards and match-end placements (reduced-motion aware)
 
 ### Improved
 
@@ -95,6 +159,62 @@ All notable project changes are documented in this file.
     - added admin pool observability:
       - new endpoint `GET /admin/content/pool?matchId=<id>` for per-match pool snapshot
       - admin panel now shows live scarce-unit view (available/shop/board/bench/consumed)
+    - combat pairing now supports ghost fights on odd-player rounds by using eliminated players' board snapshots
+    - private lobby start now enforces even alive-player count to avoid odd-start combat gaps
+    - ghost pairing fallback now accepts eliminated players without board snapshot (empty ghost board)
+    - combat subtitle now explicitly indicates rounds with no assigned duel (instead of showing only waiting text)
+    - added rating persistence foundation artifacts:
+      - `db/migrations/002_rating_foundation.sql` (player_ratings + match_results + match metadata columns)
+      - `apps/server/src/ratings/types.ts` (rating/domain interfaces for future service wiring)
+    - added rating service skeleton wiring:
+      - `InMemoryRatingService` with provisional ELO-like updates
+      - `MatchInstance.getRatingUpdateInput()` for finished-match placement extraction
+      - `MatchmakingService` background hook to process finished matches once
+    - added admin rating debug endpoints:
+      - `GET /admin/ratings/leaderboard?limit=...`
+      - `GET /admin/ratings/player/:playerId`
+    - added SQL rating adapter wiring:
+      - new `SqlRatingService` persists rating updates to PostgreSQL (`player_ratings`, `match_results`)
+      - matchmaking now auto-selects SQL ratings when `DATABASE_URL` is set (fallback remains in-memory)
+      - finished-match rating processing is now async-safe and idempotent per match in SQL flow
+    - added admin rating debug UI block:
+      - leaderboard panel with refresh action
+      - player lookup by `playerId`
+      - localized EN/DE labels + `ADMIN_RATING_NOT_FOUND` error mapping
+    - rating reliability hardening:
+      - added retry/backoff handling for finished-match rating application failures in `MatchmakingService`
+      - failed rating writes are now retried (without marking match as rated) and logged with attempt count
+      - added optional SQL rating contract tests (`sqlRatingService.test.ts`) for apply/idempotency/leaderboard
+    - queue bucketing now uses server-side ratings:
+      - quick-match queue resolves player MMR from rating service by normalized player name identity (`name:<normalized>`)
+      - fallback for unrated players remains requested MMR (or default)
+      - match rating write path now uses the same normalized name identity for human placements
+      - added matchmaking tests for new-player fallback and stable bucketing for repeated queue entries
+      - rating identity is now captured at match join and kept stable across reconnect rename updates
+      - added regression test to ensure reconnect rename cannot rewrite identity used for rating updates
+      - added account-id based rating identity path (`acct:<accountId>`) for queue lookup and match result writes
+      - client now persists and sends stable `accountId` in join/reconnect intents
+      - server keeps backward-compatible name-based identity fallback when `accountId` is absent
+      - added server-validated player session flow (`POST /auth/player/session`) with signed cookie (`rb_player_session`)
+      - websocket join paths now prefer account identity from validated session cookie over raw client input
+      - added auth contract tests for cookie signing/tamper rejection (`playerIdentity.test.ts`)
+      - production hardening: `PLAYER_SESSION_SECRET` is now required when `NODE_ENV=production`
+      - added root `.env.example` with runtime variables (`DATABASE_URL`, `ADMIN_*`, `PLAYER_SESSION_SECRET`, `NODE_ENV`, `PORT`)
+    - visual foundation scaffolding:
+      - added portrait asset loader scaffold with id-based lookup + fallback placeholders (`apps/client/src/assets/portraits/loader.ts`)
+      - added unit/hero portrait slots in tavern, hero selection, board/bench, and combat views
+      - introduced CSS design tokens and reusable portrait slot styles in `apps/client/src/styles.css`
+      - added basic UI animations for buy pop, hit shake, and enhanced death fade
+      - added admin portrait preview grid (units/heroes) with missing-asset flags for fast art iteration
+      - added `docs/ART_PROMPTS.md` with exact portrait sizes, export settings, naming rules, and per-entity prompt shortcuts
+      - expanded art guide with a concrete GIMP/Aseprite layer template blueprint and export-ready layer naming
+      - added ASCII frame blueprints for unit card and hero frame layouts in `docs/ART_PROMPTS.md`
+      - replaced short art hints with full copy-paste "portrait-only" prompts (strict no-text/no-UI) for all current units and heroes
+    - test hardening pass:
+      - added match flow tests for private-even-start guard
+      - added ghost fallback duel contract test
+      - added shared pool accounting invariant test across reroll
+      - added hero-offer weighting contract tests (weighted dominance, no-duplicate offers, invalid-weight normalization)
 
 ### Infrastructure/Operations Status
 

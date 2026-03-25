@@ -1,0 +1,10 @@
+{
+  "packId": "example_pack_v1",
+  "title": "Example Community Pack",
+  "author": "your-name-or-handle",
+  "version": "0.1.0",
+  "description": "Short summary of this content pack.",
+  "targetGameVersion": "0.1.x",
+  "tags": ["units", "heroes", "balance"],
+  "notes": "Explain intended gameplay impact and design goals."
+}

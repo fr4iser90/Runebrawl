@@ -5,13 +5,19 @@ import cors from "@fastify/cors";
 import type { ClientIntent, ErrorCode, HeroDefinition, UnitDefinition } from "@runebrawl/shared";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { ContentBuilderService } from "./admin/contentBuilderService.js";
+import { CommunityContentService } from "./admin/communityContentService.js";
+import { SqlContentAuditStore } from "./admin/sqlContentAuditStore.js";
 import { AdminAuthService } from "./auth/adminAuth.js";
+import { PlayerIdentityService } from "./auth/playerIdentity.js";
 import { MatchmakingService } from "./matchmakingService.js";
 
 const server = Fastify({ logger: true });
 const matchmaking = new MatchmakingService();
 const adminAuth = new AdminAuthService();
+const playerIdentity = new PlayerIdentityService();
 const contentBuilder = new ContentBuilderService();
+const contentAuditStore = new SqlContentAuditStore(process.env.DATABASE_URL);
+const communityContent = new CommunityContentService(contentBuilder);
 
 function sendWsError(socket: { send: (data: string) => void }, message: string, errorCode?: ErrorCode): void {
   socket.send(JSON.stringify({ type: "ERROR", message, errorCode }));
@@ -37,6 +43,20 @@ function mapErrorCode(error: unknown): ErrorCode | undefined {
       return "MATCH_NOT_JOINABLE";
     default:
       return undefined;
+  }
+}
+
+async function persistLatestContentAudit(): Promise<void> {
+  if (!contentAuditStore.enabled) return;
+  await contentAuditStore.persistLatestFromBuilder(contentBuilder);
+}
+
+if (contentAuditStore.enabled) {
+  try {
+    await contentAuditStore.hydrateBuilder(contentBuilder);
+    server.log.info("Loaded persisted content publish audit history.");
+  } catch (error) {
+    server.log.warn({ error }, "Failed to load persisted content publish audit history; continuing with in-memory history.");
   }
 }
 
@@ -70,6 +90,11 @@ server.get("/lobbies", async () => ({ lobbies: matchmaking.listOpenLobbies() }))
 server.get("/auth/admin/status", async (request) => ({
   authenticated: adminAuth.isAuthenticated(request)
 }));
+server.post("/auth/player/session", async (request, reply) => {
+  const body = (request.body as { accountId?: string } | undefined) ?? {};
+  const accountId = playerIdentity.createOrRefreshSession(request, reply, body.accountId);
+  return { ok: true, accountId };
+});
 server.post("/auth/admin/login", async (request, reply) => {
   const body = (request.body as { username?: string; password?: string } | undefined) ?? {};
   const username = body.username ?? "admin";
@@ -157,6 +182,21 @@ server.get("/admin/lobbies/:matchId/events/stream", { preHandler: requireAdmin }
   });
 });
 server.get("/admin/metrics", { preHandler: requireAdmin }, async () => matchmaking.getTelemetryMetrics());
+server.get("/admin/ratings/leaderboard", { preHandler: requireAdmin }, async (request) => {
+  const { limit } = request.query as { limit?: string };
+  const parsed = limit ? Number(limit) : 50;
+  const boundedLimit = Number.isFinite(parsed) ? Math.max(1, Math.min(200, parsed)) : 50;
+  return { leaderboard: await matchmaking.getRatingLeaderboard(boundedLimit) };
+});
+server.get("/admin/ratings/player/:playerId", { preHandler: requireAdmin }, async (request, reply) => {
+  const { playerId } = request.params as { playerId: string };
+  const rating = await matchmaking.getPlayerRating(playerId);
+  if (!rating) {
+    sendHttpError(reply, 404, "Rating not found", "ADMIN_RATING_NOT_FOUND");
+    return;
+  }
+  return rating;
+});
 server.get("/admin/content/catalog", { preHandler: requireAdmin }, async () => contentBuilder.getCatalog());
 server.get("/admin/content/pool", { preHandler: requireAdmin }, async (request, reply) => {
   const { matchId } = request.query as { matchId?: string };
@@ -191,6 +231,113 @@ server.post("/admin/content/draft/publish", { preHandler: requireAdmin }, async 
     reply.code(400).send(result);
     return;
   }
+  try {
+    await persistLatestContentAudit();
+  } catch (error) {
+    server.log.warn({ error }, "Failed to persist content publish audit entry.");
+  }
+  return result;
+});
+server.get("/admin/content/submissions", { preHandler: requireAdmin }, async () => ({
+  submissions: await communityContent.listSubmissions()
+}));
+server.get("/admin/content/submissions/:submissionId", { preHandler: requireAdmin }, async (request, reply) => {
+  const { submissionId } = request.params as { submissionId: string };
+  const submission = await communityContent.getSubmission(submissionId);
+  if (!submission) {
+    sendHttpError(reply, 404, "Submission not found", "ADMIN_CONTENT_SUBMISSION_NOT_FOUND");
+    return;
+  }
+  return submission;
+});
+server.post("/admin/content/submissions/:submissionId/import-draft", { preHandler: requireAdmin }, async (request, reply) => {
+  const { submissionId } = request.params as { submissionId: string };
+  const submission = await communityContent.getSubmission(submissionId);
+  if (!submission) {
+    sendHttpError(reply, 404, "Submission not found", "ADMIN_CONTENT_SUBMISSION_NOT_FOUND");
+    return;
+  }
+  if (!submission.validation.ok) {
+    reply.code(400).send(submission.validation);
+    return;
+  }
+  const result = contentBuilder.saveDraft(submission.units, submission.heroes);
+  if (!result.ok) {
+    reply.code(400).send(result);
+    return;
+  }
+  return {
+    ok: true,
+    errors: [],
+    imported: {
+      submissionId: submission.submissionId,
+      units: submission.units.length,
+      heroes: submission.heroes.length
+    }
+  };
+});
+server.post("/admin/content/submissions/:submissionId/approve-publish", { preHandler: requireAdmin }, async (request, reply) => {
+  const { submissionId } = request.params as { submissionId: string };
+  const submission = await communityContent.getSubmission(submissionId);
+  if (!submission) {
+    sendHttpError(reply, 404, "Submission not found", "ADMIN_CONTENT_SUBMISSION_NOT_FOUND");
+    return;
+  }
+  if (!submission.validation.ok) {
+    reply.code(400).send(submission.validation);
+    return;
+  }
+  const saveResult = contentBuilder.saveDraft(submission.units, submission.heroes);
+  if (!saveResult.ok) {
+    reply.code(400).send(saveResult);
+    return;
+  }
+  const publishResult = contentBuilder.publishDraft({
+    actor: "admin",
+    source: "COMMUNITY_SUBMISSION",
+    submissionId
+  });
+  if (!publishResult.ok) {
+    reply.code(400).send(publishResult);
+    return;
+  }
+  try {
+    await persistLatestContentAudit();
+  } catch (error) {
+    server.log.warn({ error }, "Failed to persist content publish audit entry.");
+  }
+  return {
+    ok: true,
+    errors: [],
+    approved: {
+      submissionId,
+      units: submission.units.length,
+      heroes: submission.heroes.length
+    }
+  };
+});
+server.get("/admin/content/publish-history", { preHandler: requireAdmin }, async (request) => {
+  const { limit } = request.query as { limit?: string };
+  const parsed = limit ? Number(limit) : 30;
+  const boundedLimit = Number.isFinite(parsed) ? Math.max(1, Math.min(200, parsed)) : 30;
+  return { entries: contentBuilder.getPublishHistory(boundedLimit) };
+});
+server.post("/admin/content/publish-history/:auditId/rollback", { preHandler: requireAdmin }, async (request, reply) => {
+  const { auditId } = request.params as { auditId: string };
+  const result = contentBuilder.rollbackToAudit(auditId, "admin");
+  if (!result.ok) {
+    if (result.errors.some((err) => err.includes("not found"))) {
+      sendHttpError(reply, 404, "Audit entry not found", "ADMIN_CONTENT_AUDIT_NOT_FOUND");
+      return;
+    }
+    reply.code(400).send(result);
+    return;
+  }
+  try {
+    await persistLatestContentAudit();
+  } catch (error) {
+    server.log.warn({ error }, "Failed to persist content rollback audit entry.");
+  }
   return result;
 });
 server.get("/matches/:matchId/history", async (request, reply) => {
@@ -223,10 +370,11 @@ server.register(async (instance) => {
   instance.get(
     "/ws",
     { websocket: true },
-    (socket) => {
+    (socket, request) => {
       let playerId: string | null = null;
+      const sessionAccountId = playerIdentity.readSessionAccountId(request);
 
-      socket.on("message", (raw: unknown) => {
+      socket.on("message", async (raw: unknown) => {
         try {
           const payload =
             typeof raw === "string"
@@ -249,22 +397,29 @@ server.register(async (instance) => {
           }
           if (msg.type === "JOIN_MATCH" || msg.type === "QUICK_MATCH") {
             if (playerId) return;
-            playerId = matchmaking.joinQuick(msg.name, socket, msg.region, msg.mmr);
+            playerId = await matchmaking.joinQuick(msg.name, socket, msg.region, msg.mmr, sessionAccountId ?? undefined);
             return;
           }
           if (msg.type === "JOIN_LOBBY") {
             if (playerId) return;
-            playerId = matchmaking.joinLobby(msg.name, msg.matchId, socket);
+            playerId = matchmaking.joinLobby(msg.name, msg.matchId, socket, sessionAccountId ?? undefined);
             return;
           }
           if (msg.type === "CREATE_PRIVATE_MATCH") {
             if (playerId) return;
-            playerId = matchmaking.createPrivate(msg.name, socket, msg.maxPlayers, msg.region, msg.mmr);
+            playerId = matchmaking.createPrivate(
+              msg.name,
+              socket,
+              msg.maxPlayers,
+              msg.region,
+              msg.mmr,
+              sessionAccountId ?? undefined
+            );
             return;
           }
           if (msg.type === "JOIN_PRIVATE_MATCH") {
             if (playerId) return;
-            playerId = matchmaking.joinPrivate(msg.name, msg.inviteCode, socket);
+            playerId = matchmaking.joinPrivate(msg.name, msg.inviteCode, socket, sessionAccountId ?? undefined);
             return;
           }
           if (!playerId) {

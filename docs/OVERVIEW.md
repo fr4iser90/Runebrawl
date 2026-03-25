@@ -10,7 +10,7 @@ Core identity:
 - No hand cards
 - No deckbuilding during matches
 - No draw mechanics
-- Players buy units in a tavern/shop, position them, then watch automatic combat
+- Players buy units in the recruitment hall/shop, position them, then watch automatic combat
 
 ## Implemented Gameplay Flow
 
@@ -29,13 +29,13 @@ The current round/game flow is implemented with explicit phases:
 - Each player gets 3 random hero options before round 1
 - Hero selection is required (timeout fallback auto-picks)
 - Passive and active hero powers are supported
-- Active powers consume gold and are limited per tavern phase
+- Active powers consume gold and are limited per recruitment hall phase
 
 ### Unit + Economy Systems
 
 - Data-driven unit pool (`apps/server/src/data/units.json`)
 - Shop buy/reroll/lock flow
-- Tavern tier upgrades and XP progression
+- Recruitment hall tier upgrades and XP progression
 - Unit placement between bench and board
 - Unit merge/level-up behavior for duplicates
 
@@ -112,6 +112,15 @@ The current round/game flow is implemented with explicit phases:
   - `POST /auth/admin/login`
   - `POST /auth/admin/logout`
   - `GET /auth/admin/status`
+- Player identity also uses a signed cookie session (`POST /auth/player/session`) for stable account-based queue/rating identity.
+
+### Content Moderation / Audit
+
+- Admin Content Builder supports:
+  - community submission preview/import
+  - approve+publish from submission
+  - publish history and rollback
+- Publish audit is persisted to PostgreSQL when `DATABASE_URL` is configured, so rollback history survives server restarts.
 
 ## Architecture + Repository
 

@@ -125,15 +125,18 @@ export type ErrorCode =
   | "PLAYER_KICKED_FROM_LOBBY"
   | "ADMIN_UNAUTHORIZED"
   | "ADMIN_INVALID_CREDENTIALS"
-  | "ADMIN_MATCH_NOT_FOUND";
+  | "ADMIN_MATCH_NOT_FOUND"
+  | "ADMIN_RATING_NOT_FOUND"
+  | "ADMIN_CONTENT_SUBMISSION_NOT_FOUND"
+  | "ADMIN_CONTENT_AUDIT_NOT_FOUND";
 
 export type ClientIntent =
-  | { type: "JOIN_MATCH"; name: string; region?: string; mmr?: number } // Alias for QUICK_MATCH
-  | { type: "QUICK_MATCH"; name: string; region?: string; mmr?: number }
-  | { type: "JOIN_LOBBY"; name: string; matchId: string }
-  | { type: "CREATE_PRIVATE_MATCH"; name: string; maxPlayers?: number; region?: string; mmr?: number }
-  | { type: "JOIN_PRIVATE_MATCH"; name: string; inviteCode: string }
-  | { type: "RECONNECT"; playerId: string; matchId?: string; name?: string }
+  | { type: "JOIN_MATCH"; name: string; accountId?: string; region?: string; mmr?: number } // Alias for QUICK_MATCH
+  | { type: "QUICK_MATCH"; name: string; accountId?: string; region?: string; mmr?: number }
+  | { type: "JOIN_LOBBY"; name: string; accountId?: string; matchId: string }
+  | { type: "CREATE_PRIVATE_MATCH"; name: string; accountId?: string; maxPlayers?: number; region?: string; mmr?: number }
+  | { type: "JOIN_PRIVATE_MATCH"; name: string; accountId?: string; inviteCode: string }
+  | { type: "RECONNECT"; playerId: string; accountId?: string; matchId?: string; name?: string }
   | { type: "READY_LOBBY"; ready: boolean }
   | { type: "ADD_BOT_TO_LOBBY" }
   | { type: "KICK_PLAYER"; targetPlayerId: string }

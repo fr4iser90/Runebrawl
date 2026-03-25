@@ -1,12 +1,16 @@
 import { ref } from "vue";
 import type { ErrorCode, HeroDefinition, UnitDefinition } from "@runebrawl/shared";
 import type {
+  AdminCommunitySubmissionDetail,
+  AdminCommunitySubmissionSummary,
+  AdminContentPublishAuditEntry,
   AdminContentDraftResponse,
   AdminContentSnapshot,
   AdminContentValidationResult,
   AdminLobbyDetail,
   AdminLobbySnapshot,
   AdminMetrics,
+  AdminPlayerRating,
   AdminUnitPoolSnapshot
 } from "../types/admin";
 import { useI18n } from "../i18n/useI18n";
@@ -26,7 +30,12 @@ export function useAdminApi(baseHost: string) {
   const adminContentDraft = ref<AdminContentSnapshot | null>(null);
   const adminContentHasDraft = ref(false);
   const adminContentValidation = ref<AdminContentValidationResult | null>(null);
+  const adminContentPublishHistory = ref<AdminContentPublishAuditEntry[]>([]);
+  const adminCommunitySubmissions = ref<AdminCommunitySubmissionSummary[]>([]);
+  const adminCommunitySubmissionDetail = ref<AdminCommunitySubmissionDetail | null>(null);
   const adminUnitPool = ref<AdminUnitPoolSnapshot | null>(null);
+  const adminRatingLeaderboard = ref<AdminPlayerRating[]>([]);
+  const adminRatingPlayer = ref<AdminPlayerRating | null>(null);
   const adminEventFeed = ref<string[]>([]);
   const adminLastErrorCode = ref<ErrorCode | null>(null);
   const adminLastErrorMessage = ref("");
@@ -119,6 +128,11 @@ export function useAdminApi(baseHost: string) {
       adminLobbies.value = [];
       adminLobbyDetail.value = null;
       adminUnitPool.value = null;
+      adminContentPublishHistory.value = [];
+      adminCommunitySubmissions.value = [];
+      adminCommunitySubmissionDetail.value = null;
+      adminRatingLeaderboard.value = [];
+      adminRatingPlayer.value = null;
       adminEventFeed.value = [];
       clearAdminError();
       stopAdminStream();
@@ -179,7 +193,70 @@ export function useAdminApi(baseHost: string) {
   async function refreshAdmin(): Promise<void> {
     await checkAuth();
     if (!isAuthenticated.value) return;
-    await Promise.all([loadAdminMetrics(), loadAdminLobbies(), loadAdminContentCatalog()]);
+    await Promise.all([
+      loadAdminMetrics(),
+      loadAdminLobbies(),
+      loadAdminContentCatalog(),
+      loadAdminContentPublishHistory(),
+      loadAdminCommunitySubmissions(),
+      loadAdminRatingLeaderboard()
+    ]);
+  }
+
+  async function loadAdminRatingLeaderboard(limit = 20): Promise<void> {
+    try {
+      const boundedLimit = Math.max(1, Math.min(200, limit));
+      const response = await fetch(`http://${baseHost}:3001/admin/ratings/leaderboard?limit=${boundedLimit}`, {
+        credentials: "include"
+      });
+      if (response.status === 401) {
+        isAuthenticated.value = false;
+        adminRatingLeaderboard.value = [];
+        await parseApiError(response);
+        return;
+      }
+      if (!response.ok) {
+        adminRatingLeaderboard.value = [];
+        await parseApiError(response);
+        return;
+      }
+      clearAdminError();
+      const payload = (await response.json()) as { leaderboard?: AdminPlayerRating[] };
+      adminRatingLeaderboard.value = payload.leaderboard ?? [];
+    } catch {
+      adminRatingLeaderboard.value = [];
+    }
+  }
+
+  async function loadAdminRatingPlayer(playerId: string): Promise<AdminPlayerRating | null> {
+    const trimmed = playerId.trim();
+    if (!trimmed) {
+      adminRatingPlayer.value = null;
+      return null;
+    }
+    try {
+      const response = await fetch(`http://${baseHost}:3001/admin/ratings/player/${encodeURIComponent(trimmed)}`, {
+        credentials: "include"
+      });
+      if (response.status === 401) {
+        isAuthenticated.value = false;
+        adminRatingPlayer.value = null;
+        await parseApiError(response);
+        return null;
+      }
+      if (!response.ok) {
+        adminRatingPlayer.value = null;
+        await parseApiError(response);
+        return null;
+      }
+      clearAdminError();
+      const payload = (await response.json()) as AdminPlayerRating;
+      adminRatingPlayer.value = payload;
+      return payload;
+    } catch {
+      adminRatingPlayer.value = null;
+      return null;
+    }
   }
 
   async function loadAdminContentCatalog(): Promise<void> {
@@ -289,11 +366,168 @@ export function useAdminApi(baseHost: string) {
       adminContentValidation.value = payload;
       if (payload.ok) {
         adminContentHasDraft.value = false;
-        await Promise.all([loadAdminContentCatalog(), loadAdminContentDraft()]);
+        await Promise.all([loadAdminContentCatalog(), loadAdminContentDraft(), loadAdminContentPublishHistory()]);
       }
       return payload;
     } catch {
       return { ok: false, errors: [t("admin.builder.error.publishFailed")] };
+    }
+  }
+
+  async function loadAdminContentPublishHistory(limit = 30): Promise<void> {
+    try {
+      const boundedLimit = Math.max(1, Math.min(200, limit));
+      const response = await fetch(`http://${baseHost}:3001/admin/content/publish-history?limit=${boundedLimit}`, {
+        credentials: "include"
+      });
+      if (response.status === 401) {
+        isAuthenticated.value = false;
+        adminContentPublishHistory.value = [];
+        await parseApiError(response);
+        return;
+      }
+      if (!response.ok) {
+        adminContentPublishHistory.value = [];
+        await parseApiError(response);
+        return;
+      }
+      clearAdminError();
+      const payload = (await response.json()) as { entries?: AdminContentPublishAuditEntry[] };
+      adminContentPublishHistory.value = payload.entries ?? [];
+    } catch {
+      adminContentPublishHistory.value = [];
+    }
+  }
+
+  async function loadAdminCommunitySubmissions(): Promise<void> {
+    try {
+      const response = await fetch(`http://${baseHost}:3001/admin/content/submissions`, {
+        credentials: "include"
+      });
+      if (response.status === 401) {
+        isAuthenticated.value = false;
+        adminCommunitySubmissions.value = [];
+        await parseApiError(response);
+        return;
+      }
+      if (!response.ok) {
+        adminCommunitySubmissions.value = [];
+        await parseApiError(response);
+        return;
+      }
+      clearAdminError();
+      const payload = (await response.json()) as { submissions?: AdminCommunitySubmissionSummary[] };
+      adminCommunitySubmissions.value = payload.submissions ?? [];
+    } catch {
+      adminCommunitySubmissions.value = [];
+    }
+  }
+
+  async function loadAdminCommunitySubmissionDetail(submissionId: string): Promise<AdminCommunitySubmissionDetail | null> {
+    const trimmed = submissionId.trim();
+    if (!trimmed) {
+      adminCommunitySubmissionDetail.value = null;
+      return null;
+    }
+    try {
+      const response = await fetch(`http://${baseHost}:3001/admin/content/submissions/${encodeURIComponent(trimmed)}`, {
+        credentials: "include"
+      });
+      if (response.status === 401) {
+        isAuthenticated.value = false;
+        adminCommunitySubmissionDetail.value = null;
+        await parseApiError(response);
+        return null;
+      }
+      if (!response.ok) {
+        adminCommunitySubmissionDetail.value = null;
+        await parseApiError(response);
+        return null;
+      }
+      clearAdminError();
+      const payload = (await response.json()) as AdminCommunitySubmissionDetail;
+      adminCommunitySubmissionDetail.value = payload;
+      return payload;
+    } catch {
+      adminCommunitySubmissionDetail.value = null;
+      return null;
+    }
+  }
+
+  async function importAdminCommunitySubmissionToDraft(submissionId: string): Promise<AdminContentValidationResult> {
+    try {
+      const response = await fetch(`http://${baseHost}:3001/admin/content/submissions/${encodeURIComponent(submissionId)}/import-draft`, {
+        method: "POST",
+        credentials: "include"
+      });
+      if (response.status === 401) {
+        isAuthenticated.value = false;
+        await parseApiError(response);
+        return { ok: false, errors: [t("admin.error.ADMIN_UNAUTHORIZED")] };
+      }
+      const payload = (await response.json()) as AdminContentValidationResult;
+      adminContentValidation.value = payload;
+      if (!response.ok || !payload.ok) {
+        return payload;
+      }
+      adminContentHasDraft.value = true;
+      await Promise.all([loadAdminContentDraft(), loadAdminCommunitySubmissions()]);
+      return payload;
+    } catch {
+      return { ok: false, errors: [t("admin.builder.community.importFailed")] };
+    }
+  }
+
+  async function approvePublishAdminCommunitySubmission(submissionId: string): Promise<AdminContentValidationResult> {
+    try {
+      const response = await fetch(`http://${baseHost}:3001/admin/content/submissions/${encodeURIComponent(submissionId)}/approve-publish`, {
+        method: "POST",
+        credentials: "include"
+      });
+      if (response.status === 401) {
+        isAuthenticated.value = false;
+        await parseApiError(response);
+        return { ok: false, errors: [t("admin.error.ADMIN_UNAUTHORIZED")] };
+      }
+      const payload = (await response.json()) as AdminContentValidationResult;
+      adminContentValidation.value = payload;
+      if (!response.ok || !payload.ok) {
+        return payload;
+      }
+      adminContentHasDraft.value = false;
+      await Promise.all([
+        loadAdminContentCatalog(),
+        loadAdminContentDraft(),
+        loadAdminContentPublishHistory(),
+        loadAdminCommunitySubmissions()
+      ]);
+      return payload;
+    } catch {
+      return { ok: false, errors: [t("admin.builder.community.approvePublishFailed")] };
+    }
+  }
+
+  async function rollbackAdminContentToAudit(auditId: string): Promise<AdminContentValidationResult> {
+    try {
+      const response = await fetch(`http://${baseHost}:3001/admin/content/publish-history/${encodeURIComponent(auditId)}/rollback`, {
+        method: "POST",
+        credentials: "include"
+      });
+      if (response.status === 401) {
+        isAuthenticated.value = false;
+        await parseApiError(response);
+        return { ok: false, errors: [t("admin.error.ADMIN_UNAUTHORIZED")] };
+      }
+      const payload = (await response.json()) as AdminContentValidationResult;
+      adminContentValidation.value = payload;
+      if (!response.ok || !payload.ok) {
+        return payload;
+      }
+      adminContentHasDraft.value = false;
+      await Promise.all([loadAdminContentCatalog(), loadAdminContentDraft(), loadAdminContentPublishHistory()]);
+      return payload;
+    } catch {
+      return { ok: false, errors: [t("admin.builder.audit.rollbackFailed")] };
     }
   }
 
@@ -419,7 +653,12 @@ export function useAdminApi(baseHost: string) {
     adminContentDraft,
     adminContentHasDraft,
     adminContentValidation,
+    adminContentPublishHistory,
+    adminCommunitySubmissions,
+    adminCommunitySubmissionDetail,
     adminUnitPool,
+    adminRatingLeaderboard,
+    adminRatingPlayer,
     adminEventFeed,
     adminLastErrorCode,
     adminLastErrorMessage,
@@ -430,9 +669,17 @@ export function useAdminApi(baseHost: string) {
     logout,
     loadAdminMetrics,
     loadAdminLobbies,
+    loadAdminRatingLeaderboard,
+    loadAdminRatingPlayer,
     loadAdminContentCatalog,
     loadAdminContentDraft,
+    loadAdminContentPublishHistory,
     loadAdminUnitPool,
+    loadAdminCommunitySubmissions,
+    loadAdminCommunitySubmissionDetail,
+    importAdminCommunitySubmissionToDraft,
+    approvePublishAdminCommunitySubmission,
+    rollbackAdminContentToAudit,
     saveAdminContentDraft,
     validateAdminContentDraft,
     publishAdminContentDraft,

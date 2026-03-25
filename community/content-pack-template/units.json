@@ -1,0 +1,14 @@
+[
+  {
+    "id": "example_frontliner",
+    "name": "Example Frontliner",
+    "role": "Tank",
+    "tier": 1,
+    "attack": 2,
+    "hp": 7,
+    "speed": 2,
+    "ability": "TAUNT",
+    "shopWeight": 1,
+    "tags": ["BERSERKER"]
+  }
+]

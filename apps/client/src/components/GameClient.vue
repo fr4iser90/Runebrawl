@@ -27,7 +27,18 @@ import statHealthIcon from "../assets/icons/stat-health.svg";
 import statPlayersIcon from "../assets/icons/stat-players.svg";
 import playerHumanIcon from "../assets/icons/player-human.svg";
 import playerBotIcon from "../assets/icons/player-bot.svg";
+import { heroPortraitPath, unitPortraitPath } from "../assets/portraits/loader";
 import { useI18n } from "../i18n/useI18n";
+import MenuScreen from "./game/MenuScreen.vue";
+import RecruitmentHallView from "./game/RecruitmentHallView.vue";
+import HeroSelectionView from "./game/HeroSelectionView.vue";
+import LobbyView from "./game/LobbyView.vue";
+import SettingsModal from "./game/SettingsModal.vue";
+import BoardBenchView from "./game/BoardBenchView.vue";
+import CombatView from "./game/CombatView.vue";
+import RoundResultOverlay from "./game/RoundResultOverlay.vue";
+import MatchEndView from "./game/MatchEndView.vue";
+import PlayersSidebar from "./game/PlayersSidebar.vue";
 
 const name = ref("");
 const connected = ref(false);
@@ -37,6 +48,7 @@ const ws = ref<WebSocket | null>(null);
 const nowTs = ref(Date.now());
 const storedPlayerId = ref<string | null>(localStorage.getItem("runebrawl.playerId"));
 const storedMatchId = ref<string | null>(localStorage.getItem("runebrawl.matchId"));
+const storedAccountId = ref<string | null>(localStorage.getItem("runebrawl.accountId"));
 const joinMode = ref<"quick" | "createPrivate" | "joinPrivate">("quick");
 const inviteCodeInput = ref("");
 const privateMaxPlayers = ref(4);
@@ -44,6 +56,12 @@ const region = ref("EU");
 const mmr = ref(1000);
 const openLobbies = ref<LobbySummary[]>([]);
 const selectedOpenLobby = ref("");
+const animatingShopIndex = ref<number | null>(null);
+const showSettings = ref(false);
+const animationSpeed = ref<"slow" | "normal" | "fast">(
+  (localStorage.getItem("runebrawl.ui.animationSpeed") as "slow" | "normal" | "fast" | null) ?? "normal"
+);
+const reducedMotion = ref(localStorage.getItem("runebrawl.ui.reducedMotion") === "1");
 let clock: number | null = null;
 let combatPlaybackTimer: number | null = null;
 let fadeCleanupTimer: number | null = null;
@@ -71,6 +89,43 @@ function mapServerError(message: string, errorCode?: ErrorCode): string {
   return message;
 }
 
+function ensureAccountId(): string {
+  if (storedAccountId.value && storedAccountId.value.trim()) {
+    return storedAccountId.value;
+  }
+  const generated =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `acct-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  storedAccountId.value = generated;
+  localStorage.setItem("runebrawl.accountId", generated);
+  return generated;
+}
+
+async function ensurePlayerSession(): Promise<string> {
+  const localAccountId = ensureAccountId();
+  try {
+    const response = await fetch(`http://${location.hostname}:3001/auth/player/session`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ accountId: localAccountId })
+    });
+    if (!response.ok) {
+      return localAccountId;
+    }
+    const payload = (await response.json()) as { accountId?: string };
+    const resolved = payload.accountId?.trim() || localAccountId;
+    storedAccountId.value = resolved;
+    localStorage.setItem("runebrawl.accountId", resolved);
+    return resolved;
+  } catch {
+    return localAccountId;
+  }
+}
+
 const me = computed(() => {
   if (!state.value?.yourPlayerId) return null;
   return state.value.players.find((p) => p.playerId === state.value?.yourPlayerId) ?? null;
@@ -79,7 +134,8 @@ const me = computed(() => {
 const isBuyPhase = computed(() => state.value?.phase === "TAVERN" || state.value?.phase === "POSITIONING");
 const isLobby = computed(() => state.value?.phase === "LOBBY");
 const isHeroSelection = computed(() => state.value?.phase === "HERO_SELECTION");
-const isCombat = computed(() => state.value?.phase === "COMBAT");
+const isRoundEnd = computed(() => state.value?.phase === "ROUND_END");
+const isFinished = computed(() => state.value?.phase === "FINISHED");
 const isCombatView = computed(() => {
   if (!state.value) return false;
   return state.value.phase === "COMBAT" || (state.value.phase === "ROUND_END" && state.value.combatEvents.length > 0);
@@ -134,6 +190,66 @@ const myDuelMeta = computed(() => {
 const myCombatOpponent = computed(() => {
   if (!state.value || !myDuelMeta.value) return null;
   return state.value.players.find((p) => p.playerId === myDuelMeta.value?.opponentPlayerId) ?? null;
+});
+
+const hasNoDuelThisRound = computed(() => {
+  if (!state.value) return false;
+  if (!isCombatView.value) return false;
+  return (state.value.phase === "COMBAT" || state.value.phase === "ROUND_END") && myCombatEvents.value.length === 0;
+});
+
+const myDuelResultEvent = computed<CombatReplayEvent | null>(() => {
+  for (let idx = myCombatEvents.value.length - 1; idx >= 0; idx -= 1) {
+    const event = myCombatEvents.value[idx];
+    if (event.type === "DUEL_RESULT") return event;
+  }
+  return null;
+});
+
+const parsedRoundResult = computed(() => {
+  const rawMessage = myDuelResultEvent.value?.message ?? "";
+  const meName = me.value?.name ?? "";
+  const match = rawMessage.match(/^(.*) wins and deals (\d+) damage to (.*)\.$/);
+  if (!match) {
+    if (rawMessage.toLowerCase().startsWith("draw round")) {
+      return {
+        tone: "draw" as const,
+        label: t("game.roundResult.draw"),
+        summary: t("game.roundResult.summaryDraw"),
+        detail: rawMessage
+      };
+    }
+    return {
+      tone: "neutral" as const,
+      label: t("game.roundResult.pending"),
+      summary: rawMessage || t("game.roundResult.summaryPending"),
+      detail: rawMessage
+    };
+  }
+
+  const winner = match[1]?.trim();
+  const damage = Number.parseInt(match[2] ?? "0", 10) || 0;
+  const loser = match[3]?.trim();
+  if (winner === meName) {
+    return {
+      tone: "win" as const,
+      label: t("game.roundResult.win"),
+      summary: t("game.roundResult.summaryWin", { damage })
+    };
+  }
+  if (loser === meName) {
+    return {
+      tone: "loss" as const,
+      label: t("game.roundResult.loss"),
+      summary: t("game.roundResult.summaryLoss", { damage })
+    };
+  }
+  return {
+    tone: "neutral" as const,
+    label: t("game.roundResult.pending"),
+    summary: rawMessage || t("game.roundResult.summaryPending"),
+    detail: rawMessage
+  };
 });
 
 type AnimationPhase = "IDLE" | "WINDUP" | "HIT" | "RECOVER" | "ABILITY" | "DEATH" | "CLEANUP" | "RESULT";
@@ -220,11 +336,12 @@ const ABILITY_ICON_PATHS: Record<AbilityKey, string> = {
   LIFESTEAL: abilityLifestealIcon
 };
 
-function connect(): void {
+async function connect(): Promise<void> {
   if (!name.value.trim() && !storedPlayerId.value) {
     error.value = t("game.error.enterName");
     return;
   }
+  const sessionAccountId = await ensurePlayerSession();
   const protocol = location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${protocol}://${location.hostname}:3001/ws`);
   ws.value = socket;
@@ -236,21 +353,34 @@ function connect(): void {
         type: "RECONNECT",
         playerId: storedPlayerId.value,
         matchId: storedMatchId.value,
+        accountId: sessionAccountId,
         name: name.value.trim() || undefined
       });
     } else {
       if (joinMode.value === "createPrivate") {
         const maxPlayers = Number.isFinite(privateMaxPlayers.value) ? Math.max(2, Math.min(8, privateMaxPlayers.value)) : 4;
-        send({ type: "CREATE_PRIVATE_MATCH", name: name.value.trim(), maxPlayers, region: region.value, mmr: mmr.value });
+        send({
+          type: "CREATE_PRIVATE_MATCH",
+          name: name.value.trim(),
+          accountId: sessionAccountId,
+          maxPlayers,
+          region: region.value,
+          mmr: mmr.value
+        });
       } else if (joinMode.value === "joinPrivate") {
         if (!inviteCodeInput.value.trim()) {
           error.value = t("game.error.inviteRequired");
           socket.close();
           return;
         }
-        send({ type: "JOIN_PRIVATE_MATCH", name: name.value.trim(), inviteCode: inviteCodeInput.value.trim().toUpperCase() });
+        send({
+          type: "JOIN_PRIVATE_MATCH",
+          name: name.value.trim(),
+          accountId: sessionAccountId,
+          inviteCode: inviteCodeInput.value.trim().toUpperCase()
+        });
       } else {
-        send({ type: "QUICK_MATCH", name: name.value.trim(), region: region.value, mmr: mmr.value });
+        send({ type: "QUICK_MATCH", name: name.value.trim(), accountId: sessionAccountId, region: region.value, mmr: mmr.value });
       }
     }
   };
@@ -289,7 +419,41 @@ function send(intent: ClientIntent): void {
   ws.value.send(JSON.stringify(intent));
 }
 
+function resetActiveSession(): void {
+  storedPlayerId.value = null;
+  storedMatchId.value = null;
+  localStorage.removeItem("runebrawl.playerId");
+  localStorage.removeItem("runebrawl.matchId");
+  state.value = null;
+  connected.value = false;
+  ws.value?.close();
+  ws.value = null;
+}
+
+function backToMenu(): void {
+  resetActiveSession();
+}
+
+async function playAgain(): Promise<void> {
+  const fallbackName = name.value.trim() || me.value?.name || "";
+  name.value = fallbackName;
+  error.value = "";
+  joinMode.value = "quick";
+  resetActiveSession();
+  if (!name.value.trim()) {
+    error.value = t("game.error.enterName");
+    return;
+  }
+  await connect();
+}
+
 function buy(shopIndex: number): void {
+  animatingShopIndex.value = shopIndex;
+  window.setTimeout(() => {
+    if (animatingShopIndex.value === shopIndex) {
+      animatingShopIndex.value = null;
+    }
+  }, 260);
   send({ type: "BUY_UNIT", shopIndex });
 }
 
@@ -345,17 +509,18 @@ async function loadOpenLobbies(): Promise<void> {
   }
 }
 
-function joinOpenLobby(matchId: string): void {
+async function joinOpenLobby(matchId: string): Promise<void> {
   if (!name.value.trim()) {
     error.value = t("game.error.enterName");
     return;
   }
+  const sessionAccountId = await ensurePlayerSession();
   const protocol = location.protocol === "https:" ? "wss" : "ws";
   const socket = new WebSocket(`${protocol}://${location.hostname}:3001/ws`);
   ws.value = socket;
   socket.onopen = () => {
     connected.value = true;
-    send({ type: "JOIN_LOBBY", name: name.value.trim(), matchId });
+    send({ type: "JOIN_LOBBY", name: name.value.trim(), accountId: sessionAccountId, matchId });
   };
   socket.onmessage = (event) => {
     const message = JSON.parse(event.data as string) as ServerMessage;
@@ -376,7 +541,7 @@ function joinOpenLobby(matchId: string): void {
 
 function joinSelectedOpenLobby(): void {
   if (!selectedOpenLobby.value) return;
-  joinOpenLobby(selectedOpenLobby.value);
+  void joinOpenLobby(selectedOpenLobby.value);
 }
 
 function sell(zone: "bench" | "board", index: number): void {
@@ -580,6 +745,17 @@ function phaseLabel(phase: string): string {
   return t(`phase.${phase}`);
 }
 
+function animationSpeedMultiplier(): number {
+  if (reducedMotion.value) return 0.65;
+  if (animationSpeed.value === "slow") return 1.25;
+  if (animationSpeed.value === "fast") return 0.8;
+  return 1;
+}
+
+function animationDurationMs(baseMs: number): number {
+  return Math.max(60, Math.round(baseMs * animationSpeedMultiplier()));
+}
+
 function applyCombatEvent(event: CombatReplayEvent): void {
   if (event.type === "ATTACK") {
     if (event.sourceOwnerId === undefined || event.sourceSlotIndex === undefined) return;
@@ -647,6 +823,10 @@ function slotAnimationClass(side: "me" | "enemy", idx: number): string {
   return deadSlots.value[slotKey(side, idx)] ? "dead-fade" : "";
 }
 
+function slotHitClass(side: "me" | "enemy", idx: number): string {
+  return recentDamageBySlot.value[slotKey(side, idx)] ? "slot-hit-shake" : "";
+}
+
 function clearCombatPlaybackTimer(): void {
   if (combatPlaybackTimer !== null) {
     window.clearTimeout(combatPlaybackTimer);
@@ -680,7 +860,7 @@ function playAnimationSteps(
   }
   combatPlaybackTimer = window.setTimeout(() => {
     playAnimationSteps(event, steps, stepIndex + 1, runId, onDone);
-  }, step.durationMs);
+  }, animationDurationMs(step.durationMs));
 }
 
 function playCombatQueue(nextIndex: number, runId: number): void {
@@ -727,6 +907,14 @@ watch(
   { immediate: true }
 );
 
+watch(animationSpeed, (next) => {
+  localStorage.setItem("runebrawl.ui.animationSpeed", next);
+});
+
+watch(reducedMotion, (next) => {
+  localStorage.setItem("runebrawl.ui.reducedMotion", next ? "1" : "0");
+});
+
 onBeforeUnmount(() => {
   if (clock !== null) window.clearInterval(clock);
   stopCombatPlayback();
@@ -740,7 +928,7 @@ onMounted(() => {
   }, 250);
 
   if (storedPlayerId.value) {
-    connect();
+    void connect();
   } else {
     void loadOpenLobbies();
   }
@@ -751,281 +939,204 @@ onMounted(() => {
   <div class="app">
     <header class="header">
       <h1>{{ t("game.title") }}</h1>
-      <div v-if="state" class="round">
-        {{ t("game.matchHeader", { matchId: state.matchId, round: state.round, phase: phaseLabel(state.phase), sequence: state.sequence, seconds: secondsLeft }) }}
+      <div class="actions">
+        <div v-if="state" class="round">
+          {{ t("game.matchHeader", { matchId: state.matchId, round: state.round, phase: phaseLabel(state.phase), sequence: state.sequence, seconds: secondsLeft }) }}
+        </div>
+        <button @click="showSettings = true">{{ t("game.settings.open") }}</button>
       </div>
     </header>
 
-    <div v-if="!connected" class="join-card">
-      <select v-model="joinMode">
-        <option value="quick">{{ t("game.join.quick") }}</option>
-        <option value="createPrivate">{{ t("game.join.createPrivate") }}</option>
-        <option value="joinPrivate">{{ t("game.join.joinPrivate") }}</option>
-      </select>
-      <input v-model="name" :placeholder="t('game.join.yourName')" />
-      <input
-        v-if="joinMode !== 'joinPrivate'"
-        v-model="region"
-        :placeholder="t('game.join.regionPlaceholder')"
-      />
-      <input
-        v-if="joinMode !== 'joinPrivate'"
-        v-model.number="mmr"
-        type="number"
-        min="1"
-        :placeholder="t('game.join.mmr')"
-      />
-      <input
-        v-if="joinMode === 'joinPrivate'"
-        v-model="inviteCodeInput"
-        :placeholder="t('game.join.inviteCode')"
-      />
-      <input
-        v-if="joinMode === 'createPrivate'"
-        v-model.number="privateMaxPlayers"
-        type="number"
-        min="2"
-        max="8"
-        :placeholder="t('game.join.maxPlayers')"
-      />
-      <button @click="connect">{{ storedPlayerId && storedMatchId ? t("game.join.reconnect") : t("game.join.enterLobby") }}</button>
-      <button @click="loadOpenLobbies">{{ t("game.join.refreshLobbies") }}</button>
-    </div>
-
-    <div v-if="!connected && openLobbies.length > 0" class="join-card">
-      <select v-model="selectedOpenLobby">
-        <option value="">{{ t("game.join.openLobbyPlaceholder") }}</option>
-        <option v-for="lobby in openLobbies" :key="lobby.matchId" :value="lobby.matchId">
-          {{ lobby.matchId }} | {{ lobby.currentPlayers }}/{{ lobby.maxPlayers }} | {{ lobby.region }} | {{ lobby.mmrBucket }}
-        </option>
-      </select>
-      <button @click="joinSelectedOpenLobby">{{ t("game.join.selectedLobby") }}</button>
-    </div>
+    <MenuScreen
+      :connected="connected"
+      :join-mode="joinMode"
+      :name="name"
+      :region="region"
+      :mmr="mmr"
+      :invite-code-input="inviteCodeInput"
+      :private-max-players="privateMaxPlayers"
+      :open-lobbies="openLobbies"
+      :selected-open-lobby="selectedOpenLobby"
+      :stored-player-id="storedPlayerId"
+      :stored-match-id="storedMatchId"
+      @update:join-mode="joinMode = $event"
+      @update:name="name = $event"
+      @update:region="region = $event"
+      @update:mmr="mmr = $event"
+      @update:invite-code-input="inviteCodeInput = $event"
+      @update:private-max-players="privateMaxPlayers = $event"
+      @update:selected-open-lobby="selectedOpenLobby = $event"
+      @connect="connect"
+      @refresh-lobbies="loadOpenLobbies"
+      @join-selected-open-lobby="joinSelectedOpenLobby"
+    />
 
     <p v-if="error" class="error">{{ error }}</p>
 
-    <div v-if="state && me" class="layout">
-      <section class="tavern">
-        <h2>{{ t("game.tavernShop") }}</h2>
-        <div v-if="state" class="stats">
-          <span class="stat-pill">
-            <img class="chip-icon" :src="statPlayersIcon" alt="" />
-            {{ t("game.players") }}: {{ state.players.length }} / {{ state.maxPlayers }}
-          </span>
-          <span v-if="state.isPrivate && state.inviteCode">{{ t("game.code") }}: {{ state.inviteCode }}</span>
-        </div>
-        <p v-if="isLobby" class="slot-title">{{ lobbyStatusText }}</p>
-        <p v-if="isHeroSelection && !me.heroSelected" class="slot-title">{{ t("game.chooseHero") }}</p>
-        <p v-if="isHeroSelection && me.heroSelected && me.hero" class="slot-title">
-          {{ t("game.heroLocked", { hero: me.hero.name }) }}
-        </p>
-        <div class="stats">
-          <span class="stat-pill">
-            <img class="chip-icon" :src="statGoldIcon" alt="" />
-            {{ t("game.gold") }}: {{ me.gold }}
-          </span>
-          <span class="stat-pill">
-            <img class="chip-icon" :src="statHealthIcon" alt="" />
-            {{ t("game.health") }}: {{ me.health }}
-          </span>
-          <span>{{ t("game.tier") }}: {{ me.tavernTier }}</span>
-          <span>{{ t("game.xp") }}: {{ me.xp }}</span>
-        </div>
-        <div v-if="isHeroSelection" class="shop-row">
-          <div v-for="hero in me.heroOptions" :key="hero.id" class="shop-card">
-            <div class="unit-name">{{ hero.name }}</div>
-            <div class="unit-meta">{{ hero.description }}</div>
-            <button :disabled="me.heroSelected" @click="selectHero(hero.id)">
-              {{ me.heroSelected ? t("game.heroSelected") : t("game.selectHero") }}
-            </button>
-          </div>
-        </div>
-        <div v-if="!isHeroSelection" class="shop-row">
-          <div v-for="(unit, idx) in me.shop" :key="idx" class="shop-card" :class="unitTierClass(unit)">
-            <div class="unit-name" v-if="unit">
-              <img class="unit-icon" :src="roleIconPath(unit.role)" alt="" />
-              <span>{{ unit.name }}</span>
-            </div>
-            <div class="unit-name" v-else>{{ t("game.soldOut") }}</div>
-            <div v-if="unit" class="unit-meta">
-              <span class="meta-chip">T{{ unit.tier }}</span>
-              <span class="meta-chip">
-                <img class="chip-icon" :src="roleIconPath(unit.role)" alt="" />
-                {{ unit.role }}
-              </span>
-              <span class="meta-chip" :title="`${abilityLabel(unit.ability)}: ${abilityDescription(unit.ability)}`">
-                <img class="chip-icon" :src="abilityIconPath(unit.ability)" alt="" />
-                {{ abilityLabel(unit.ability) }}
-              </span>
-              <span
-                v-for="tag in unit.tags ?? []"
-                :key="`shop-tag-${unit.id}-${tag}`"
-                class="meta-chip tag-chip"
-                :title="`${synergyLabel(tag)}: ${synergyDescription(tag)}`"
-              >
-                {{ synergyLabel(tag) }}
-              </span>
-              <div class="unit-meta-line">{{ t("game.unitMeta", { attack: unit.attack, hp: unit.hp, speed: unit.speed }) }}</div>
-            </div>
-            <button :disabled="!isBuyPhase || !unit" @click="buy(idx)">{{ t("game.buy3") }}</button>
-          </div>
-        </div>
-        <div v-if="me.hero" class="slot-title">
-          {{ t("game.heroLine", { name: me.hero.name, description: me.hero.description }) }}
-        </div>
-        <div class="actions">
-          <button v-if="isLobby && isCreator" @click="addBotToLobby">{{ t("game.addBot") }}</button>
-          <button v-if="isPrivateLobby && isCreator" @click="forceStartLobby">{{ t("game.forceStart") }}</button>
-          <button v-if="isPrivateLobby" @click="readyLobbyToggle">{{ me.ready ? t("game.unreadyLobby") : t("game.readyLobby") }}</button>
-          <button
-            v-if="me.hero && me.hero.powerType === 'ACTIVE'"
-            :disabled="!isBuyPhase || me.heroPowerUsedThisTurn || me.gold < me.hero.powerCost"
-            @click="useHeroPower"
-          >
-            {{ t("game.heroPower", { cost: me.hero.powerCost }) }} {{ me.heroPowerUsedThisTurn ? t("game.heroPowerUsed") : "" }}
-          </button>
-          <button :disabled="!isBuyPhase" @click="reroll">{{ t("game.reroll1") }}</button>
-          <button :disabled="!isBuyPhase" @click="upgrade">{{ t("game.upgradeTavern") }}</button>
-          <button :disabled="!isBuyPhase" @click="lockToggle">
-            {{ me.lockedShop ? t("game.unlockShop") : t("game.lockShop") }}
-          </button>
-          <button :disabled="!isBuyPhase || me.ready" @click="ready">{{ t("game.ready") }}</button>
-        </div>
-      </section>
+    <SettingsModal
+      :visible="showSettings"
+      :animation-speed="animationSpeed"
+      :reduced-motion="reducedMotion"
+      @close="showSettings = false"
+      @update:animation-speed="animationSpeed = $event"
+      @update:reduced-motion="reducedMotion = $event"
+    />
 
-      <section v-if="!isCombatView" class="board">
-        <h2>{{ t("game.battlefield") }}</h2>
-        <div class="slot-row">
-          <div
-            v-for="(unit, idx) in me.board"
-            :key="`board-${idx}`"
-            class="slot"
-            draggable="true"
-            @dragstart="onDragStart('board', idx)"
-            @dragover.prevent
-            @drop="onDrop('board', idx)"
-          >
-            <div class="slot-title">{{ t("game.boardSlot", { index: idx + 1 }) }}</div>
-            <div class="slot-unit">{{ unitQuickMeta(unit) }}</div>
-            <div
-              v-if="unit"
-              class="slot-mini-meta"
-              :title="`${abilityLabel(unit.ability)}: ${abilityDescription(unit.ability)}`"
-            >
-              <img class="chip-icon" :src="abilityIconPath(unit.ability)" alt="" />
-              {{ abilityLabel(unit.ability) }}
-            </div>
-            <div v-if="unit && (unit.tags?.length ?? 0) > 0" class="slot-mini-meta">
-              {{ (unit.tags ?? []).map((t) => synergyLabel(t)).join(" • ") }}
-            </div>
-            <button v-if="unit && isBuyPhase" @click="sell('board', idx)">{{ t("game.sell1") }}</button>
-          </div>
-        </div>
+    <div v-if="state && me" class="game-scene" :class="`scene-${state.phase.toLowerCase()}`">
+      <div class="scene-backdrop" aria-hidden="true"></div>
+      <div class="scene-vignette" aria-hidden="true"></div>
+      <div class="scene-ornament scene-ornament-top" aria-hidden="true"></div>
+      <div class="scene-ornament scene-ornament-bottom" aria-hidden="true"></div>
+      <div class="scene-content">
+        <Transition name="phase-screen" mode="out-in">
+          <div :key="state.phase" class="phase-shell">
+            <LobbyView
+              v-if="isLobby"
+              :state="state"
+              :me="me"
+              :is-creator="isCreator"
+              :is-private-lobby="isPrivateLobby"
+              :lobby-status-text="lobbyStatusText"
+              :stat-players-icon="statPlayersIcon"
+              :stat-health-icon="statHealthIcon"
+              :player-type-icon-path="playerTypeIconPath"
+              :display-player-name="displayPlayerName"
+              :player-type-badge-class="playerTypeBadgeClass"
+              :player-type-label="playerTypeLabel"
+              @add-bot-to-lobby="addBotToLobby"
+              @force-start-lobby="forceStartLobby"
+              @ready-lobby-toggle="readyLobbyToggle"
+              @kick-player="kickPlayer"
+            />
 
-        <h2>{{ t("game.bench") }}</h2>
-        <div class="slot-row">
-          <div
-            v-for="(unit, idx) in me.bench"
-            :key="`bench-${idx}`"
-            class="slot bench-slot"
-            draggable="true"
-            @dragstart="onDragStart('bench', idx)"
-            @dragover.prevent
-            @drop="onDrop('bench', idx)"
-          >
-            <div class="slot-title">{{ t("game.benchSlot", { index: idx + 1 }) }}</div>
-            <div class="slot-unit">{{ unitQuickMeta(unit) }}</div>
-            <div
-              v-if="unit"
-              class="slot-mini-meta"
-              :title="`${abilityLabel(unit.ability)}: ${abilityDescription(unit.ability)}`"
-            >
-              <img class="chip-icon" :src="abilityIconPath(unit.ability)" alt="" />
-              {{ abilityLabel(unit.ability) }}
-            </div>
-            <div v-if="unit && (unit.tags?.length ?? 0) > 0" class="slot-mini-meta">
-              {{ (unit.tags ?? []).map((t) => synergyLabel(t)).join(" • ") }}
-            </div>
-            <button v-if="unit && isBuyPhase" @click="sell('bench', idx)">{{ t("game.sell1") }}</button>
-          </div>
-        </div>
-      </section>
-      <section v-else class="board combat-board">
-        <h2>{{ t("game.combatView") }}</h2>
-        <div class="combat-subtitle">
-          <span v-if="myDuelMeta">{{ myDuelMeta.meName }} {{ t("game.vs") }} {{ myDuelMeta.opponentName }}</span>
-          <span v-else>{{ t("game.waitingDuel") }}</span>
-        </div>
-        <div v-if="activeTargetLine" class="target-line" :class="{ hit: activeTargetLine.isHit }">
-          <span class="target-name">{{ activeTargetLine.source }}</span>
-          <span class="target-arrow">→</span>
-          <span class="target-name">{{ activeTargetLine.target }}</span>
-        </div>
-        <div class="combat-arena" v-if="myCombatOpponent">
-          <div class="combat-side">
-            <h3>{{ me.name }}</h3>
-            <div class="slot-row">
-              <div
-                v-for="(unit, idx) in me.board"
-                :key="`combat-me-${idx}`"
-                class="slot"
-                :class="[unitPulseClass(unit, 'me', idx), slotAnimationClass('me', idx)]"
-              >
-                <div class="slot-title">{{ t("game.slot", { index: idx + 1 }) }}</div>
-                <div class="slot-unit">{{ unitLabelReplay(replayMyBoard[idx] ?? null) }}</div>
-                <div class="hp-track" v-if="replayMyBoard[idx]">
-                  <div class="hp-fill" :style="{ width: `${unitHpPercent(replayMyBoard[idx])}%` }"></div>
-                </div>
-                <div class="damage-pop" v-if="recentDamageBySlot[slotKey('me', idx)]">
-                  {{ recentDamageBySlot[slotKey("me", idx)] }}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="combat-side">
-            <h3>{{ myCombatOpponent.name }}</h3>
-            <div class="slot-row">
-              <div
-                v-for="(unit, idx) in myCombatOpponent.board"
-                :key="`combat-opp-${idx}`"
-                class="slot"
-                :class="[unitPulseClass(unit, 'enemy', idx), slotAnimationClass('enemy', idx)]"
-              >
-                <div class="slot-title">{{ t("game.slot", { index: idx + 1 }) }}</div>
-                <div class="slot-unit">{{ unitLabelReplay(replayEnemyBoard[idx] ?? null) }}</div>
-                <div class="hp-track" v-if="replayEnemyBoard[idx]">
-                  <div class="hp-fill" :style="{ width: `${unitHpPercent(replayEnemyBoard[idx])}%` }"></div>
-                </div>
-                <div class="damage-pop" v-if="recentDamageBySlot[slotKey('enemy', idx)]">
-                  {{ recentDamageBySlot[slotKey("enemy", idx)] }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <p class="slot-title" v-if="activeCombatLine">{{ t("game.replay") }}: {{ activeCombatLine }}</p>
-      </section>
+            <HeroSelectionView
+              v-else-if="isHeroSelection"
+              :state="state"
+              :me="me"
+              :stat-players-icon="statPlayersIcon"
+              :stat-gold-icon="statGoldIcon"
+              :stat-health-icon="statHealthIcon"
+              :hero-portrait-path="heroPortraitPath"
+              @select-hero="selectHero"
+            />
 
-      <aside class="sidebar">
-        <h3>{{ t("game.players") }}</h3>
-        <ul>
-          <li v-for="p in state.players" :key="p.playerId">
-            <img class="chip-icon" :src="playerTypeIconPath(p.name)" alt="" />
-            {{ displayPlayerName(p.name) }} - <span class="player-badge" :class="playerTypeBadgeClass(p.name)">{{ playerTypeLabel(p.name) }}</span> -
-            <img class="chip-icon" :src="statHealthIcon" alt="" /> {{ p.health }} {{ t("game.hpShort") }} -
-            {{ p.hero ? p.hero.name : t("game.noHero") }} - {{ p.ready ? t("game.ready") : t("game.thinking") }}
-            <button v-if="isLobby && isCreator && p.playerId !== me.playerId" @click="kickPlayer(p.playerId)">{{ t("game.kick") }}</button>
-          </li>
-        </ul>
+            <MatchEndView
+              v-else-if="isFinished"
+              :state="state"
+              :me-player-id="me.playerId"
+              @play-again="playAgain"
+              @back-to-menu="backToMenu"
+            />
 
-        <h3>{{ t("game.combatLog") }}</h3>
-        <div class="log">
-          <div v-for="(entry, idx) in enrichedCombatLog" :key="idx" class="log-entry">
-            <div>{{ entry.line }}</div>
-            <div v-if="entry.hint" class="log-hint">{{ entry.hint }}</div>
+            <div v-else class="layout" :class="[isCombatView ? 'layout-combat' : '', `phase-${state.phase.toLowerCase()}`]">
+              <template v-if="isCombatView">
+                <CombatView
+                  :me="me"
+                  :my-combat-opponent="myCombatOpponent"
+                  :my-duel-meta="myDuelMeta"
+                  :has-no-duel-this-round="hasNoDuelThisRound"
+                  :active-target-line="activeTargetLine"
+                  :active-combat-line="activeCombatLine"
+                  :replay-my-board="replayMyBoard"
+                  :replay-enemy-board="replayEnemyBoard"
+                  :recent-damage-by-slot="recentDamageBySlot"
+                  :unit-portrait-path="unitPortraitPath"
+                  :unit-label-replay="unitLabelReplay"
+                  :unit-hp-percent="unitHpPercent"
+                  :unit-pulse-class="unitPulseClass"
+                  :slot-animation-class="slotAnimationClass"
+                  :slot-hit-class="slotHitClass"
+                  :slot-key="slotKey"
+                />
+                <PlayersSidebar
+                  :state="state"
+                  :is-lobby="isLobby"
+                  :is-creator="isCreator"
+                  :me-player-id="me.playerId"
+                  :enriched-combat-log="enrichedCombatLog"
+                  :player-type-icon-path="playerTypeIconPath"
+                  :display-player-name="displayPlayerName"
+                  :player-type-badge-class="playerTypeBadgeClass"
+                  :player-type-label="playerTypeLabel"
+                  :stat-health-icon="statHealthIcon"
+                  @kick-player="kickPlayer"
+                />
+              </template>
+              <template v-else>
+                <RecruitmentHallView
+                  :state="state"
+                  :me="me"
+                  :is-lobby="isLobby"
+                  :is-hero-selection="isHeroSelection"
+                  :is-private-lobby="isPrivateLobby"
+                  :is-creator="isCreator"
+                  :is-buy-phase="isBuyPhase"
+                  :lobby-status-text="lobbyStatusText"
+                  :animating-shop-index="animatingShopIndex"
+                  :stat-players-icon="statPlayersIcon"
+                  :stat-gold-icon="statGoldIcon"
+                  :stat-health-icon="statHealthIcon"
+                  :unit-tier-class="unitTierClass"
+                  :role-icon-path="roleIconPath"
+                  :ability-icon-path="abilityIconPath"
+                  :ability-label="abilityLabel"
+                  :ability-description="abilityDescription"
+                  :synergy-label="synergyLabel"
+                  :synergy-description="synergyDescription"
+                  :hero-portrait-path="heroPortraitPath"
+                  :unit-portrait-path="unitPortraitPath"
+                  @select-hero="selectHero"
+                  @buy="buy"
+                  @add-bot-to-lobby="addBotToLobby"
+                  @force-start-lobby="forceStartLobby"
+                  @ready-lobby-toggle="readyLobbyToggle"
+                  @use-hero-power="useHeroPower"
+                  @reroll="reroll"
+                  @upgrade="upgrade"
+                  @lock-toggle="lockToggle"
+                  @ready="ready"
+                />
+
+                <BoardBenchView
+                  :me="me"
+                  :is-buy-phase="isBuyPhase"
+                  :unit-portrait-path="unitPortraitPath"
+                  :unit-quick-meta="unitQuickMeta"
+                  :ability-label="abilityLabel"
+                  :ability-description="abilityDescription"
+                  :ability-icon-path="abilityIconPath"
+                  :synergy-label="synergyLabel"
+                  @sell="sell"
+                  @dragstart="onDragStart"
+                  @drop="onDrop"
+                />
+
+                <PlayersSidebar
+                  :state="state"
+                  :is-lobby="isLobby"
+                  :is-creator="isCreator"
+                  :me-player-id="me.playerId"
+                  :enriched-combat-log="enrichedCombatLog"
+                  :player-type-icon-path="playerTypeIconPath"
+                  :display-player-name="displayPlayerName"
+                  :player-type-badge-class="playerTypeBadgeClass"
+                  :player-type-label="playerTypeLabel"
+                  :stat-health-icon="statHealthIcon"
+                  @kick-player="kickPlayer"
+                />
+              </template>
+            </div>
           </div>
-        </div>
-      </aside>
+        </Transition>
+      </div>
+      <RoundResultOverlay
+        v-if="isRoundEnd"
+        :round="state.round"
+        :result-label="parsedRoundResult.label"
+        :summary="hasNoDuelThisRound ? t('game.roundResult.summaryNoDuel') : parsedRoundResult.summary"
+        :detail="hasNoDuelThisRound ? '' : parsedRoundResult.detail ?? ''"
+        :no-duel="hasNoDuelThisRound"
+      />
     </div>
   </div>
 </template>

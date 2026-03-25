@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { HeroDefinition, UnitDefinition } from "@runebrawl/shared";
 import { useAdminApi } from "../composables/useAdminApi";
+import { hasHeroPortrait, hasUnitPortrait, heroPortraitPath, unitPortraitPath } from "../assets/portraits/loader";
 import { useI18n } from "../i18n/useI18n";
 
 const showAdmin = ref(true);
@@ -17,6 +18,11 @@ const formUnits = ref<UnitDefinition[]>([]);
 const formHeroes = ref<HeroDefinition[]>([]);
 const selectedUnitId = ref("");
 const selectedHeroId = ref("");
+const ratingLookupPlayerId = ref("");
+const ratingLookupStatus = ref("");
+const selectedCommunitySubmissionId = ref("");
+const communitySubmissionStatus = ref("");
+const rollbackStatus = ref("");
 const baseHost = location.hostname;
 const { t } = useI18n();
 
@@ -35,7 +41,12 @@ const {
   adminContentDraft,
   adminContentHasDraft,
   adminContentValidation,
+  adminContentPublishHistory,
+  adminCommunitySubmissions,
+  adminCommunitySubmissionDetail,
   adminUnitPool,
+  adminRatingLeaderboard,
+  adminRatingPlayer,
   adminEventFeed,
   adminLastErrorCode,
   adminLastErrorMessage,
@@ -45,8 +56,16 @@ const {
   logout,
   refreshAdmin,
   loadAdminLobbies,
+  loadAdminRatingLeaderboard,
+  loadAdminRatingPlayer,
   loadAdminContentDraft,
+  loadAdminContentPublishHistory,
   loadAdminUnitPool,
+  loadAdminCommunitySubmissions,
+  loadAdminCommunitySubmissionDetail,
+  importAdminCommunitySubmissionToDraft,
+  approvePublishAdminCommunitySubmission,
+  rollbackAdminContentToAudit,
   saveAdminContentDraft,
   validateAdminContentDraft,
   publishAdminContentDraft,
@@ -60,7 +79,10 @@ const {
 const ADMIN_ERROR_KEYS: Record<string, string> = {
   ADMIN_UNAUTHORIZED: "admin.error.ADMIN_UNAUTHORIZED",
   ADMIN_INVALID_CREDENTIALS: "admin.error.ADMIN_INVALID_CREDENTIALS",
-  ADMIN_MATCH_NOT_FOUND: "admin.error.ADMIN_MATCH_NOT_FOUND"
+  ADMIN_MATCH_NOT_FOUND: "admin.error.ADMIN_MATCH_NOT_FOUND",
+  ADMIN_RATING_NOT_FOUND: "admin.error.ADMIN_RATING_NOT_FOUND",
+  ADMIN_CONTENT_SUBMISSION_NOT_FOUND: "admin.error.ADMIN_CONTENT_SUBMISSION_NOT_FOUND",
+  ADMIN_CONTENT_AUDIT_NOT_FOUND: "admin.error.ADMIN_CONTENT_AUDIT_NOT_FOUND"
 };
 
 const topUnitBuys = computed(() => {
@@ -77,6 +99,24 @@ const topStartReasons = computed(() => {
   const entries = Object.entries(adminMetrics.value?.startReasons ?? {});
   return entries.sort((a, b) => b[1] - a[1]);
 });
+
+const portraitUnitPreview = computed(() =>
+  (adminContentCatalog.value?.units ?? []).map((unit) => ({
+    id: unit.id,
+    name: unit.name,
+    src: unitPortraitPath(unit.id),
+    exists: hasUnitPortrait(unit.id)
+  }))
+);
+
+const portraitHeroPreview = computed(() =>
+  (adminContentCatalog.value?.heroes ?? []).map((hero) => ({
+    id: hero.id,
+    name: hero.name,
+    src: heroPortraitPath(hero.id),
+    exists: hasHeroPortrait(hero.id)
+  }))
+);
 
 const SYNERGY_LABELS: Record<string, string> = {
   BERSERKER: t("synergy.BERSERKER.label")
@@ -107,6 +147,14 @@ function formatTime(ts: number): string {
 
 function formatBuilderUpdatedAt(ts: number): string {
   return new Date(ts).toLocaleString();
+}
+
+function formatBuilderAuditAction(action: string): string {
+  return t(`admin.builder.audit.action.${action}`);
+}
+
+function formatBuilderAuditSource(source: string): string {
+  return t(`admin.builder.audit.source.${source}`);
 }
 
 function formatPoolPct(value: number): string {
@@ -415,6 +463,82 @@ async function publishBuilderDraft(): Promise<void> {
   await loadBuilderDraft();
 }
 
+async function refreshCommunitySubmissions(): Promise<void> {
+  communitySubmissionStatus.value = "";
+  await loadAdminCommunitySubmissions();
+}
+
+async function previewCommunitySubmission(): Promise<void> {
+  communitySubmissionStatus.value = "";
+  const trimmed = selectedCommunitySubmissionId.value.trim();
+  if (!trimmed) {
+    communitySubmissionStatus.value = t("admin.builder.community.selectFirst");
+    return;
+  }
+  const detail = await loadAdminCommunitySubmissionDetail(trimmed);
+  if (!detail) {
+    communitySubmissionStatus.value = formatAdminError(adminLastErrorCode.value, adminLastErrorMessage.value || t("admin.builder.community.previewFailed"));
+    return;
+  }
+  communitySubmissionStatus.value = t("admin.builder.community.previewLoaded", { id: detail.submissionId });
+}
+
+async function importCommunitySubmissionToDraft(): Promise<void> {
+  builderStatus.value = "";
+  builderError.value = "";
+  communitySubmissionStatus.value = "";
+  const trimmed = selectedCommunitySubmissionId.value.trim();
+  if (!trimmed) {
+    communitySubmissionStatus.value = t("admin.builder.community.selectFirst");
+    return;
+  }
+  const result = await importAdminCommunitySubmissionToDraft(trimmed);
+  if (!result.ok) {
+    builderError.value = result.errors.join(" | ");
+    return;
+  }
+  await loadBuilderDraft();
+  communitySubmissionStatus.value = t("admin.builder.community.imported", { id: trimmed });
+}
+
+async function approveAndPublishCommunitySubmission(): Promise<void> {
+  builderStatus.value = "";
+  builderError.value = "";
+  rollbackStatus.value = "";
+  communitySubmissionStatus.value = "";
+  const trimmed = selectedCommunitySubmissionId.value.trim();
+  if (!trimmed) {
+    communitySubmissionStatus.value = t("admin.builder.community.selectFirst");
+    return;
+  }
+  if (!window.confirm(t("admin.builder.community.confirmApprovePublish", { id: trimmed }))) {
+    return;
+  }
+  const result = await approvePublishAdminCommunitySubmission(trimmed);
+  if (!result.ok) {
+    builderError.value = result.errors.join(" | ");
+    return;
+  }
+  await loadBuilderDraft();
+  builderStatus.value = t("admin.builder.community.approvedPublished", { id: trimmed });
+}
+
+async function rollbackToAudit(auditId: string): Promise<void> {
+  builderStatus.value = "";
+  builderError.value = "";
+  rollbackStatus.value = "";
+  if (!window.confirm(t("admin.builder.audit.confirmRollback", { auditId }))) {
+    return;
+  }
+  const result = await rollbackAdminContentToAudit(auditId);
+  if (!result.ok) {
+    builderError.value = result.errors.join(" | ");
+    return;
+  }
+  await Promise.all([loadBuilderDraft(), loadAdminContentPublishHistory(30)]);
+  rollbackStatus.value = t("admin.builder.audit.rollbackSuccess", { auditId });
+}
+
 async function doLogin(): Promise<void> {
   authError.value = "";
   const result = await login(username.value, password.value);
@@ -426,11 +550,32 @@ async function doLogin(): Promise<void> {
   startPolling(5000);
   await refreshAdmin();
   await loadBuilderDraft();
+  await loadAdminContentPublishHistory(30);
 }
 
 async function doLogout(): Promise<void> {
   await logout();
   stopPolling();
+}
+
+async function refreshRatingLeaderboard(): Promise<void> {
+  ratingLookupStatus.value = "";
+  await loadAdminRatingLeaderboard(20);
+}
+
+async function lookupRatingPlayer(): Promise<void> {
+  ratingLookupStatus.value = "";
+  const trimmed = ratingLookupPlayerId.value.trim();
+  if (!trimmed) {
+    ratingLookupStatus.value = t("admin.ratings.enterPlayerId");
+    return;
+  }
+  const rating = await loadAdminRatingPlayer(trimmed);
+  if (!rating) {
+    ratingLookupStatus.value = formatAdminError(adminLastErrorCode.value, adminLastErrorMessage.value || t("admin.ratings.notFound"));
+    return;
+  }
+  ratingLookupStatus.value = t("admin.ratings.loaded", { playerId: rating.playerId });
 }
 
 onMounted(() => {
@@ -451,6 +596,20 @@ watch(
     }
   },
   { deep: true }
+);
+
+watch(
+  () => adminCommunitySubmissions.value,
+  (next) => {
+    if (!next.length) {
+      selectedCommunitySubmissionId.value = "";
+      return;
+    }
+    if (!selectedCommunitySubmissionId.value) {
+      selectedCommunitySubmissionId.value = next[0].submissionId;
+    }
+  },
+  { deep: true, immediate: true }
 );
 
 onBeforeUnmount(() => {
@@ -509,6 +668,56 @@ onBeforeUnmount(() => {
             <option value="form">{{ t("admin.builder.formEditor") }}</option>
             <option value="json">{{ t("admin.builder.jsonEditor") }}</option>
           </select>
+        </div>
+        <div class="log">
+          <div><strong>{{ t("admin.builder.community.title") }}</strong></div>
+          <div class="actions">
+            <button @click="refreshCommunitySubmissions">{{ t("admin.builder.community.refresh") }}</button>
+            <select v-model="selectedCommunitySubmissionId">
+              <option value="">{{ t("admin.builder.community.select") }}</option>
+              <option v-for="submission in adminCommunitySubmissions" :key="`submission-${submission.submissionId}`" :value="submission.submissionId">
+                {{ submission.submissionId }} ({{ submission.unitsCount }}U/{{ submission.heroesCount }}H) {{ submission.validation.ok ? "OK" : "ERR" }}
+              </option>
+            </select>
+            <button @click="previewCommunitySubmission">{{ t("admin.builder.community.preview") }}</button>
+            <button @click="importCommunitySubmissionToDraft">{{ t("admin.builder.community.importToDraft") }}</button>
+            <button @click="approveAndPublishCommunitySubmission">{{ t("admin.builder.community.approvePublish") }}</button>
+          </div>
+          <div v-if="communitySubmissionStatus" class="slot-title">{{ communitySubmissionStatus }}</div>
+          <div v-if="adminCommunitySubmissionDetail">
+            <div>
+              {{ t("admin.builder.community.detail", {
+                id: adminCommunitySubmissionDetail.submissionId,
+                units: adminCommunitySubmissionDetail.unitsCount,
+                heroes: adminCommunitySubmissionDetail.heroesCount
+              }) }}
+            </div>
+            <div v-if="adminCommunitySubmissionDetail.metadata" class="slot-title">
+              {{ adminCommunitySubmissionDetail.metadata.title }} - {{ adminCommunitySubmissionDetail.metadata.author }} v{{ adminCommunitySubmissionDetail.metadata.version }}
+            </div>
+            <div v-if="!adminCommunitySubmissionDetail.validation.ok" class="error">
+              {{ adminCommunitySubmissionDetail.validation.errors.join(" | ") }}
+            </div>
+          </div>
+          <div v-else class="slot-title">{{ t("admin.builder.community.noneSelected") }}</div>
+        </div>
+        <div class="log">
+          <div><strong>{{ t("admin.builder.audit.title") }}</strong></div>
+          <div class="actions">
+            <button @click="loadAdminContentPublishHistory(30)">{{ t("admin.builder.audit.refresh") }}</button>
+          </div>
+          <div v-if="rollbackStatus" class="slot-title">{{ rollbackStatus }}</div>
+          <div v-for="entry in adminContentPublishHistory" :key="`audit-${entry.auditId}`" class="admin-row">
+            <span>
+              {{ formatBuilderUpdatedAt(entry.at) }} |
+              {{ formatBuilderAuditAction(entry.action) }} |
+              {{ formatBuilderAuditSource(entry.source) }} |
+              v{{ entry.fromVersion }} -> v{{ entry.toVersion }} |
+              {{ entry.unitsCount }}U/{{ entry.heroesCount }}H
+            </span>
+            <button @click="rollbackToAudit(entry.auditId)">{{ t("admin.builder.audit.rollback") }}</button>
+          </div>
+          <div v-if="adminContentPublishHistory.length === 0" class="slot-title">{{ t("admin.builder.audit.empty") }}</div>
         </div>
         <p v-if="builderStatus" class="slot-title">{{ builderStatus }}</p>
         <p v-if="builderError" class="error">{{ builderError }}</p>
@@ -625,6 +834,75 @@ onBeforeUnmount(() => {
             {{ formatStartReasonLabel(reason) }} ({{ reason }}): {{ count }}
           </div>
           <div v-if="topStartReasons.length === 0">{{ t("admin.noStartReasonTelemetry") }}</div>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>{{ t("admin.portraits.title") }}</h3>
+        <div class="portrait-preview-block">
+          <div class="slot-title">
+            <strong>{{ t("admin.portraits.units") }}</strong> -
+            {{ t("admin.builder.unitsCount", { count: portraitUnitPreview.length }) }}
+          </div>
+          <div class="portrait-preview-grid">
+            <div v-for="entry in portraitUnitPreview" :key="`unit-portrait-${entry.id}`" class="portrait-preview-card">
+              <img class="portrait-preview-image" :src="entry.src" :alt="entry.name" loading="lazy" />
+              <div class="portrait-preview-meta">
+                <div>{{ entry.name }}</div>
+                <div class="slot-title">{{ entry.id }}</div>
+                <span class="player-badge" :class="entry.exists ? 'badge-human' : 'badge-bot-hard'">
+                  {{ entry.exists ? t("admin.portraits.loaded") : t("admin.portraits.missing") }}
+                </span>
+              </div>
+            </div>
+            <div v-if="portraitUnitPreview.length === 0" class="slot-title">{{ t("admin.portraits.none") }}</div>
+          </div>
+        </div>
+        <div class="portrait-preview-block">
+          <div class="slot-title">
+            <strong>{{ t("admin.portraits.heroes") }}</strong> -
+            {{ t("admin.builder.heroesCount", { count: portraitHeroPreview.length }) }}
+          </div>
+          <div class="portrait-preview-grid">
+            <div v-for="entry in portraitHeroPreview" :key="`hero-portrait-${entry.id}`" class="portrait-preview-card">
+              <img class="portrait-preview-image" :src="entry.src" :alt="entry.name" loading="lazy" />
+              <div class="portrait-preview-meta">
+                <div>{{ entry.name }}</div>
+                <div class="slot-title">{{ entry.id }}</div>
+                <span class="player-badge" :class="entry.exists ? 'badge-human' : 'badge-bot-hard'">
+                  {{ entry.exists ? t("admin.portraits.loaded") : t("admin.portraits.missing") }}
+                </span>
+              </div>
+            </div>
+            <div v-if="portraitHeroPreview.length === 0" class="slot-title">{{ t("admin.portraits.none") }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>{{ t("admin.ratings.title") }}</h3>
+        <div class="actions">
+          <button @click="refreshRatingLeaderboard">{{ t("admin.ratings.refreshLeaderboard") }}</button>
+        </div>
+        <div class="join-card" style="margin-top: 8px;">
+          <input v-model="ratingLookupPlayerId" :placeholder="t('admin.ratings.playerIdPlaceholder')" />
+          <button @click="lookupRatingPlayer">{{ t("admin.ratings.lookupPlayer") }}</button>
+        </div>
+        <p v-if="ratingLookupStatus" class="slot-title">{{ ratingLookupStatus }}</p>
+        <div class="log">
+          <div><strong>{{ t("admin.ratings.leaderboard") }}</strong></div>
+          <div v-for="(entry, idx) in adminRatingLeaderboard" :key="`rating-row-${entry.playerId}-${idx}`">
+            #{{ idx + 1 }} {{ entry.playerId }} | RP {{ entry.rankPoints }} | MMR {{ entry.mmrHidden }} | {{ entry.rankTier }} | {{ t("admin.ratings.provisionalGames") }} {{ entry.provisionalGames }}
+          </div>
+          <div v-if="adminRatingLeaderboard.length === 0">{{ t("admin.ratings.emptyLeaderboard") }}</div>
+        </div>
+        <div class="log" v-if="adminRatingPlayer">
+          <div><strong>{{ t("admin.ratings.playerDetails") }}</strong></div>
+          <div>{{ adminRatingPlayer.playerId }}</div>
+          <div>RP {{ adminRatingPlayer.rankPoints }} | MMR {{ adminRatingPlayer.mmrHidden }}</div>
+          <div>{{ t("admin.ratings.rankTier") }} {{ adminRatingPlayer.rankTier }}</div>
+          <div>{{ t("admin.ratings.provisionalGames") }} {{ adminRatingPlayer.provisionalGames }}</div>
+          <div>{{ t("admin.ratings.updatedAt") }} {{ new Date(adminRatingPlayer.updatedAt).toLocaleString() }}</div>
         </div>
       </div>
 

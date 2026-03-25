@@ -26,6 +26,7 @@ import { findHeroById, randomHeroOptions } from "./data/heroes.js";
 import { UNIT_POOL, unitsForTier } from "./data/units.js";
 import { simulateCombat } from "./engine/combat.js";
 import { SeededRng } from "./engine/rng.js";
+import type { RatingUpdateInput } from "./ratings/types.js";
 import { applyEffect } from "./rules/effectRegistry.js";
 
 interface SocketLike {
@@ -35,6 +36,7 @@ interface SocketLike {
 interface PlayerInternal {
   playerId: string;
   name: string;
+  ratingIdentity: string;
   isBot: boolean;
   botDifficulty?: BotDifficulty;
   socket?: SocketLike;
@@ -52,6 +54,7 @@ interface PlayerInternal {
   bench: (UnitInstance | null)[];
   board: (UnitInstance | null)[];
   eliminated: boolean;
+  ghostBoardSnapshot: (UnitInstance | null)[] | null;
 }
 
 interface MatchInternal {
@@ -103,6 +106,10 @@ function mmrBucket(mmr: number): string {
   if (mmr < 900) return "low";
   if (mmr < 1300) return "mid";
   return "high";
+}
+
+function ratingIdentityFromPlayerName(name: string): string {
+  return `name:${name.trim().toLowerCase().replace(/\s+/g, " ")}`;
 }
 
 function firstEmpty<T>(arr: (T | null)[]): number {
@@ -425,14 +432,16 @@ export class MatchInstance {
     };
   }
 
-  joinHuman(name: string, socket: SocketLike): string {
+  joinHuman(name: string, socket: SocketLike, ratingIdentity?: string): string {
     if (!this.isJoinable()) {
       throw new Error("Match is full or already started");
     }
     const playerId = nanoid(10);
+    const displayName = name.trim() || `Player-${playerId.slice(0, 4)}`;
     const player: PlayerInternal = {
       playerId,
-      name: name.trim() || `Player-${playerId.slice(0, 4)}`,
+      name: displayName,
+      ratingIdentity: ratingIdentity?.trim() ? ratingIdentity : ratingIdentityFromPlayerName(displayName),
       isBot: false,
       socket,
       health: BALANCE.startingHealth,
@@ -448,7 +457,8 @@ export class MatchInstance {
       shop: Array.from({ length: BALANCE.shopSlots }, () => null),
       bench: Array.from({ length: BALANCE.benchSlots }, () => null),
       board: Array.from({ length: BALANCE.boardSlots }, () => null),
-      eliminated: false
+      eliminated: false,
+      ghostBoardSnapshot: null
     };
     this.match.players.push(player);
     if (!this.match.creatorPlayerId) {
@@ -623,6 +633,25 @@ export class MatchInstance {
     return this.match.events.filter((event) => event.sequence >= fromSequence);
   }
 
+  getRatingUpdateInput(): RatingUpdateInput | null {
+    if (this.match.phase !== "FINISHED") return null;
+    const humans = this.match.players.filter((p) => !p.isBot);
+    if (humans.length < 2) return null;
+    const sorted = [...humans].sort((a, b) => {
+      if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
+      if (a.health !== b.health) return b.health - a.health;
+      return a.playerId.localeCompare(b.playerId);
+    });
+    return {
+      matchId: this.match.matchId,
+      mode: "FFA",
+      placements: sorted.map((p, idx) => ({
+        playerId: p.ratingIdentity,
+        placement: idx + 1
+      }))
+    };
+  }
+
   private send(socket: SocketLike, message: ServerMessage): void {
     socket.send(JSON.stringify(message));
   }
@@ -671,7 +700,7 @@ export class MatchInstance {
       let reason: "force" | "full" | "all_ready" | "timeout" | null = null;
       if (this.match.isPrivate) {
         // Private lobbies start ONLY when leader triggered force start and all players are ready.
-        if (this.match.forceStart && alive.length >= 2 && alive.every((p) => p.ready)) {
+        if (this.match.forceStart && alive.length >= 2 && alive.length % 2 === 0 && alive.every((p) => p.ready)) {
           reason = "force";
         }
       } else {
@@ -723,7 +752,8 @@ export class MatchInstance {
     if (this.match.fillBotsOnStart) {
       this.ensureBots();
     }
-    if (this.match.players.filter((p) => !p.eliminated).length < 2) return;
+    const aliveCount = this.match.players.filter((p) => !p.eliminated).length;
+    if (aliveCount < 2 || aliveCount % 2 !== 0) return;
     if (!this.match.startedAt) {
       this.match.startedAt = now();
       this.match.startReason = reason;
@@ -830,6 +860,7 @@ export class MatchInstance {
     return {
       playerId: id,
       name: `Bot-${difficulty}-${id.slice(0, 4)}`,
+      ratingIdentity: `bot:${id}`,
       isBot: true,
       botDifficulty: difficulty,
       health: BALANCE.startingHealth,
@@ -845,7 +876,8 @@ export class MatchInstance {
       shop: Array.from({ length: BALANCE.shopSlots }, () => null),
       bench: Array.from({ length: BALANCE.benchSlots }, () => null),
       board: Array.from({ length: BALANCE.boardSlots }, () => null),
-      eliminated: false
+      eliminated: false,
+      ghostBoardSnapshot: null
     };
   }
 
@@ -880,6 +912,10 @@ export class MatchInstance {
 
   private autoPlaceBoardByDifficulty(player: PlayerInternal, difficulty: BotDifficulty): void {
     autoPlaceBoard(player, BALANCE.boardSlots, BALANCE.benchSlots, difficulty);
+  }
+
+  private makeGhostBoardSnapshot(player: PlayerInternal): (UnitInstance | null)[] {
+    return player.board.map((unit) => (unit ? { ...unit } : null));
   }
 
   private startHeroSelectionPhase(): void {
@@ -1009,10 +1045,28 @@ export class MatchInstance {
     for (let i = 0; i < shuffled.length; i += 2) {
       pairs.push([shuffled[i], shuffled[i + 1] ?? null]);
     }
+    const ghostCandidates = this.match.players.filter((p) => p.eliminated);
 
     for (const [a, b] of pairs) {
       if (!b) {
-        this.match.combatLog.push(`${a.name} has no opponent and takes no damage.`);
+        const ghost = ghostCandidates.length > 0 ? ghostCandidates[rng.int(ghostCandidates.length)] : null;
+        if (!ghost) {
+          this.match.combatLog.push(`${a.name} has no opponent and takes no damage.`);
+          continue;
+        }
+        this.match.combatLog.push(`${a.name} fights ghost ${ghost.name}.`);
+        this.resolveFight(
+          a,
+          {
+            playerId: ghost.playerId,
+            name: `${ghost.name} (Ghost)`,
+            board: ghost.ghostBoardSnapshot ?? Array.from({ length: BALANCE.boardSlots }, () => null),
+            tavernTier: ghost.tavernTier,
+            health: 0,
+            isGhost: true
+          },
+          rng
+        );
         continue;
       }
       this.resolveFight(a, b, rng);
@@ -1020,6 +1074,7 @@ export class MatchInstance {
 
     for (const p of this.match.players) {
       if (p.health <= 0 && !p.eliminated) {
+        p.ghostBoardSnapshot = this.makeGhostBoardSnapshot(p);
         this.releasePlayerUnitsToPool(p);
         p.eliminated = true;
       }
@@ -1031,7 +1086,11 @@ export class MatchInstance {
     this.broadcast();
   }
 
-  private resolveFight(a: PlayerInternal, b: PlayerInternal, rng: SeededRng): void {
+  private resolveFight(
+    a: Pick<PlayerInternal, "playerId" | "name" | "board" | "tavernTier" | "health"> & { isGhost?: boolean },
+    b: Pick<PlayerInternal, "playerId" | "name" | "board" | "tavernTier" | "health"> & { isGhost?: boolean },
+    rng: SeededRng
+  ): void {
     const boardA = a.board.filter((u): u is UnitInstance => !!u).map((u) => ({ ...u, hp: u.maxHp }));
     const boardB = b.board.filter((u): u is UnitInstance => !!u).map((u) => ({ ...u, hp: u.maxHp }));
     const result = simulateCombat(boardA, boardB, Math.floor(rng.next() * 1000000));
@@ -1066,7 +1125,9 @@ export class MatchInstance {
 
     if (result.winner === "A") {
       const damage = Math.max(1, result.survivorsA + a.tavernTier);
-      b.health -= damage;
+      if (!b.isGhost) {
+        b.health -= damage;
+      }
       this.match.combatLog.push(`${a.name} wins and deals ${damage} damage to ${b.name}.`);
       this.match.combatEvents.push({
         round: this.match.round,
@@ -1081,7 +1142,9 @@ export class MatchInstance {
       this.bumpSequence("COMBAT_RESULT", `${a.name} defeated ${b.name} for ${damage} damage.`);
     } else if (result.winner === "B") {
       const damage = Math.max(1, result.survivorsB + b.tavernTier);
-      a.health -= damage;
+      if (!a.isGhost) {
+        a.health -= damage;
+      }
       this.match.combatLog.push(`${b.name} wins and deals ${damage} damage to ${a.name}.`);
       this.match.combatEvents.push({
         round: this.match.round,

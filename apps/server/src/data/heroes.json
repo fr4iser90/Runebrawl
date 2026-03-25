@@ -2,7 +2,7 @@
   {
     "id": "gold_baron",
     "name": "Gold Baron",
-    "description": "Passive: Gain +1 gold at the start of each tavern phase.",
+    "description": "Passive: Gain +1 gold at the start of each recruitment hall phase.",
     "powerType": "PASSIVE",
     "powerKey": "BONUS_GOLD",
     "powerCost": 0,
@@ -11,7 +11,7 @@
   {
     "id": "war_chanter",
     "name": "War Chanter",
-    "description": "Active (2 gold): Give a random friendly unit +1/+1. Once each tavern phase.",
+    "description": "Active (2 gold): Give a random friendly unit +1/+1. Once each recruitment hall phase.",
     "powerType": "ACTIVE",
     "powerKey": "WAR_DRUM",
     "powerCost": 2,
@@ -20,7 +20,7 @@
   {
     "id": "recruiter_queen",
     "name": "Recruiter Queen",
-    "description": "Active (2 gold): Add a random unit to your bench. Once each tavern phase.",
+    "description": "Active (2 gold): Add a random unit to your bench. Once each recruitment hall phase.",
     "powerType": "ACTIVE",
     "powerKey": "RECRUITER",
     "powerCost": 2,
@@ -29,7 +29,7 @@
   {
     "id": "iron_guardian",
     "name": "Iron Guardian",
-    "description": "Active (1 gold): Give a random friendly unit +2 max HP. Once each tavern phase.",
+    "description": "Active (1 gold): Give a random friendly unit +2 max HP. Once each recruitment hall phase.",
     "powerType": "ACTIVE",
     "powerKey": "FORTIFY",
     "powerCost": 1,

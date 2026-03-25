@@ -1,0 +1,35 @@
+name: Community Content Validation
+
+on:
+  pull_request:
+    paths:
+      - "community/**"
+      - "apps/server/src/data/**"
+      - "packages/shared/src/**"
+      - "package.json"
+      - ".github/workflows/community-content-validation.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "community/**"
+      - "apps/server/src/data/**"
+      - "packages/shared/src/**"
+      - "package.json"
+      - ".github/workflows/community-content-validation.yml"
+  workflow_dispatch:
+
+jobs:
+  validate-community-content:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate community content
+        run: npm run validate:community-content

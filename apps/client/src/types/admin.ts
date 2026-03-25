@@ -16,6 +16,15 @@ export interface AdminMetrics {
   synergyTriggers: Record<string, number>;
 }
 
+export interface AdminPlayerRating {
+  playerId: string;
+  mmrHidden: number;
+  rankPoints: number;
+  rankTier: string;
+  provisionalGames: number;
+  updatedAt: string;
+}
+
 export interface AdminContentSnapshot {
   units: UnitDefinition[];
   heroes: HeroDefinition[];
@@ -31,6 +40,46 @@ export interface AdminContentDraftResponse {
 export interface AdminContentValidationResult {
   ok: boolean;
   errors: string[];
+}
+
+export interface AdminCommunitySubmissionMetadata {
+  packId: string;
+  title: string;
+  author: string;
+  version: string;
+  description: string;
+  targetGameVersion: string;
+  tags: string[];
+  notes?: string;
+}
+
+export interface AdminCommunitySubmissionSummary {
+  submissionId: string;
+  metadata: AdminCommunitySubmissionMetadata | null;
+  unitsCount: number;
+  heroesCount: number;
+  updatedAt: number;
+  validation: AdminContentValidationResult;
+  readErrors: string[];
+}
+
+export interface AdminCommunitySubmissionDetail extends AdminCommunitySubmissionSummary {
+  units: UnitDefinition[];
+  heroes: HeroDefinition[];
+}
+
+export interface AdminContentPublishAuditEntry {
+  auditId: string;
+  at: number;
+  actor: string;
+  action: "PUBLISH" | "ROLLBACK";
+  source: "MANUAL_DRAFT" | "COMMUNITY_SUBMISSION" | "ROLLBACK";
+  submissionId?: string;
+  rollbackToAuditId?: string;
+  fromVersion: number;
+  toVersion: number;
+  unitsCount: number;
+  heroesCount: number;
 }
 
 export interface AdminUnitPoolEntry {

@@ -1,4 +1,5 @@
 import type { AbilityKey, HeroDefinition, HeroPowerKey, HeroPowerType, SynergyKey, UnitDefinition, UnitRole } from "@runebrawl/shared";
+import { nanoid } from "nanoid";
 import { HERO_POOL, replaceHeroPool } from "../data/heroes.js";
 import { replaceUnitPool, UNIT_POOL } from "../data/units.js";
 
@@ -18,6 +19,45 @@ export interface ContentSnapshot {
 export interface ContentValidationResult {
   ok: boolean;
   errors: string[];
+}
+
+export interface ContentPublishAuditEntry {
+  auditId: string;
+  at: number;
+  actor: string;
+  action: "PUBLISH" | "ROLLBACK";
+  source: "MANUAL_DRAFT" | "COMMUNITY_SUBMISSION" | "ROLLBACK";
+  submissionId?: string;
+  rollbackToAuditId?: string;
+  fromVersion: number;
+  toVersion: number;
+  unitsCount: number;
+  heroesCount: number;
+}
+
+export interface ContentPublishHistoryRecord {
+  audit: ContentPublishAuditEntry;
+  snapshot: ContentSnapshot;
+}
+
+interface PublishContext {
+  actor?: string;
+  source?: "MANUAL_DRAFT" | "COMMUNITY_SUBMISSION";
+  submissionId?: string;
+}
+
+interface StoredPublishSnapshot {
+  audit: ContentPublishAuditEntry;
+  snapshot: ContentSnapshot;
+}
+
+function cloneSnapshot(snapshot: ContentSnapshot): ContentSnapshot {
+  return {
+    units: cloneUnits(snapshot.units),
+    heroes: cloneHeroes(snapshot.heroes),
+    version: snapshot.version,
+    updatedAt: snapshot.updatedAt
+  };
 }
 
 interface DraftState {
@@ -55,6 +95,30 @@ export class ContentBuilderService {
   private version = 1;
   private updatedAt = Date.now();
   private draft: DraftState | null = null;
+  private publishHistory: StoredPublishSnapshot[] = [];
+
+  constructor() {
+    const initialSnapshot: ContentSnapshot = {
+      units: cloneUnits(UNIT_POOL),
+      heroes: cloneHeroes(HERO_POOL),
+      version: this.version,
+      updatedAt: this.updatedAt
+    };
+    this.publishHistory.push({
+      audit: {
+        auditId: "bootstrap",
+        at: this.updatedAt,
+        actor: "system",
+        action: "PUBLISH",
+        source: "MANUAL_DRAFT",
+        fromVersion: 0,
+        toVersion: this.version,
+        unitsCount: initialSnapshot.units.length,
+        heroesCount: initialSnapshot.heroes.length
+      },
+      snapshot: initialSnapshot
+    });
+  }
 
   getCatalog(): ContentSnapshot {
     return {
@@ -93,22 +157,129 @@ export class ContentBuilderService {
 
   validateDraft(): ContentValidationResult {
     const draft = this.draft ?? { units: UNIT_POOL, heroes: HERO_POOL };
-    return this.validatePayload(draft.units, draft.heroes);
+    return this.validateContent(draft.units, draft.heroes);
   }
 
-  publishDraft(): ContentValidationResult {
+  publishDraft(context: PublishContext = {}): ContentValidationResult {
     if (!this.draft) {
       return { ok: false, errors: ["No draft to publish."] };
     }
-    const validation = this.validatePayload(this.draft.units, this.draft.heroes);
+    const validation = this.validateContent(this.draft.units, this.draft.heroes);
     if (!validation.ok) return validation;
 
-    replaceUnitPool(this.draft.units);
-    replaceHeroPool(this.draft.heroes);
-    this.version += 1;
-    this.updatedAt = Date.now();
+    const now = Date.now();
+    const nextVersion = this.version + 1;
+    const publishedSnapshot: ContentSnapshot = {
+      units: cloneUnits(this.draft.units),
+      heroes: cloneHeroes(this.draft.heroes),
+      version: nextVersion,
+      updatedAt: now
+    };
+
+    replaceUnitPool(publishedSnapshot.units);
+    replaceHeroPool(publishedSnapshot.heroes);
+    this.version = nextVersion;
+    this.updatedAt = now;
     this.draft = null;
+    this.recordPublishEntry({
+      auditId: nanoid(12),
+      at: now,
+      actor: context.actor ?? "admin",
+      action: "PUBLISH",
+      source: context.source ?? "MANUAL_DRAFT",
+      submissionId: context.submissionId,
+      fromVersion: this.version - 1,
+      toVersion: this.version,
+      unitsCount: publishedSnapshot.units.length,
+      heroesCount: publishedSnapshot.heroes.length
+    }, publishedSnapshot);
     return { ok: true, errors: [] };
+  }
+
+  validateContent(units: UnitDefinition[], heroes: HeroDefinition[]): ContentValidationResult {
+    return this.validatePayload(units, heroes);
+  }
+
+  getPublishHistory(limit = 50): ContentPublishAuditEntry[] {
+    const bounded = Math.max(1, Math.min(200, Math.floor(limit)));
+    return this.publishHistory
+      .slice(-bounded)
+      .map((entry) => ({ ...entry.audit }))
+      .reverse();
+  }
+
+  getPublishHistoryRecords(limit = 50): ContentPublishHistoryRecord[] {
+    const bounded = Math.max(1, Math.min(200, Math.floor(limit)));
+    return this.publishHistory
+      .slice(-bounded)
+      .map((entry) => ({
+        audit: { ...entry.audit },
+        snapshot: cloneSnapshot(entry.snapshot)
+      }));
+  }
+
+  hydratePublishHistory(records: ContentPublishHistoryRecord[]): void {
+    if (!records.length) return;
+    const sorted = [...records].sort((a, b) => a.audit.at - b.audit.at);
+    this.publishHistory = sorted.map((record) => ({
+      audit: { ...record.audit },
+      snapshot: cloneSnapshot(record.snapshot)
+    }));
+    const latest = sorted[sorted.length - 1];
+    this.version = latest.snapshot.version;
+    this.updatedAt = latest.snapshot.updatedAt;
+    replaceUnitPool(latest.snapshot.units);
+    replaceHeroPool(latest.snapshot.heroes);
+    this.draft = null;
+  }
+
+  rollbackToAudit(auditId: string, actor = "admin"): ContentValidationResult {
+    const target = this.publishHistory.find((entry) => entry.audit.auditId === auditId);
+    if (!target) {
+      return { ok: false, errors: ["Audit entry not found."] };
+    }
+    const validation = this.validateContent(target.snapshot.units, target.snapshot.heroes);
+    if (!validation.ok) return validation;
+
+    const now = Date.now();
+    const nextVersion = this.version + 1;
+    const rolledSnapshot: ContentSnapshot = {
+      units: cloneUnits(target.snapshot.units),
+      heroes: cloneHeroes(target.snapshot.heroes),
+      version: nextVersion,
+      updatedAt: now
+    };
+
+    replaceUnitPool(rolledSnapshot.units);
+    replaceHeroPool(rolledSnapshot.heroes);
+    this.version = nextVersion;
+    this.updatedAt = now;
+    this.draft = null;
+    this.recordPublishEntry({
+      auditId: nanoid(12),
+      at: now,
+      actor,
+      action: "ROLLBACK",
+      source: "ROLLBACK",
+      rollbackToAuditId: auditId,
+      fromVersion: this.version - 1,
+      toVersion: this.version,
+      unitsCount: rolledSnapshot.units.length,
+      heroesCount: rolledSnapshot.heroes.length
+    }, rolledSnapshot);
+
+    return { ok: true, errors: [] };
+  }
+
+  private recordPublishEntry(audit: ContentPublishAuditEntry, snapshot: ContentSnapshot): void {
+    this.publishHistory.push({
+      audit,
+      snapshot: cloneSnapshot(snapshot)
+    });
+    const maxHistory = 200;
+    if (this.publishHistory.length > maxHistory) {
+      this.publishHistory.splice(0, this.publishHistory.length - maxHistory);
+    }
   }
 
   private validatePayload(units: UnitDefinition[], heroes: HeroDefinition[]): ContentValidationResult {

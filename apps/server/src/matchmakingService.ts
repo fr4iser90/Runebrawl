@@ -3,9 +3,24 @@ import { nanoid } from "nanoid";
 import { BALANCE } from "./data/balance.js";
 import { UNIT_POOL } from "./data/units.js";
 import { MatchInstance } from "./matchInstance.js";
+import { InMemoryRatingService } from "./ratings/inMemoryRatingService.js";
+import type { RatingService } from "./ratings/service.js";
+import { SqlRatingService } from "./ratings/sqlRatingService.js";
 
 interface SocketLike {
   send: (data: string) => void;
+}
+
+function queueMmrBucket(mmr: number): string {
+  return mmr < 900 ? "low" : mmr < 1300 ? "mid" : "high";
+}
+
+function normalizeRatingName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function normalizeAccountId(accountId: string): string {
+  return accountId.trim().toLowerCase();
 }
 
 export class MatchmakingService {
@@ -13,10 +28,27 @@ export class MatchmakingService {
   private playerToMatch = new Map<string, string>();
   private quickLobbyIds = new Set<string>();
   private inviteCodeToMatch = new Map<string, string>();
+  private ratedMatchIds = new Set<string>();
+  private ratingService: RatingService;
+  private maintenanceTimer: NodeJS.Timeout;
+  private processingFinishedMatches = false;
+  private ratingRetryState = new Map<string, { attempts: number; nextRetryAt: number }>();
 
-  joinQuick(name: string, socket: SocketLike, region = "EU", mmr = 1000): string {
-    const lobby = this.findOrCreateQuickLobby(region, mmr);
-    const playerId = lobby.joinHuman(name, socket);
+  constructor() {
+    this.ratingService =
+      process.env.DATABASE_URL && process.env.DATABASE_URL.trim().length > 0
+        ? new SqlRatingService(process.env.DATABASE_URL)
+        : new InMemoryRatingService();
+    this.maintenanceTimer = setInterval(() => {
+      void this.processFinishedMatches();
+    }, 1000);
+  }
+
+  async joinQuick(name: string, socket: SocketLike, region = "EU", mmr = 1000, accountId?: string): Promise<string> {
+    const ratingIdentity = this.resolveRatingIdentity(name, accountId);
+    const resolvedMmr = await this.resolveQueueMmr(ratingIdentity, mmr);
+    const lobby = this.findOrCreateQuickLobby(region, resolvedMmr);
+    const playerId = lobby.joinHuman(name, socket, ratingIdentity);
     this.playerToMatch.set(playerId, lobby.getMatchId());
     if (!lobby.isJoinable()) {
       this.quickLobbyIds.delete(lobby.getMatchId());
@@ -24,7 +56,7 @@ export class MatchmakingService {
     return playerId;
   }
 
-  createPrivate(name: string, socket: SocketLike, maxPlayers?: number, region = "EU", mmr = 1000): string {
+  createPrivate(name: string, socket: SocketLike, maxPlayers?: number, region = "EU", mmr = 1000, accountId?: string): string {
     const inviteCode = nanoid(6).toUpperCase();
     const lobby = new MatchInstance({
       maxPlayers: maxPlayers ?? 4,
@@ -38,12 +70,12 @@ export class MatchmakingService {
     });
     this.matches.set(lobby.getMatchId(), lobby);
     this.inviteCodeToMatch.set(inviteCode, lobby.getMatchId());
-    const playerId = lobby.joinHuman(name, socket);
+    const playerId = lobby.joinHuman(name, socket, this.resolveRatingIdentity(name, accountId));
     this.playerToMatch.set(playerId, lobby.getMatchId());
     return playerId;
   }
 
-  joinPrivate(name: string, inviteCode: string, socket: SocketLike): string {
+  joinPrivate(name: string, inviteCode: string, socket: SocketLike, accountId?: string): string {
     const matchId = this.inviteCodeToMatch.get(inviteCode.toUpperCase());
     if (!matchId) {
       throw new Error("Private lobby not found");
@@ -52,17 +84,17 @@ export class MatchmakingService {
     if (!match || !match.isJoinable()) {
       throw new Error("Private lobby is full or already started");
     }
-    const playerId = match.joinHuman(name, socket);
+    const playerId = match.joinHuman(name, socket, this.resolveRatingIdentity(name, accountId));
     this.playerToMatch.set(playerId, matchId);
     return playerId;
   }
 
-  joinLobby(name: string, matchId: string, socket: SocketLike): string {
+  joinLobby(name: string, matchId: string, socket: SocketLike, accountId?: string): string {
     const match = this.matches.get(matchId);
     if (!match || !match.isJoinable() || match.isPrivateMatch()) {
       throw new Error("Lobby not joinable");
     }
-    const playerId = match.joinHuman(name, socket);
+    const playerId = match.joinHuman(name, socket, this.resolveRatingIdentity(name, accountId));
     this.playerToMatch.set(playerId, matchId);
     if (!match.isJoinable()) this.quickLobbyIds.delete(matchId);
     return playerId;
@@ -91,6 +123,7 @@ export class MatchmakingService {
     const match = this.matches.get(matchId);
     if (!match) return;
     match.handleIntent(playerId, intent);
+    void this.processFinishedMatches();
   }
 
   getMatchHistory(matchId: string) {
@@ -99,6 +132,18 @@ export class MatchmakingService {
 
   getReplayEvents(matchId: string, fromSequence = 0) {
     return this.matches.get(matchId)?.getReplayEvents(fromSequence) ?? [];
+  }
+
+  async getPlayerRating(playerId: string) {
+    return this.ratingService.getPlayerRating(playerId);
+  }
+
+  async getRatingLeaderboard(limit = 50) {
+    return this.ratingService.getLeaderboard(limit);
+  }
+
+  shutdown(): void {
+    clearInterval(this.maintenanceTimer);
   }
 
   listOpenLobbies(): LobbySummary[] {
@@ -225,7 +270,7 @@ export class MatchmakingService {
   }
 
   private findOrCreateQuickLobby(region: string, mmr: number): MatchInstance {
-    const bucket = mmr < 900 ? "low" : mmr < 1300 ? "mid" : "high";
+    const bucket = queueMmrBucket(mmr);
     for (const matchId of this.quickLobbyIds) {
       const match = this.matches.get(matchId);
       if (match && match.isJoinable() && match.getRegion() === region && match.getMmrBucket() === bucket) {
@@ -245,5 +290,64 @@ export class MatchmakingService {
     this.matches.set(lobby.getMatchId(), lobby);
     this.quickLobbyIds.add(lobby.getMatchId());
     return lobby;
+  }
+
+  private resolveRatingIdentity(name: string, accountId?: string): string {
+    const normalizedAccountId = accountId ? normalizeAccountId(accountId) : "";
+    if (normalizedAccountId) {
+      return `acct:${normalizedAccountId}`;
+    }
+    return `name:${normalizeRatingName(name)}`;
+  }
+
+  private async resolveQueueMmr(ratingIdentity: string, requestedMmr = 1000): Promise<number> {
+    try {
+      const rating = await this.ratingService.getPlayerRating(ratingIdentity);
+      if (rating && Number.isFinite(rating.mmrHidden)) {
+        return Math.max(0, Math.round(rating.mmrHidden));
+      }
+    } catch {
+      // Fall back to client-provided MMR when rating backend is unavailable.
+    }
+    if (Number.isFinite(requestedMmr)) {
+      return Math.max(0, Math.round(requestedMmr));
+    }
+    return 1000;
+  }
+
+  private async processFinishedMatches(): Promise<void> {
+    if (this.processingFinishedMatches) return;
+    this.processingFinishedMatches = true;
+    try {
+      const now = Date.now();
+      for (const match of this.matches.values()) {
+        if (!match.isFinished()) continue;
+        const matchId = match.getMatchId();
+        if (this.ratedMatchIds.has(matchId)) continue;
+        const retry = this.ratingRetryState.get(matchId);
+        if (retry && now < retry.nextRetryAt) continue;
+        const input = match.getRatingUpdateInput();
+        if (!input) {
+          this.ratedMatchIds.add(matchId);
+          continue;
+        }
+        try {
+          await this.ratingService.applyMatchResult(input);
+          this.ratedMatchIds.add(matchId);
+          this.ratingRetryState.delete(matchId);
+        } catch (error) {
+          const attempts = (retry?.attempts ?? 0) + 1;
+          const backoffMs = Math.min(30_000, 1_000 * 2 ** Math.min(5, attempts - 1));
+          this.ratingRetryState.set(matchId, {
+            attempts,
+            nextRetryAt: Date.now() + backoffMs
+          });
+          const reason = error instanceof Error ? error.message : String(error);
+          console.error(`[ratings] applyMatchResult failed for match ${matchId} (attempt ${attempts}): ${reason}`);
+        }
+      }
+    } finally {
+      this.processingFinishedMatches = false;
+    }
   }
 }

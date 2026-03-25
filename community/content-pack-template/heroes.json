@@ -1,0 +1,11 @@
+[
+  {
+    "id": "example_tactician",
+    "name": "Example Tactician",
+    "description": "Active (1 gold): Give a random friendly unit +1 attack this recruitment hall phase.",
+    "powerType": "ACTIVE",
+    "powerKey": "WAR_DRUM",
+    "powerCost": 1,
+    "offerWeight": 1
+  }
+]

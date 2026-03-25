@@ -6,6 +6,8 @@ This folder contains the core architecture and design documents for a browser-ba
 
 - `docs/CHANGELOG.md` - Chronological project changes and milestones
 - `docs/ASSETS.md` - Asset workflow notes (placeholder to production)
+- `docs/ART_PROMPTS.md` - Exact portrait specs, naming, and production prompts
+- `docs/COMMUNITY_CONTENT_PIPELINE.md` - Community-driven submission and review flow
 - `docs/COMBAT_SYSTEM.md` - Full combat architecture, flow, and extension guide
 - `docs/SYNERGY_SYSTEM.md` - Minimal synergy design spec (Light v1)
 - `docs/EXECUTION_PLAN.md` - Concrete 2-sprint execution plan (stabilization first)
@@ -23,4 +25,4 @@ Build a modular, data-driven autobattler (Battlegrounds style):
 - No hand cards
 - No deckbuilding during matches
 - No draw mechanics
-- Players buy units in a tavern/shop, position them, then watch automatic combat
+- Players buy units in the recruitment hall/shop, position them, then watch automatic combat
