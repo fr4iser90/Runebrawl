@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@runebrawl/game-content": "0.1.0",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.2.0",
     "@fastify/websocket": "^11.2.0",

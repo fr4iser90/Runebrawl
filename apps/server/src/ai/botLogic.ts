@@ -27,12 +27,10 @@ export function shouldUpgradeTavern(
   round: number,
   buyCost: number,
   maxTavernTier: number,
-  tavernUpgradeBaseCost: number,
-  tavernUpgradeStepCost: number
+  tavernUpgradeCost: number
 ): boolean {
-  const cost = tavernUpgradeBaseCost + player.tavernTier * tavernUpgradeStepCost;
   const roundGate = round >= player.tavernTier + 1;
-  return roundGate && player.gold >= cost + buyCost && player.tavernTier < maxTavernTier;
+  return roundGate && player.gold >= tavernUpgradeCost + buyCost && player.tavernTier < maxTavernTier;
 }
 
 export function shouldUseHeroPower(

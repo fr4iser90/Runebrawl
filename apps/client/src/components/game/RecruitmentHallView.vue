@@ -9,6 +9,8 @@ interface PlayerView {
   tavernTier: number;
   xp: number;
   ready: boolean;
+  tavernUpgradeCost?: number;
+  tavernUpgradeDiscount?: number;
   hero: HeroDefinition | null;
   heroSelected: boolean;
   heroPowerUsedThisTurn: boolean;
@@ -25,6 +27,7 @@ const props = defineProps<{
   isPrivateLobby: boolean;
   isCreator: boolean;
   isBuyPhase: boolean;
+  tutorialStepKey: "hero" | "buy" | "move" | "ready" | "watch" | null;
   lobbyStatusText: string;
   animatingShopIndex: number | null;
   statPlayersIcon: string;
@@ -57,7 +60,19 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const highlightHeroSelect = computed(() => props.isHeroSelection && !props.me.heroSelected);
-const highlightReady = computed(() => props.isBuyPhase && !props.isHeroSelection && !props.me.ready);
+const highlightReady = computed(
+  () => props.isBuyPhase && !props.isHeroSelection && !props.me.ready && props.tutorialStepKey === "ready"
+);
+const firstBuyableShopIndex = computed(() => props.me.shop.findIndex((unit) => !!unit));
+const upgradeButtonText = computed(() => {
+  const cost = props.me.tavernUpgradeCost ?? 0;
+  const discount = props.me.tavernUpgradeDiscount ?? 0;
+  if (cost <= 0) return t("game.upgradeTavernMax");
+  if (discount > 0) {
+    return t("game.upgradeTavernCostReduced", { cost, reduction: discount });
+  }
+  return t("game.upgradeTavernCost", { cost });
+});
 
 const isTypingTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
@@ -178,7 +193,14 @@ onBeforeUnmount(() => {
           </span>
           <div class="unit-meta-line">{{ t("game.unitMeta", { attack: unit.attack, hp: unit.hp, speed: unit.speed }) }}</div>
         </div>
-        <button class="cta-primary" :disabled="!props.isBuyPhase || !unit" @click="emit('buy', idx)">{{ t("game.buy3") }}</button>
+        <button
+          class="cta-primary"
+          :class="{ 'cta-next': props.tutorialStepKey === 'buy' && idx === firstBuyableShopIndex }"
+          :disabled="!props.isBuyPhase || !unit"
+          @click="emit('buy', idx)"
+        >
+          {{ t("game.buy3") }}
+        </button>
       </div>
     </div>
     <div v-if="props.me.hero" class="slot-title">
@@ -200,7 +222,7 @@ onBeforeUnmount(() => {
         <span v-if="props.isBuyPhase" class="hotkey-hint">Q</span>
       </button>
       <button class="cta-with-hint" :disabled="!props.isBuyPhase" @click="emit('upgrade')">
-        <span>{{ t("game.upgradeTavern") }}</span>
+        <span>{{ upgradeButtonText }}</span>
         <span v-if="props.isBuyPhase" class="hotkey-hint">W</span>
       </button>
       <button class="cta-with-hint" :disabled="!props.isBuyPhase" @click="emit('lockToggle')">

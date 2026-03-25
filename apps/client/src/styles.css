@@ -1,4 +1,11 @@
 :root {
+  /* Scene backdrops (overridden at runtime by applySceneTheme.ts) */
+  --rb-scene-bg-recruitment: url("./assets/backgrounds/recruitment-bg.svg");
+  --rb-scene-bg-hero-selection: url("./assets/backgrounds/hero-selection-bg.svg");
+  --rb-scene-bg-lobby: url("./assets/backgrounds/lobby-bg.svg");
+  --rb-scene-bg-combat: url("./assets/backgrounds/combat-bg.svg");
+  --rb-scene-bg-finished: url("./assets/backgrounds/finished-bg.svg");
+
   --rb-bg: #121624;
   --rb-surface-1: #1a2033;
   --rb-surface-2: #202844;
@@ -53,7 +60,7 @@ body {
   background: radial-gradient(140% 90% at 15% -5%, rgba(96, 127, 212, 0.24), transparent 56%),
     radial-gradient(130% 85% at 105% 105%, rgba(36, 65, 126, 0.28), transparent 58%),
     linear-gradient(165deg, rgba(26, 36, 63, 0.82) 0%, rgba(18, 26, 47, 0.86) 60%, rgba(17, 24, 42, 0.9) 100%),
-    url("./assets/backgrounds/recruitment-bg.svg");
+    var(--rb-scene-bg-recruitment);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -180,14 +187,14 @@ body {
   background: radial-gradient(100% 70% at 50% 0%, rgba(126, 106, 214, 0.28), transparent 62%),
     radial-gradient(120% 90% at 50% 100%, rgba(54, 67, 118, 0.45), transparent 68%),
     linear-gradient(180deg, rgba(34, 31, 61, 0.82) 0%, rgba(23, 30, 53, 0.86) 56%, rgba(20, 26, 47, 0.9) 100%),
-    url("./assets/backgrounds/hero-selection-bg.svg");
+    var(--rb-scene-bg-hero-selection);
 }
 
 .scene-lobby .scene-backdrop {
   background: radial-gradient(120% 80% at 10% 0%, rgba(72, 105, 170, 0.25), transparent 58%),
     radial-gradient(90% 100% at 100% 100%, rgba(40, 60, 112, 0.3), transparent 60%),
     linear-gradient(180deg, rgba(27, 39, 66, 0.82) 0%, rgba(22, 33, 56, 0.86) 58%, rgba(19, 29, 49, 0.9) 100%),
-    url("./assets/backgrounds/lobby-bg.svg");
+    var(--rb-scene-bg-lobby);
 }
 
 .scene-lobby .scene-ornament {
@@ -211,7 +218,7 @@ body {
   background: radial-gradient(120% 90% at 50% -10%, rgba(134, 64, 81, 0.27), transparent 56%),
     radial-gradient(110% 90% at 20% 100%, rgba(74, 45, 84, 0.2), transparent 58%),
     linear-gradient(180deg, rgba(42, 29, 46, 0.82) 0%, rgba(31, 26, 47, 0.87) 54%, rgba(21, 23, 39, 0.9) 100%),
-    url("./assets/backgrounds/combat-bg.svg");
+    var(--rb-scene-bg-combat);
 }
 
 .scene-combat .scene-ornament,
@@ -236,7 +243,7 @@ body {
   background: radial-gradient(110% 80% at 50% 0%, rgba(120, 138, 227, 0.22), transparent 58%),
     radial-gradient(90% 100% at 100% 100%, rgba(53, 80, 140, 0.28), transparent 65%),
     linear-gradient(180deg, rgba(27, 36, 63, 0.82) 0%, rgba(21, 32, 55, 0.86) 56%, rgba(19, 28, 47, 0.9) 100%),
-    url("./assets/backgrounds/finished-bg.svg");
+    var(--rb-scene-bg-finished);
 }
 
 .scene-finished .scene-ornament {
@@ -521,6 +528,11 @@ textarea:focus-visible {
   padding: 12px;
   background: #1a2033;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.tutorial-move-highlight {
+  border-color: #8db0ff !important;
+  box-shadow: 0 0 0 2px rgba(141, 176, 255, 0.25), 0 0 18px rgba(89, 131, 226, 0.22);
 }
 
 .combat-screen {

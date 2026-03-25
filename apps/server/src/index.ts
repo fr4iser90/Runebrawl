@@ -11,6 +11,7 @@ import { AdminAuthService } from "./auth/adminAuth.js";
 import { PlayerIdentityService } from "./auth/playerIdentity.js";
 import { PlayerProfileService } from "./auth/playerProfile.js";
 import { MatchmakingService } from "./matchmakingService.js";
+import { getGameContentManifest } from "@runebrawl/game-content";
 
 const server = Fastify({ logger: true });
 const matchmaking = new MatchmakingService();
@@ -95,6 +96,7 @@ async function requireAdmin(request: FastifyRequest, reply: FastifyReply): Promi
 }
 
 server.get("/health", async () => ({ ok: true }));
+server.get("/content/manifest", async () => getGameContentManifest());
 server.get("/lobbies", async () => ({ lobbies: matchmaking.listOpenLobbies() }));
 server.get("/auth/admin/status", async (request) => ({
   authenticated: adminAuth.isAuthenticated(request)

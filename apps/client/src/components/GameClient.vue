@@ -41,6 +41,7 @@ import CombatView from "./game/CombatView.vue";
 import RoundResultOverlay from "./game/RoundResultOverlay.vue";
 import MatchEndView from "./game/MatchEndView.vue";
 import PlayersSidebar from "./game/PlayersSidebar.vue";
+import { applySceneTheme, getGameContentManifest } from "../content/gameContent";
 
 const name = ref(localStorage.getItem("runebrawl.playerName") ?? "");
 const connected = ref(false);
@@ -74,7 +75,18 @@ let profileSyncTimer: number | null = null;
 let combatPlaybackRunId = 0;
 
 const dragging = ref<{ zone: "bench" | "board"; index: number } | null>(null);
-const { t } = useI18n();
+const { t, locale } = useI18n();
+
+const uiThemeKey = ref(localStorage.getItem("runebrawl.ui.theme")?.trim() || getGameContentManifest().defaultThemeKey);
+
+const themeSelectOptions = computed(() => {
+  const m = getGameContentManifest();
+  const loc = locale.value === "de" ? "de" : "en";
+  return Object.values(m.themes).map((th) => ({
+    value: th.id,
+    label: th.label[loc] ?? th.label.en
+  }));
+});
 const apiBaseUrl =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || `http://${location.hostname}:3001`;
 const wsUrl = (() => {
@@ -1228,7 +1240,13 @@ onBeforeUnmount(() => {
   ws.value?.close();
 });
 
+watch(uiThemeKey, (next) => {
+  localStorage.setItem("runebrawl.ui.theme", next);
+  applySceneTheme(next);
+});
+
 onMounted(() => {
+  applySceneTheme(uiThemeKey.value);
   window.addEventListener("runebrawl:open-settings", handleGlobalOpenSettings as EventListener);
   const params = new URLSearchParams(window.location.search);
   const invite = params.get("invite")?.trim().toUpperCase();
@@ -1307,9 +1325,12 @@ onMounted(() => {
       :visible="showSettings"
       :animation-speed="animationSpeed"
       :reduced-motion="reducedMotion"
+      :theme-key="uiThemeKey"
+      :theme-options="themeSelectOptions"
       @close="showSettings = false"
       @update:animation-speed="animationSpeed = $event"
       @update:reduced-motion="reducedMotion = $event"
+      @update:theme-key="uiThemeKey = $event"
     />
 
     <div v-if="state && me" class="game-scene" :class="`scene-${state.phase.toLowerCase()}`">
@@ -1412,6 +1433,7 @@ onMounted(() => {
                   :is-private-lobby="isPrivateLobby"
                   :is-creator="isCreator"
                   :is-buy-phase="isBuyPhase"
+                  :tutorial-step-key="tutorialStepKey"
                   :lobby-status-text="lobbyStatusText"
                   :animating-shop-index="animatingShopIndex"
                   :stat-players-icon="statPlayersIcon"
@@ -1441,6 +1463,7 @@ onMounted(() => {
                 <BoardBenchView
                   :me="me"
                   :is-buy-phase="isBuyPhase"
+                  :tutorial-step-key="tutorialStepKey"
                   :unit-portrait-path="unitPortraitPath"
                   :unit-quick-meta="unitQuickMeta"
                   :ability-label="abilityLabel"

@@ -144,7 +144,22 @@ function cloneUnitFromDef(def: UnitDefinition): UnitInstance {
   };
 }
 
-function playerPublicState(p: PlayerInternal): PlayerPublicState {
+function upgradeDiscountForRound(round: number): number {
+  return Math.max(0, round - 1) * BALANCE.tavernUpgradeDiscountPerRound;
+}
+
+function upgradeBaseCostForTier(tavernTier: number): number {
+  return BALANCE.tavernUpgradeBaseCost + tavernTier * BALANCE.tavernUpgradeStepCost;
+}
+
+function upgradeCostForState(tavernTier: number, round: number): number {
+  if (tavernTier >= BALANCE.maxTavernTier) return 0;
+  const base = upgradeBaseCostForTier(tavernTier);
+  const discount = upgradeDiscountForRound(round);
+  return Math.max(BALANCE.tavernUpgradeMinCost, base - discount);
+}
+
+function playerPublicState(p: PlayerInternal, round: number): PlayerPublicState {
   return {
     playerId: p.playerId,
     name: p.name,
@@ -152,6 +167,8 @@ function playerPublicState(p: PlayerInternal): PlayerPublicState {
     gold: p.gold,
     xp: p.xp,
     tavernTier: p.tavernTier,
+    tavernUpgradeCost: upgradeCostForState(p.tavernTier, round),
+    tavernUpgradeDiscount: upgradeDiscountForRound(round),
     lockedShop: p.lockedShop,
     ready: p.ready,
     hero: p.hero,
@@ -726,7 +743,7 @@ export class MatchInstance {
       round: this.match.round,
       phase: this.match.phase,
       phaseEndsAt: this.match.phaseEndsAt,
-      players: this.match.players.map(playerPublicState),
+      players: this.match.players.map((p) => playerPublicState(p, this.match.round)),
       combatLog: this.match.combatLog.slice(-80),
       // Keep a larger replay window so earlier duel ATTACK events are not truncated
       // in busy rounds (multiple simultaneous duels with many combat events).
@@ -950,8 +967,7 @@ export class MatchInstance {
       this.match.round,
       BALANCE.buyCost,
       BALANCE.maxTavernTier,
-      BALANCE.tavernUpgradeBaseCost,
-      BALANCE.tavernUpgradeStepCost
+      upgradeCostForState(player.tavernTier, this.match.round)
     );
   }
 
@@ -1325,7 +1341,7 @@ export class MatchInstance {
 
   private upgradeTavern(player: PlayerInternal): void {
     if (this.match.phase === "COMBAT" || player.eliminated) return;
-    const cost = BALANCE.tavernUpgradeBaseCost + player.tavernTier * BALANCE.tavernUpgradeStepCost;
+    const cost = upgradeCostForState(player.tavernTier, this.match.round);
     if (player.tavernTier >= BALANCE.maxTavernTier || player.gold < cost) return;
     player.gold -= cost;
     player.tavernTier += 1;

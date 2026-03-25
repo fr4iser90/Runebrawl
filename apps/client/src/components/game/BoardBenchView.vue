@@ -10,6 +10,7 @@ interface MeView {
 const props = defineProps<{
   me: MeView;
   isBuyPhase: boolean;
+  tutorialStepKey: "hero" | "buy" | "move" | "ready" | "watch" | null;
   unitPortraitPath: (unitId: string) => string;
   unitQuickMeta: (unit: UnitInstance | null) => string;
   abilityLabel: (ability: UnitInstance["ability"]) => string;
@@ -28,7 +29,7 @@ const { t } = useI18n();
 </script>
 
 <template>
-  <section class="board">
+  <section class="board" :class="{ 'tutorial-move-highlight': props.tutorialStepKey === 'move' }">
     <h2>{{ t("game.battlefield") }}</h2>
     <div class="slot-row">
       <div

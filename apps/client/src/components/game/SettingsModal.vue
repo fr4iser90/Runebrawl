@@ -5,12 +5,15 @@ const props = defineProps<{
   visible: boolean;
   animationSpeed: "slow" | "normal" | "fast";
   reducedMotion: boolean;
+  themeKey: string;
+  themeOptions: Array<{ value: string; label: string }>;
 }>();
 
 const emit = defineEmits<{
   (e: "close"): void;
   (e: "update:animationSpeed", value: "slow" | "normal" | "fast"): void;
   (e: "update:reducedMotion", value: boolean): void;
+  (e: "update:themeKey", value: string): void;
 }>();
 
 const { t } = useI18n();
@@ -23,6 +26,16 @@ const { t } = useI18n();
         <h3>{{ t("game.settings.title") }}</h3>
         <button @click="emit('close')">{{ t("game.settings.close") }}</button>
       </div>
+
+      <label class="settings-row">
+        <span>{{ t("game.settings.theme") }}</span>
+        <select
+          :value="props.themeKey"
+          @change="emit('update:themeKey', ($event.target as HTMLSelectElement).value)"
+        >
+          <option v-for="opt in props.themeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+        </select>
+      </label>
 
       <label class="settings-row">
         <span>{{ t("game.settings.animationSpeed") }}</span>

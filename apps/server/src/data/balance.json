@@ -15,6 +15,8 @@
   "maxTavernTier": 6,
   "tavernUpgradeBaseCost": 4,
   "tavernUpgradeStepCost": 2,
+  "tavernUpgradeDiscountPerRound": 1,
+  "tavernUpgradeMinCost": 0,
   "mergeCopiesRequired": 3,
   "unitCopiesByTier": [16, 15, 13, 11, 9, 7],
   "tierOddsByTavernTier": {

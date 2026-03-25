@@ -17,6 +17,8 @@ export interface BalanceConfig {
   maxTavernTier: number;
   tavernUpgradeBaseCost: number;
   tavernUpgradeStepCost: number;
+  tavernUpgradeDiscountPerRound: number;
+  tavernUpgradeMinCost: number;
   mergeCopiesRequired: number;
   unitCopiesByTier: number[];
   tierOddsByTavernTier: Record<string, number[]>;

@@ -1,0 +1,35 @@
+{
+  "id": "runebrawl-core",
+  "version": "0.1.0",
+  "defaultThemeKey": "default",
+  "themes": {
+    "default": {
+      "id": "default",
+      "label": {
+        "en": "Default",
+        "de": "Standard"
+      },
+      "assets": {
+        "recruitment": "recruitment-bg.svg",
+        "heroSelection": "hero-selection-bg.svg",
+        "lobby": "lobby-bg.svg",
+        "combat": "combat-bg.svg",
+        "finished": "finished-bg.svg"
+      }
+    },
+    "human_keep": {
+      "id": "human_keep",
+      "label": {
+        "en": "Human Keep",
+        "de": "Menschen-Festung"
+      },
+      "assets": {
+        "recruitment": "recruitment-bg.svg",
+        "heroSelection": "hero-selection-bg.svg",
+        "lobby": "lobby-bg.svg",
+        "combat": "combat-bg.svg",
+        "finished": "finished-bg.svg"
+      }
+    }
+  }
+}

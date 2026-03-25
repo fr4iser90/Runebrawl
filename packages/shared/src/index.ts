@@ -51,6 +51,8 @@ export interface PlayerPublicState {
   gold: number;
   xp: number;
   tavernTier: number;
+  tavernUpgradeCost?: number;
+  tavernUpgradeDiscount?: number;
   lockedShop: boolean;
   ready: boolean;
   hero: HeroDefinition | null;
