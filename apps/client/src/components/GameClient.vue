@@ -1231,9 +1231,9 @@ onBeforeUnmount(() => {
 onMounted(() => {
   window.addEventListener("runebrawl:open-settings", handleGlobalOpenSettings as EventListener);
   const params = new URLSearchParams(window.location.search);
-  const invite = params.get("invite")?.trim();
+  const invite = params.get("invite")?.trim().toUpperCase();
   if (invite) {
-    inviteCodeInput.value = invite.toUpperCase();
+    inviteCodeInput.value = invite;
     joinMode.value = "joinPrivate";
   }
   if (import.meta.env.DEV && params.get("rb_mock") === "1") {
@@ -1251,12 +1251,21 @@ onMounted(() => {
   if (devMockPhase.value) {
     return;
   }
-  void ensurePlayerSession();
-
   if (storedPlayerId.value) {
     void connect();
   } else {
-    void loadOpenLobbies();
+    void (async () => {
+      await ensurePlayerSession();
+      if (invite && name.value.trim()) {
+        joinMode.value = "joinPrivate";
+        params.delete("invite");
+        const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}${window.location.hash}`;
+        window.history.replaceState({}, "", next);
+        void connect();
+        return;
+      }
+      void loadOpenLobbies();
+    })();
   }
 });
 </script>
