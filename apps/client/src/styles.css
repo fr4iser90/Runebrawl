@@ -103,6 +103,44 @@ body {
   overflow-x: hidden;
 }
 
+.tutorial-overlay {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+  margin-bottom: 8px;
+}
+
+.tutorial-card {
+  pointer-events: auto;
+  width: min(420px, 96%);
+  border: 1px solid #5f78b8;
+  border-radius: 10px;
+  background: rgba(19, 28, 48, 0.94);
+  box-shadow: 0 10px 24px rgba(8, 12, 24, 0.35);
+  padding: 8px 10px;
+}
+
+.tutorial-title {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.95;
+}
+
+.tutorial-text {
+  margin: 6px 0 8px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #d8e2ff;
+}
+
+.tutorial-dismiss {
+  min-height: 32px;
+  font-size: 12px;
+}
+
 .round-result-overlay {
   position: absolute;
   inset: 0;
@@ -313,6 +351,37 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.menu-profile-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.menu-profile-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #44527d;
+  background: rgba(29, 40, 66, 0.9);
+  color: #d7e3ff;
+}
+
+.menu-profile-status.state-saving {
+  border-color: #7e8bc2;
+}
+
+.menu-profile-status.state-saved {
+  border-color: #5da37a;
+  color: #d1f5df;
+}
+
+.menu-profile-status.state-error {
+  border-color: #b56868;
+  color: #ffd1d1;
 }
 
 .menu-primary-grid {

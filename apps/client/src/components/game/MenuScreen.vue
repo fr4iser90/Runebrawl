@@ -5,6 +5,7 @@ import { useI18n } from "../../i18n/useI18n";
 const props = defineProps<{
   connected: boolean;
   name: string;
+  profileSyncState: "idle" | "saving" | "saved" | "error";
   region: string;
   mmr: number;
   inviteCodeInput: string;
@@ -22,11 +23,13 @@ const emit = defineEmits<{
   (e: "update:inviteCodeInput", value: string): void;
   (e: "update:privateMaxPlayers", value: number): void;
   (e: "update:selectedOpenLobby", value: string): void;
+  (e: "saveProfile"): void;
   (e: "startQuick"): void;
   (e: "startCreatePrivate"): void;
   (e: "startJoinPrivate"): void;
   (e: "startSolo", difficulty: "EASY" | "NORMAL" | "HARD"): void;
   (e: "reconnect"): void;
+  (e: "openSettings"): void;
   (e: "refreshLobbies"): void;
   (e: "joinSelectedOpenLobby"): void;
 }>();
@@ -53,6 +56,17 @@ function asNumber(value: string): number {
           {{ t("game.join.yourName") }}
           <input :value="props.name" :placeholder="t('game.join.yourName')" @input="emit('update:name', ($event.target as HTMLInputElement).value)" />
         </label>
+        <div class="menu-profile-row">
+          <span class="menu-profile-status" :class="`state-${props.profileSyncState}`">
+            <template v-if="props.profileSyncState === 'saving'">{{ t("game.profile.statusSaving") }}</template>
+            <template v-else-if="props.profileSyncState === 'saved'">{{ t("game.profile.statusSaved") }}</template>
+            <template v-else-if="props.profileSyncState === 'error'">{{ t("game.profile.statusError") }}</template>
+            <template v-else>{{ t("game.profile.statusIdle") }}</template>
+          </span>
+          <button :disabled="!props.name.trim() || props.profileSyncState === 'saving'" @click="emit('saveProfile')">
+            {{ t("game.profile.saveNow") }}
+          </button>
+        </div>
       </div>
 
       <div class="menu-primary-grid">
@@ -73,6 +87,7 @@ function asNumber(value: string): number {
             <button class="cta-primary" @click="emit('startQuick')">{{ t("game.join.quick") }}</button>
             <button @click="emit('startCreatePrivate')">{{ t("game.join.createPrivate") }}</button>
             <button v-if="props.storedPlayerId && props.storedMatchId" @click="emit('reconnect')">{{ t("game.join.reconnect") }}</button>
+            <button @click="emit('openSettings')">{{ t("game.settings.open") }}</button>
           </div>
         </article>
       </div>

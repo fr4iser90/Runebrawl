@@ -66,7 +66,8 @@ Notes:
 
 Expected endpoints:
 - Game UI: `https://<APP_URL>`
-- API/WebSocket: same host (`https://<APP_URL>`) with routed paths (`/auth/*`, `/admin/*`, `/lobbies`, `/matches/*`, `/ws`, `/health`)
+- API: `https://<APP_URL>/api/*` (Traefik strips `/api` before forwarding to server)
+- WebSocket: `wss://<APP_URL>/ws`
 
 ## Infra Upgrades Implemented
 

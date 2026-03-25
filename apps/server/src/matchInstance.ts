@@ -1360,7 +1360,12 @@ export class MatchInstance {
     const tierPool = unitsForTier(maxTier).filter((unit) => unit.tier === rolledTier && (this.unitCopyPool[unit.id] ?? 0) > 0);
     const fallbackPool = unitsForTier(maxTier).filter((unit) => (this.unitCopyPool[unit.id] ?? 0) > 0);
     const source = tierPool.length > 0 ? tierPool : fallbackPool;
-    if (source.length === 0) return null;
+    if (source.length === 0) {
+      // Emergency fallback so shop never hard-locks with all SOLD OUT slots.
+      const emergency = unitsForTier(maxTier);
+      if (emergency.length === 0) return null;
+      return emergency[this.pickWeightedUnitIndex(emergency, rng)];
+    }
     const pick = source[this.pickWeightedUnitIndex(source, rng)];
     this.unitCopyPool[pick.id] = Math.max(0, (this.unitCopyPool[pick.id] ?? 0) - 1);
     return pick;

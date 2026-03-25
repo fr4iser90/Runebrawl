@@ -7,6 +7,10 @@ import { useI18n } from "./i18n/useI18n";
 const pathname = computed(() => window.location.pathname);
 const isAdminRoute = computed(() => pathname.value.startsWith("/admin"));
 const { locale, setLocale, t } = useI18n();
+
+function openGameSettings(): void {
+  window.dispatchEvent(new CustomEvent("runebrawl:open-settings"));
+}
 </script>
 
 <template>
@@ -16,6 +20,7 @@ const { locale, setLocale, t } = useI18n();
       <div class="actions">
         <a href="/" class="nav-link">{{ t("nav.game") }}</a>
         <a href="/admin" class="nav-link">{{ t("nav.admin") }}</a>
+        <button v-if="!isAdminRoute" @click="openGameSettings">{{ t("game.settings.open") }}</button>
         <label>
           {{ t("nav.language") }}
           <select :value="locale" @change="setLocale(($event.target as HTMLSelectElement).value as 'en' | 'de')">

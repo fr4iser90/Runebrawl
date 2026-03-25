@@ -56,16 +56,23 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
       - "traefik.http.routers.runebrawl-api.entrypoints=web"
-      - "traefik.http.routers.runebrawl-api.rule=Host(`${APP_URL?set in .env}`) && (PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/lobbies`) || PathPrefix(`/matches`) || PathPrefix(`/ws`) || Path(`/health`))"
+      - "traefik.http.routers.runebrawl-api.rule=Host(`${APP_URL?set in .env}`) && (PathPrefix(`/api`) || PathPrefix(`/ws`))"
       - "traefik.http.routers.runebrawl-api.middlewares=runebrawl-redirect-https@docker"
       - "traefik.http.routers.runebrawl-api-secure.entrypoints=websecure"
-      - "traefik.http.routers.runebrawl-api-secure.rule=Host(`${APP_URL?set in .env}`) && (PathPrefix(`/auth`) || PathPrefix(`/admin`) || PathPrefix(`/lobbies`) || PathPrefix(`/matches`) || PathPrefix(`/ws`) || Path(`/health`))"
+      - "traefik.http.routers.runebrawl-api-secure.rule=Host(`${APP_URL?set in .env}`) && PathPrefix(`/api`)"
       - "traefik.http.routers.runebrawl-api-secure.tls=true"
       - "traefik.http.routers.runebrawl-api-secure.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-http_resolver}"
-      - "traefik.http.routers.runebrawl-api-secure.middlewares=runebrawl-api-ratelimit@docker"
+      - "traefik.http.routers.runebrawl-api-secure.middlewares=runebrawl-api-strip@docker,runebrawl-api-ratelimit@docker"
       - "traefik.http.routers.runebrawl-api-secure.priority=100"
+      - "traefik.http.routers.runebrawl-ws-secure.entrypoints=websecure"
+      - "traefik.http.routers.runebrawl-ws-secure.rule=Host(`${APP_URL?set in .env}`) && PathPrefix(`/ws`)"
+      - "traefik.http.routers.runebrawl-ws-secure.tls=true"
+      - "traefik.http.routers.runebrawl-ws-secure.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-http_resolver}"
+      - "traefik.http.routers.runebrawl-ws-secure.middlewares=runebrawl-api-ratelimit@docker"
+      - "traefik.http.routers.runebrawl-ws-secure.priority=110"
       - "traefik.http.middlewares.runebrawl-api-ratelimit.ratelimit.average=80"
       - "traefik.http.middlewares.runebrawl-api-ratelimit.ratelimit.burst=160"
+      - "traefik.http.middlewares.runebrawl-api-strip.stripprefix.prefixes=/api"
       - "traefik.http.middlewares.runebrawl-redirect-https.redirectscheme.scheme=https"
       - "traefik.http.middlewares.runebrawl-redirect-https.redirectscheme.permanent=true"
       - "traefik.http.services.runebrawl-api.loadbalancer.server.port=3001"
@@ -79,7 +86,7 @@ services:
     container_name: runebrawl-client
     restart: unless-stopped
     command: >
-      sh -lc "export VITE_API_BASE_URL=https://${APP_URL?set in .env} &&
+      sh -lc "export VITE_API_BASE_URL=https://${APP_URL?set in .env}/api &&
       export VITE_WS_URL=wss://${APP_URL?set in .env}/ws &&
       export VITE_ALLOWED_HOSTS=${APP_URL?set in .env} &&
       npm run build -w @runebrawl/shared &&
@@ -100,10 +107,10 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
       - "traefik.http.routers.runebrawl-game.entrypoints=web"
-      - "traefik.http.routers.runebrawl-game.rule=Host(`${APP_URL?set in .env}`)"
+      - "traefik.http.routers.runebrawl-game.rule=Host(`${APP_URL?set in .env}`) && !PathPrefix(`/api`) && !PathPrefix(`/ws`)"
       - "traefik.http.routers.runebrawl-game.middlewares=runebrawl-redirect-https@docker"
       - "traefik.http.routers.runebrawl-game-secure.entrypoints=websecure"
-      - "traefik.http.routers.runebrawl-game-secure.rule=Host(`${APP_URL?set in .env}`)"
+      - "traefik.http.routers.runebrawl-game-secure.rule=Host(`${APP_URL?set in .env}`) && !PathPrefix(`/api`) && !PathPrefix(`/ws`)"
       - "traefik.http.routers.runebrawl-game-secure.tls=true"
       - "traefik.http.routers.runebrawl-game-secure.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-http_resolver}"
       - "traefik.http.routers.runebrawl-game-secure.priority=10"

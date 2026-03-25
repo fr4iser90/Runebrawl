@@ -271,5 +271,35 @@ describe("match instance flow guards", () => {
       stopMatchTimer(match);
     }
   });
+
+  it("keeps shop offers available even when copy pool is exhausted", () => {
+    const match = new MatchInstance({
+      maxPlayers: 2,
+      isPrivate: false,
+      fillBotsOnStart: false,
+      timeoutFillBotsStart: false
+    });
+    try {
+      const playerId = match.joinHuman("ShopTester", makeSocket());
+      const internal = match as unknown as {
+        match: {
+          players: Array<{ playerId: string; shop: Array<{ id: string } | null> }>;
+        };
+        unitCopyPool: Record<string, number>;
+        startTavernPhase: () => void;
+      };
+
+      for (const key of Object.keys(internal.unitCopyPool)) {
+        internal.unitCopyPool[key] = 0;
+      }
+
+      internal.startTavernPhase();
+      const player = internal.match.players.find((p) => p.playerId === playerId);
+      if (!player) throw new Error("test setup failed");
+      expect(player.shop.some((u) => !!u)).toBe(true);
+    } finally {
+      stopMatchTimer(match);
+    }
+  });
 });
 

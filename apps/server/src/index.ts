@@ -9,12 +9,14 @@ import { CommunityContentService } from "./admin/communityContentService.js";
 import { SqlContentAuditStore } from "./admin/sqlContentAuditStore.js";
 import { AdminAuthService } from "./auth/adminAuth.js";
 import { PlayerIdentityService } from "./auth/playerIdentity.js";
+import { PlayerProfileService } from "./auth/playerProfile.js";
 import { MatchmakingService } from "./matchmakingService.js";
 
 const server = Fastify({ logger: true });
 const matchmaking = new MatchmakingService();
 const adminAuth = new AdminAuthService();
 const playerIdentity = new PlayerIdentityService();
+const playerProfiles = new PlayerProfileService(process.env.DATABASE_URL);
 const contentBuilder = new ContentBuilderService();
 const contentAuditStore = new SqlContentAuditStore(process.env.DATABASE_URL);
 const communityContent = new CommunityContentService(contentBuilder);
@@ -98,9 +100,20 @@ server.get("/auth/admin/status", async (request) => ({
   authenticated: adminAuth.isAuthenticated(request)
 }));
 server.post("/auth/player/session", async (request, reply) => {
-  const body = (request.body as { accountId?: string } | undefined) ?? {};
+  const body = (request.body as { accountId?: string; displayName?: string; name?: string } | undefined) ?? {};
   const accountId = playerIdentity.createOrRefreshSession(request, reply, body.accountId);
-  return { ok: true, accountId };
+  const profile = await playerProfiles.ensureProfile(accountId, body.displayName ?? body.name);
+  return { ok: true, accountId: profile.accountId, displayName: profile.displayName };
+});
+server.post("/auth/player/profile", async (request, reply) => {
+  const body = (request.body as { displayName?: string } | undefined) ?? {};
+  const accountId = playerIdentity.readSessionAccountId(request);
+  if (!accountId) {
+    sendHttpError(reply, 401, "Player session required", "JOIN_FIRST_REQUIRED");
+    return;
+  }
+  const profile = await playerProfiles.updateDisplayName(accountId, body.displayName ?? "");
+  return { ok: true, accountId: profile.accountId, displayName: profile.displayName };
 });
 server.post("/auth/admin/login", async (request, reply) => {
   const body = (request.body as { username?: string; password?: string } | undefined) ?? {};
@@ -447,6 +460,10 @@ server.register(async (instance) => {
       });
     }
   );
+});
+
+server.addHook("onClose", async () => {
+  await playerProfiles.close();
 });
 
 const port = Number(process.env.PORT ?? 3001);

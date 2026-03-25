@@ -42,7 +42,7 @@ import RoundResultOverlay from "./game/RoundResultOverlay.vue";
 import MatchEndView from "./game/MatchEndView.vue";
 import PlayersSidebar from "./game/PlayersSidebar.vue";
 
-const name = ref("");
+const name = ref(localStorage.getItem("runebrawl.playerName") ?? "");
 const connected = ref(false);
 const error = ref("");
 const state = ref<MatchPublicState | null>(null);
@@ -59,15 +59,18 @@ const mmr = ref(1000);
 const openLobbies = ref<LobbySummary[]>([]);
 const selectedOpenLobby = ref("");
 const soloPracticeDifficulty = ref<BotDifficulty | null>(null);
+const profileSyncState = ref<"idle" | "saving" | "saved" | "error">("idle");
 const animatingShopIndex = ref<number | null>(null);
 const showSettings = ref(false);
 const animationSpeed = ref<"slow" | "normal" | "fast">(
   (localStorage.getItem("runebrawl.ui.animationSpeed") as "slow" | "normal" | "fast" | null) ?? "normal"
 );
 const reducedMotion = ref(localStorage.getItem("runebrawl.ui.reducedMotion") === "1");
+const tutorialDismissed = ref(localStorage.getItem("runebrawl.tutorial.dismissed") === "1");
 let clock: number | null = null;
 let combatPlaybackTimer: number | null = null;
 let fadeCleanupTimer: number | null = null;
+let profileSyncTimer: number | null = null;
 let combatPlaybackRunId = 0;
 
 const dragging = ref<{ zone: "bench" | "board"; index: number } | null>(null);
@@ -131,19 +134,53 @@ async function ensurePlayerSession(): Promise<string> {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ accountId: localAccountId })
+      body: JSON.stringify({ accountId: localAccountId, displayName: name.value.trim() || undefined })
     });
     if (!response.ok) {
       return localAccountId;
     }
-    const payload = (await response.json()) as { accountId?: string };
+    const payload = (await response.json()) as { accountId?: string; displayName?: string };
     const resolved = payload.accountId?.trim() || localAccountId;
+    const resolvedDisplayName = payload.displayName?.trim() ?? "";
     storedAccountId.value = resolved;
     localStorage.setItem("runebrawl.accountId", resolved);
+    if (!name.value.trim() && resolvedDisplayName) {
+      name.value = resolvedDisplayName;
+    }
+    if (resolvedDisplayName) {
+      profileSyncState.value = "saved";
+    }
     return resolved;
   } catch {
     return localAccountId;
   }
+}
+
+async function syncPlayerProfile(force = false): Promise<void> {
+  if (!name.value.trim()) return;
+  if (!force && profileSyncState.value === "saving") return;
+  profileSyncState.value = "saving";
+  try {
+    const response = await fetch(`${apiBaseUrl}/auth/player/profile`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ displayName: name.value.trim() })
+    });
+    profileSyncState.value = response.ok ? "saved" : "error";
+  } catch {
+    profileSyncState.value = "error";
+  }
+}
+
+function saveProfileNow(): void {
+  if (profileSyncTimer !== null) {
+    window.clearTimeout(profileSyncTimer);
+    profileSyncTimer = null;
+  }
+  void syncPlayerProfile(true);
 }
 
 const me = computed(() => {
@@ -218,6 +255,30 @@ const hasNoDuelThisRound = computed(() => {
   if (!isCombatView.value) return false;
   return (state.value.phase === "COMBAT" || state.value.phase === "ROUND_END") && myCombatEvents.value.length === 0;
 });
+
+type TutorialStepKey = "hero" | "buy" | "move" | "ready" | "watch";
+
+const tutorialStepKey = computed<TutorialStepKey | null>(() => {
+  if (!state.value || !me.value || tutorialDismissed.value) return null;
+  if (state.value.phase === "FINISHED") return null;
+  if (state.value.phase === "HERO_SELECTION" && !me.value.heroSelected) return "hero";
+
+  if (state.value.phase === "TAVERN" || state.value.phase === "POSITIONING") {
+    const hasBoardUnit = me.value.board.some((u) => !!u);
+    const hasBenchUnit = me.value.bench.some((u) => !!u);
+    const hasShopOffer = me.value.shop.some((u) => !!u);
+
+    if (!hasBoardUnit && !hasBenchUnit && hasShopOffer) return "buy";
+    if (!hasBoardUnit && hasBenchUnit) return "move";
+    if (!me.value.ready) return "ready";
+  }
+
+  if (state.value.phase === "COMBAT" || state.value.phase === "ROUND_END") return "watch";
+  return null;
+});
+
+const showTutorialOverlay = computed(() => !!tutorialStepKey.value);
+const tutorialText = computed(() => (tutorialStepKey.value ? t(`game.tutorial.step.${tutorialStepKey.value}`) : ""));
 
 const myDuelResultEvent = computed<CombatReplayEvent | null>(() => {
   for (let idx = myCombatEvents.value.length - 1; idx >= 0; idx -= 1) {
@@ -609,6 +670,11 @@ function backToMenu(): void {
   resetActiveSession();
 }
 
+function dismissTutorial(): void {
+  tutorialDismissed.value = true;
+  localStorage.setItem("runebrawl.tutorial.dismissed", "1");
+}
+
 function leaveMatchNow(): void {
   send({ type: "LEAVE_MATCH" });
   // Give websocket a short moment to flush intent.
@@ -748,6 +814,14 @@ function startJoinPrivateFromMenu(): void {
 function reconnectFromMenu(): void {
   soloPracticeDifficulty.value = null;
   void connect();
+}
+
+function openSettingsFromMenu(): void {
+  showSettings.value = true;
+}
+
+function handleGlobalOpenSettings(): void {
+  showSettings.value = true;
 }
 
 function startSoloPractice(difficulty: BotDifficulty): void {
@@ -1104,6 +1178,12 @@ const replaySignature = computed(() => {
   return `${duelId}:${myCombatEvents.value.length}`;
 });
 
+const combatReplayComplete = computed(() => {
+  if (myCombatEvents.value.length === 0) return true;
+  const lastIndex = myCombatEvents.value.length - 1;
+  return combatReplayStep.value >= lastIndex && replayAnimationPhase.value === "IDLE";
+});
+
 watch(
   () => replaySignature.value,
   (signature) => {
@@ -1128,14 +1208,28 @@ watch(reducedMotion, (next) => {
   localStorage.setItem("runebrawl.ui.reducedMotion", next ? "1" : "0");
 });
 
+watch(name, (next) => {
+  localStorage.setItem("runebrawl.playerName", next);
+  profileSyncState.value = "idle";
+  if (profileSyncTimer !== null) {
+    window.clearTimeout(profileSyncTimer);
+  }
+  profileSyncTimer = window.setTimeout(() => {
+    void syncPlayerProfile();
+  }, 350);
+});
+
 onBeforeUnmount(() => {
   if (clock !== null) window.clearInterval(clock);
   stopCombatPlayback();
   if (fadeCleanupTimer !== null) window.clearTimeout(fadeCleanupTimer);
+  if (profileSyncTimer !== null) window.clearTimeout(profileSyncTimer);
+  window.removeEventListener("runebrawl:open-settings", handleGlobalOpenSettings as EventListener);
   ws.value?.close();
 });
 
 onMounted(() => {
+  window.addEventListener("runebrawl:open-settings", handleGlobalOpenSettings as EventListener);
   const params = new URLSearchParams(window.location.search);
   if (import.meta.env.DEV && params.get("rb_mock") === "1") {
     const requestedPhase = params.get("rb_phase")?.toUpperCase() as GamePhase | undefined;
@@ -1152,6 +1246,7 @@ onMounted(() => {
   if (devMockPhase.value) {
     return;
   }
+  void ensurePlayerSession();
 
   if (storedPlayerId.value) {
     void connect();
@@ -1163,20 +1258,10 @@ onMounted(() => {
 
 <template>
   <div class="app">
-    <header class="header">
-      <h1>{{ t("game.title") }}</h1>
-      <div class="actions">
-        <div v-if="state" class="round">
-          {{ t("game.matchHeader", { matchId: state.matchId, round: state.round, phase: phaseLabel(state.phase), sequence: state.sequence, seconds: secondsLeft }) }}
-        </div>
-        <button v-if="state && !isFinished && meEliminated" @click="leaveMatchNow">{{ t("game.leaveMatchNow") }}</button>
-        <button @click="showSettings = true">{{ t("game.settings.open") }}</button>
-      </div>
-    </header>
-
     <MenuScreen
       :connected="connected"
       :name="name"
+      :profile-sync-state="profileSyncState"
       :region="region"
       :mmr="mmr"
       :invite-code-input="inviteCodeInput"
@@ -1191,11 +1276,13 @@ onMounted(() => {
       @update:invite-code-input="inviteCodeInput = $event"
       @update:private-max-players="privateMaxPlayers = $event"
       @update:selected-open-lobby="selectedOpenLobby = $event"
+      @save-profile="saveProfileNow"
       @start-quick="startQuickFromMenu"
       @start-create-private="startCreatePrivateFromMenu"
       @start-join-private="startJoinPrivateFromMenu"
       @start-solo="startSoloPractice"
       @reconnect="reconnectFromMenu"
+      @open-settings="openSettingsFromMenu"
       @refresh-lobbies="loadOpenLobbies"
       @join-selected-open-lobby="joinSelectedOpenLobby"
     />
@@ -1217,6 +1304,16 @@ onMounted(() => {
       <div class="scene-ornament scene-ornament-top" aria-hidden="true"></div>
       <div class="scene-ornament scene-ornament-bottom" aria-hidden="true"></div>
       <div class="scene-content">
+        <div v-if="showTutorialOverlay" class="tutorial-overlay" role="status" aria-live="polite">
+          <div class="tutorial-card">
+            <div class="tutorial-title">{{ t("game.tutorial.title") }}</div>
+            <p class="tutorial-text">{{ tutorialText }}</p>
+            <button class="tutorial-dismiss" @click="dismissTutorial">{{ t("game.tutorial.dismiss") }}</button>
+          </div>
+        </div>
+        <div v-if="!isFinished && meEliminated" class="actions">
+          <button @click="leaveMatchNow">{{ t("game.leaveMatchNow") }}</button>
+        </div>
         <Transition name="phase-screen" mode="out-in">
           <div :key="state.phase" class="phase-shell">
             <LobbyView
@@ -1360,7 +1457,7 @@ onMounted(() => {
         </Transition>
       </div>
       <RoundResultOverlay
-        v-if="isRoundEnd"
+        v-if="isRoundEnd && (hasNoDuelThisRound || combatReplayComplete)"
         :round="state.round"
         :result-label="parsedRoundResult.label"
         :summary="hasNoDuelThisRound ? t('game.roundResult.summaryNoDuel') : parsedRoundResult.summary"
