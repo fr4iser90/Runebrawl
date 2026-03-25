@@ -20,8 +20,9 @@ interface ApiErrorPayload {
   errorCode?: ErrorCode;
 }
 
-export function useAdminApi(baseHost: string) {
+export function useAdminApi(apiBaseUrl: string) {
   const { t } = useI18n();
+  const normalizedApiBaseUrl = apiBaseUrl.replace(/\/+$/, "");
   const isAuthenticated = ref(false);
   const adminMetrics = ref<AdminMetrics | null>(null);
   const adminLobbies = ref<AdminLobbySnapshot[]>([]);
@@ -74,7 +75,7 @@ export function useAdminApi(baseHost: string) {
 
   async function checkAuth(): Promise<void> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/auth/admin/status`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/auth/admin/status`, {
         credentials: "include"
       });
       if (!response.ok) {
@@ -92,7 +93,7 @@ export function useAdminApi(baseHost: string) {
 
   async function login(username: string, password: string): Promise<{ ok: boolean; errorCode?: ErrorCode }> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/auth/admin/login`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/auth/admin/login`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -116,7 +117,7 @@ export function useAdminApi(baseHost: string) {
 
   async function logout(): Promise<void> {
     try {
-      await fetch(`http://${baseHost}:3001/auth/admin/logout`, {
+      await fetch(`${normalizedApiBaseUrl}/auth/admin/logout`, {
         method: "POST",
         credentials: "include"
       });
@@ -141,7 +142,7 @@ export function useAdminApi(baseHost: string) {
 
   async function loadAdminMetrics(): Promise<void> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/metrics`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/metrics`, {
         credentials: "include"
       });
       if (response.status === 401) {
@@ -168,7 +169,7 @@ export function useAdminApi(baseHost: string) {
       if (adminFilters.value.phase) q.set("phase", adminFilters.value.phase);
       if (adminFilters.value.region) q.set("region", adminFilters.value.region);
       q.set("visibility", adminFilters.value.visibility);
-      const response = await fetch(`http://${baseHost}:3001/admin/lobbies?${q.toString()}`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/lobbies?${q.toString()}`, {
         credentials: "include"
       });
       if (response.status === 401) {
@@ -206,7 +207,7 @@ export function useAdminApi(baseHost: string) {
   async function loadAdminRatingLeaderboard(limit = 20): Promise<void> {
     try {
       const boundedLimit = Math.max(1, Math.min(200, limit));
-      const response = await fetch(`http://${baseHost}:3001/admin/ratings/leaderboard?limit=${boundedLimit}`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/ratings/leaderboard?limit=${boundedLimit}`, {
         credentials: "include"
       });
       if (response.status === 401) {
@@ -235,7 +236,7 @@ export function useAdminApi(baseHost: string) {
       return null;
     }
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/ratings/player/${encodeURIComponent(trimmed)}`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/ratings/player/${encodeURIComponent(trimmed)}`, {
         credentials: "include"
       });
       if (response.status === 401) {
@@ -261,7 +262,7 @@ export function useAdminApi(baseHost: string) {
 
   async function loadAdminContentCatalog(): Promise<void> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/content/catalog`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/content/catalog`, {
         credentials: "include"
       });
       if (response.status === 401) {
@@ -284,7 +285,7 @@ export function useAdminApi(baseHost: string) {
 
   async function loadAdminContentDraft(): Promise<void> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/content/draft`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/content/draft`, {
         credentials: "include"
       });
       if (response.status === 401) {
@@ -309,7 +310,7 @@ export function useAdminApi(baseHost: string) {
 
   async function saveAdminContentDraft(units: UnitDefinition[], heroes: HeroDefinition[]): Promise<AdminContentValidationResult> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/content/draft`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/content/draft`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -334,7 +335,7 @@ export function useAdminApi(baseHost: string) {
 
   async function validateAdminContentDraft(): Promise<AdminContentValidationResult> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/content/draft/validate`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/content/draft/validate`, {
         method: "POST",
         credentials: "include"
       });
@@ -353,7 +354,7 @@ export function useAdminApi(baseHost: string) {
 
   async function publishAdminContentDraft(): Promise<AdminContentValidationResult> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/content/draft/publish`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/content/draft/publish`, {
         method: "POST",
         credentials: "include"
       });
@@ -377,7 +378,7 @@ export function useAdminApi(baseHost: string) {
   async function loadAdminContentPublishHistory(limit = 30): Promise<void> {
     try {
       const boundedLimit = Math.max(1, Math.min(200, limit));
-      const response = await fetch(`http://${baseHost}:3001/admin/content/publish-history?limit=${boundedLimit}`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/content/publish-history?limit=${boundedLimit}`, {
         credentials: "include"
       });
       if (response.status === 401) {
@@ -401,7 +402,7 @@ export function useAdminApi(baseHost: string) {
 
   async function loadAdminCommunitySubmissions(): Promise<void> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/content/submissions`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/content/submissions`, {
         credentials: "include"
       });
       if (response.status === 401) {
@@ -430,7 +431,7 @@ export function useAdminApi(baseHost: string) {
       return null;
     }
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/content/submissions/${encodeURIComponent(trimmed)}`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/content/submissions/${encodeURIComponent(trimmed)}`, {
         credentials: "include"
       });
       if (response.status === 401) {
@@ -456,10 +457,13 @@ export function useAdminApi(baseHost: string) {
 
   async function importAdminCommunitySubmissionToDraft(submissionId: string): Promise<AdminContentValidationResult> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/content/submissions/${encodeURIComponent(submissionId)}/import-draft`, {
-        method: "POST",
-        credentials: "include"
-      });
+      const response = await fetch(
+        `${normalizedApiBaseUrl}/admin/content/submissions/${encodeURIComponent(submissionId)}/import-draft`,
+        {
+          method: "POST",
+          credentials: "include"
+        }
+      );
       if (response.status === 401) {
         isAuthenticated.value = false;
         await parseApiError(response);
@@ -480,10 +484,13 @@ export function useAdminApi(baseHost: string) {
 
   async function approvePublishAdminCommunitySubmission(submissionId: string): Promise<AdminContentValidationResult> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/content/submissions/${encodeURIComponent(submissionId)}/approve-publish`, {
-        method: "POST",
-        credentials: "include"
-      });
+      const response = await fetch(
+        `${normalizedApiBaseUrl}/admin/content/submissions/${encodeURIComponent(submissionId)}/approve-publish`,
+        {
+          method: "POST",
+          credentials: "include"
+        }
+      );
       if (response.status === 401) {
         isAuthenticated.value = false;
         await parseApiError(response);
@@ -509,7 +516,7 @@ export function useAdminApi(baseHost: string) {
 
   async function rollbackAdminContentToAudit(auditId: string): Promise<AdminContentValidationResult> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/content/publish-history/${encodeURIComponent(auditId)}/rollback`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/content/publish-history/${encodeURIComponent(auditId)}/rollback`, {
         method: "POST",
         credentials: "include"
       });
@@ -534,7 +541,7 @@ export function useAdminApi(baseHost: string) {
   async function inspectAdminLobby(matchId: string): Promise<void> {
     adminSelectedLobbyId.value = matchId;
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/lobbies/${matchId}?events=100`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/lobbies/${matchId}?events=100`, {
         credentials: "include"
       });
       if (response.status === 401) {
@@ -559,7 +566,7 @@ export function useAdminApi(baseHost: string) {
 
   async function loadAdminUnitPool(matchId: string): Promise<void> {
     try {
-      const response = await fetch(`http://${baseHost}:3001/admin/content/pool?matchId=${encodeURIComponent(matchId)}`, {
+      const response = await fetch(`${normalizedApiBaseUrl}/admin/content/pool?matchId=${encodeURIComponent(matchId)}`, {
         credentials: "include"
       });
       if (response.status === 401) {
@@ -590,7 +597,7 @@ export function useAdminApi(baseHost: string) {
   function startAdminStream(matchId: string): void {
     stopAdminStream();
     adminEventFeed.value = [];
-    const es = new EventSource(`http://${baseHost}:3001/admin/lobbies/${matchId}/events/stream?from=0&snapshotEvents=20`, {
+    const es = new EventSource(`${normalizedApiBaseUrl}/admin/lobbies/${matchId}/events/stream?from=0&snapshotEvents=20`, {
       withCredentials: true
     });
     sse = es;

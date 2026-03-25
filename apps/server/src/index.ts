@@ -60,6 +60,11 @@ if (contentAuditStore.enabled) {
   }
 }
 
+const configuredCorsAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
+
 await server.register(cors, {
   origin: (origin, cb) => {
     if (!origin) {
@@ -67,10 +72,12 @@ await server.register(cors, {
       return;
     }
     const allowed =
-      origin.startsWith("http://localhost:5173") ||
-      origin.startsWith("http://127.0.0.1:5173") ||
-      origin.startsWith("http://localhost:5174") ||
-      origin.startsWith("http://127.0.0.1:5174");
+      configuredCorsAllowedOrigins.length > 0
+        ? configuredCorsAllowedOrigins.includes(origin)
+        : origin.startsWith("http://localhost:5173") ||
+          origin.startsWith("http://127.0.0.1:5173") ||
+          origin.startsWith("http://localhost:5174") ||
+          origin.startsWith("http://127.0.0.1:5174");
     cb(null, allowed);
   },
   credentials: true

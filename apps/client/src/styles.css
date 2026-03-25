@@ -801,6 +801,18 @@ textarea:focus-visible {
   opacity: 0.9;
 }
 
+.match-end-rating {
+  border: 1px solid #41527f;
+  border-radius: 10px;
+  background: rgba(27, 39, 66, 0.82);
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+
+.match-end-rating h3 {
+  margin: 0 0 6px;
+}
+
 .hero-card {
   border-color: #5966a4;
   background: linear-gradient(180deg, #273257, #202b49);

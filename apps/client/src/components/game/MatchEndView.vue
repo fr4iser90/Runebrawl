@@ -21,6 +21,8 @@ const placements = computed(() =>
     return a.name.localeCompare(b.name);
   })
 );
+
+const myPostMatchResult = computed(() => props.state.yourPostMatchResult ?? null);
 </script>
 
 <template>
@@ -51,6 +53,22 @@ const placements = computed(() =>
         <span class="match-end-health">{{ t("game.matchEnd.health", { hp: p.health }) }}</span>
       </li>
     </ol>
+
+    <div v-if="myPostMatchResult" class="match-end-rating">
+      <h3>{{ t("game.matchEnd.ratingTitle") }}</h3>
+      <p class="slot-title">
+        {{ t("game.matchEnd.placement", { placement: myPostMatchResult.placement }) }}
+      </p>
+      <p class="slot-title">
+        {{
+          t("game.matchEnd.rankPointsLine", {
+            before: myPostMatchResult.rankPointsBefore,
+            after: myPostMatchResult.rankPointsAfter,
+            delta: myPostMatchResult.rankPointsDelta >= 0 ? `+${myPostMatchResult.rankPointsDelta}` : `${myPostMatchResult.rankPointsDelta}`
+          })
+        }}
+      </p>
+    </div>
 
     <div class="actions">
       <button class="cta-primary" @click="emit('playAgain')">{{ t("game.matchEnd.playAgain") }}</button>

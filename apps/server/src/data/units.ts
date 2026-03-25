@@ -1,5 +1,5 @@
 import type { UnitDefinition } from "@runebrawl/shared";
-import units from "./units.json";
+import units from "./units.json" with { type: "json" };
 
 function normalizeUnit(unit: UnitDefinition): UnitDefinition {
   return {

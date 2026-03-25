@@ -1,4 +1,4 @@
-import balance from "./balance.json";
+import balance from "./balance.json" with { type: "json" };
 
 export interface BalanceConfig {
   maxPlayers: number;

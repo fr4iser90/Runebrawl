@@ -1,5 +1,5 @@
 import type { HeroDefinition } from "@runebrawl/shared";
-import heroes from "./heroes.json";
+import heroes from "./heroes.json" with { type: "json" };
 import { SeededRng } from "../engine/rng.js";
 
 function normalizeHero(hero: HeroDefinition): HeroDefinition {

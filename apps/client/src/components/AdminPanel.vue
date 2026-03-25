@@ -23,7 +23,8 @@ const ratingLookupStatus = ref("");
 const selectedCommunitySubmissionId = ref("");
 const communitySubmissionStatus = ref("");
 const rollbackStatus = ref("");
-const baseHost = location.hostname;
+const apiBaseUrl =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || `http://${location.hostname}:3001`;
 const { t } = useI18n();
 
 const UNIT_ROLES: UnitDefinition["role"][] = ["Tank", "Melee", "Ranged", "Support"];
@@ -74,7 +75,7 @@ const {
   stopAdminStream,
   startPolling,
   stopPolling
-} = useAdminApi(baseHost);
+} = useAdminApi(apiBaseUrl);
 
 const ADMIN_ERROR_KEYS: Record<string, string> = {
   ADMIN_UNAUTHORIZED: "admin.error.ADMIN_UNAUTHORIZED",

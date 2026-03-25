@@ -76,6 +76,15 @@ export interface MatchPublicState {
   yourPlayerId?: string;
   combatLog: string[];
   combatEvents: CombatReplayEvent[];
+  yourPostMatchResult?: {
+    placement: number;
+    rankPointsBefore: number;
+    rankPointsAfter: number;
+    rankPointsDelta: number;
+    mmrBefore: number;
+    mmrAfter: number;
+    mmrDelta: number;
+  };
 }
 
 export interface CombatReplayEvent {
@@ -150,7 +159,8 @@ export type ClientIntent =
   | { type: "UPGRADE_TAVERN" }
   | { type: "SELL_UNIT"; zone: "bench" | "board"; index: number }
   | { type: "MOVE_UNIT"; from: "bench" | "board"; fromIndex: number; to: "bench" | "board"; toIndex: number }
-  | { type: "READY_FOR_COMBAT" };
+  | { type: "READY_FOR_COMBAT" }
+  | { type: "LEAVE_MATCH" };
 
 export type ServerMessage =
   | { type: "CONNECTED"; playerId: string; matchId: string; inviteCode?: string }

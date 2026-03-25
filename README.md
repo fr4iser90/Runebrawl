@@ -53,6 +53,21 @@ Notes:
 - Server uses container-internal DB URL (`postgres`) automatically in Compose.
 - Hot-reload works via bind mounts for `apps/client`, `apps/server`, and shared packages.
 
+## Run Behind Traefik (Subdomains)
+
+1. Create/update `.env` (based on `.env.example`) and set at least:
+   - `APP_URL` (for example `runebrawl.example.com`)
+   - `POSTGRES_PASSWORD`
+   - `ADMIN_PASSWORD`
+   - `PLAYER_SESSION_SECRET`
+2. Ensure your Traefik `proxy` Docker network exists.
+3. Start stack:
+   - `docker compose -f docker-compose.traefik.yml up -d --build`
+
+Expected endpoints:
+- Game UI: `https://<APP_URL>`
+- API/WebSocket: same host (`https://<APP_URL>`) with routed paths (`/auth/*`, `/admin/*`, `/lobbies`, `/matches/*`, `/ws`, `/health`)
+
 ## Infra Upgrades Implemented
 
 - Reconnect support (`RECONNECT` intent with persisted `playerId`)

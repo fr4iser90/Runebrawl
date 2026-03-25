@@ -230,5 +230,46 @@ describe("match instance flow guards", () => {
       stopMatchTimer(match);
     }
   });
+
+  it("allows eliminated players to leave match view without removing ghost data", () => {
+    const match = new MatchInstance({
+      maxPlayers: 2,
+      isPrivate: false,
+      fillBotsOnStart: false,
+      timeoutFillBotsStart: false
+    });
+    try {
+      const socketA = makeSocket();
+      const socketB = makeSocket();
+      const aId = match.joinHuman("Alpha", socketA);
+      const bId = match.joinHuman("Beta", socketB);
+
+      const internal = match as unknown as {
+        match: {
+          phase: string;
+          players: Array<{ playerId: string; eliminated: boolean; socket?: unknown }>;
+        };
+      };
+
+      const alpha = internal.match.players.find((p) => p.playerId === aId);
+      const beta = internal.match.players.find((p) => p.playerId === bId);
+      if (!alpha || !beta) throw new Error("test setup failed");
+
+      internal.match.phase = "COMBAT";
+      alpha.eliminated = true;
+      beta.eliminated = false;
+
+      const left = match.leaveMatch(aId);
+      expect(left).toBe(true);
+      expect(alpha.socket).toBeUndefined();
+      // Player entity remains in match state (ghost/snapshot behavior preserved).
+      expect(internal.match.players.some((p) => p.playerId === aId)).toBe(true);
+
+      const activeCannotLeave = match.leaveMatch(bId);
+      expect(activeCannotLeave).toBe(false);
+    } finally {
+      stopMatchTimer(match);
+    }
+  });
 });
 

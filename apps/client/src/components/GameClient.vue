@@ -72,6 +72,23 @@ let combatPlaybackRunId = 0;
 
 const dragging = ref<{ zone: "bench" | "board"; index: number } | null>(null);
 const { t } = useI18n();
+const apiBaseUrl =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || `http://${location.hostname}:3001`;
+const wsUrl = (() => {
+  const configured = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
+  if (configured) return configured;
+  try {
+    const url = new URL(apiBaseUrl);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    url.pathname = "/ws";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    const protocol = location.protocol === "https:" ? "wss" : "ws";
+    return `${protocol}://${location.hostname}:3001/ws`;
+  }
+})();
 
 const ERROR_CODE_TO_KEY: Partial<Record<ErrorCode, string>> = {
   RECONNECT_FAILED: "error.RECONNECT_FAILED",
@@ -108,7 +125,7 @@ function ensureAccountId(): string {
 async function ensurePlayerSession(): Promise<string> {
   const localAccountId = ensureAccountId();
   try {
-    const response = await fetch(`http://${location.hostname}:3001/auth/player/session`, {
+    const response = await fetch(`${apiBaseUrl}/auth/player/session`, {
       method: "POST",
       credentials: "include",
       headers: {
@@ -139,6 +156,7 @@ const isLobby = computed(() => state.value?.phase === "LOBBY");
 const isHeroSelection = computed(() => state.value?.phase === "HERO_SELECTION");
 const isRoundEnd = computed(() => state.value?.phase === "ROUND_END");
 const isFinished = computed(() => state.value?.phase === "FINISHED");
+const meEliminated = computed(() => (me.value?.health ?? 1) <= 0);
 const isCombatView = computed(() => {
   if (!state.value) return false;
   return state.value.phase === "COMBAT" || (state.value.phase === "ROUND_END" && state.value.combatEvents.length > 0);
@@ -474,8 +492,7 @@ async function connect(): Promise<void> {
     return;
   }
   const sessionAccountId = await ensurePlayerSession();
-  const protocol = location.protocol === "https:" ? "wss" : "ws";
-  const socket = new WebSocket(`${protocol}://${location.hostname}:3001/ws`);
+  const socket = new WebSocket(wsUrl);
   ws.value = socket;
 
   socket.onopen = () => {
@@ -592,6 +609,14 @@ function backToMenu(): void {
   resetActiveSession();
 }
 
+function leaveMatchNow(): void {
+  send({ type: "LEAVE_MATCH" });
+  // Give websocket a short moment to flush intent.
+  window.setTimeout(() => {
+    backToMenu();
+  }, 80);
+}
+
 async function playAgain(): Promise<void> {
   const fallbackName = name.value.trim() || me.value?.name || "";
   name.value = fallbackName;
@@ -659,7 +684,7 @@ function kickPlayer(targetPlayerId: string): void {
 
 async function loadOpenLobbies(): Promise<void> {
   try {
-    const response = await fetch(`http://${location.hostname}:3001/lobbies`);
+    const response = await fetch(`${apiBaseUrl}/lobbies`);
     const payload = (await response.json()) as { lobbies: LobbySummary[] };
     openLobbies.value = payload.lobbies ?? [];
   } catch {
@@ -673,8 +698,7 @@ async function joinOpenLobby(matchId: string): Promise<void> {
     return;
   }
   const sessionAccountId = await ensurePlayerSession();
-  const protocol = location.protocol === "https:" ? "wss" : "ws";
-  const socket = new WebSocket(`${protocol}://${location.hostname}:3001/ws`);
+  const socket = new WebSocket(wsUrl);
   ws.value = socket;
   socket.onopen = () => {
     connected.value = true;
@@ -1145,6 +1169,7 @@ onMounted(() => {
         <div v-if="state" class="round">
           {{ t("game.matchHeader", { matchId: state.matchId, round: state.round, phase: phaseLabel(state.phase), sequence: state.sequence, seconds: secondsLeft }) }}
         </div>
+        <button v-if="state && !isFinished && meEliminated" @click="leaveMatchNow">{{ t("game.leaveMatchNow") }}</button>
         <button @click="showSettings = true">{{ t("game.settings.open") }}</button>
       </div>
     </header>

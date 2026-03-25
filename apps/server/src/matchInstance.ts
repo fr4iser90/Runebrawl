@@ -84,6 +84,18 @@ interface MatchInternal {
   startReason?: "force" | "full" | "all_ready" | "timeout";
   unitBuys: Record<string, number>;
   synergyTriggers: Record<string, number>;
+  postMatchResultsByRatingIdentity: Record<
+    string,
+    {
+      placement: number;
+      rankPointsBefore: number;
+      rankPointsAfter: number;
+      rankPointsDelta: number;
+      mmrBefore: number;
+      mmrAfter: number;
+      mmrDelta: number;
+    }
+  >;
 }
 
 interface MatchOptions {
@@ -185,7 +197,8 @@ export class MatchInstance {
       mmrBucket: mmrBucket(options.mmr ?? 1000),
       createdAt: now(),
       unitBuys: {},
-      synergyTriggers: {}
+      synergyTriggers: {},
+      postMatchResultsByRatingIdentity: {}
     };
     this.initialUnitCopyPool = this.createInitialUnitCopyPool();
     this.unitCopyPool = { ...this.initialUnitCopyPool };
@@ -606,6 +619,36 @@ export class MatchInstance {
     this.broadcast();
   }
 
+  leaveMatch(playerId: string): boolean {
+    const player = this.match.players.find((p) => p.playerId === playerId);
+    if (!player) return false;
+    // Do not allow active players to leave and alter a running duel context.
+    if (!player.eliminated && this.match.phase !== "FINISHED") return false;
+    player.socket = undefined;
+    this.bumpSequence("PLAYER_LEFT_MATCH", `${player.name} left match view.`);
+    this.broadcast();
+    return true;
+  }
+
+  setPostMatchResults(
+    resultsByRatingIdentity: Record<
+      string,
+      {
+        placement: number;
+        rankPointsBefore: number;
+        rankPointsAfter: number;
+        rankPointsDelta: number;
+        mmrBefore: number;
+        mmrAfter: number;
+        mmrDelta: number;
+      }
+    >
+  ): void {
+    this.match.postMatchResultsByRatingIdentity = { ...resultsByRatingIdentity };
+    this.bumpSequence("RATING_RESULT_READY", "Post-match rating results available.");
+    this.broadcast();
+  }
+
   getMatchHistory():
     | {
         matchId: string;
@@ -685,11 +728,20 @@ export class MatchInstance {
       phaseEndsAt: this.match.phaseEndsAt,
       players: this.match.players.map(playerPublicState),
       combatLog: this.match.combatLog.slice(-80),
-      combatEvents: this.match.combatEvents.slice(-200)
+      // Keep a larger replay window so earlier duel ATTACK events are not truncated
+      // in busy rounds (multiple simultaneous duels with many combat events).
+      combatEvents: this.match.combatEvents.slice(-1200)
     };
     for (const p of this.match.players) {
       if (!p.socket) continue;
-      this.send(p.socket, { type: "MATCH_STATE", state: { ...stateBase, yourPlayerId: p.playerId } });
+      this.send(p.socket, {
+        type: "MATCH_STATE",
+        state: {
+          ...stateBase,
+          yourPlayerId: p.playerId,
+          yourPostMatchResult: this.match.postMatchResultsByRatingIdentity[p.ratingIdentity]
+        }
+      });
     }
   }
 

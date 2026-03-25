@@ -122,6 +122,13 @@ export class MatchmakingService {
     if (!matchId) return;
     const match = this.matches.get(matchId);
     if (!match) return;
+    if (intent.type === "LEAVE_MATCH") {
+      const ok = match.leaveMatch(playerId);
+      if (ok) {
+        this.playerToMatch.delete(playerId);
+      }
+      return;
+    }
     match.handleIntent(playerId, intent);
     void this.processFinishedMatches();
   }
@@ -332,7 +339,32 @@ export class MatchmakingService {
           continue;
         }
         try {
-          await this.ratingService.applyMatchResult(input);
+          const output = await this.ratingService.applyMatchResult(input);
+          const placementByPlayerId = new Map(input.placements.map((entry) => [entry.playerId, entry.placement]));
+          const resultsByRatingIdentity: Record<
+            string,
+            {
+              placement: number;
+              rankPointsBefore: number;
+              rankPointsAfter: number;
+              rankPointsDelta: number;
+              mmrBefore: number;
+              mmrAfter: number;
+              mmrDelta: number;
+            }
+          > = {};
+          for (const update of output.updates) {
+            resultsByRatingIdentity[update.playerId] = {
+              placement: placementByPlayerId.get(update.playerId) ?? 0,
+              rankPointsBefore: update.rankPointsBefore,
+              rankPointsAfter: update.rankPointsAfter,
+              rankPointsDelta: update.rankPointsDelta,
+              mmrBefore: update.mmrBefore,
+              mmrAfter: update.mmrAfter,
+              mmrDelta: update.mmrDelta
+            };
+          }
+          match.setPostMatchResults(resultsByRatingIdentity);
           this.ratedMatchIds.add(matchId);
           this.ratingRetryState.delete(matchId);
         } catch (error) {
