@@ -1,6 +1,7 @@
 import type { ClientIntent, LobbySummary } from "@runebrawl/shared";
 import { nanoid } from "nanoid";
 import { BALANCE } from "./data/balance.js";
+import { UNIT_POOL } from "./data/units.js";
 import { MatchInstance } from "./matchInstance.js";
 
 interface SocketLike {
@@ -138,6 +139,16 @@ export class MatchmakingService {
     return match.getAdminDetail(eventsLimit);
   }
 
+  getAdminUnitPool(matchId: string) {
+    const match = this.matches.get(matchId);
+    if (!match) return null;
+    return match.getUnitPoolSnapshot();
+  }
+
+  listAdminUnitPools() {
+    return Array.from(this.matches.values()).map((match) => match.getUnitPoolSnapshot());
+  }
+
   getTelemetryMetrics(): {
     totalMatches: number;
     activeMatches: number;
@@ -149,6 +160,9 @@ export class MatchmakingService {
     averageFillMs: number;
     startedMatches: number;
     startReasons: Record<string, number>;
+    unitBuys: Record<string, number>;
+    unitBuyLabels: Record<string, string>;
+    synergyTriggers: Record<string, number>;
   } {
     const snapshots = this.listAdminLobbies();
     const lifecycles = Array.from(this.matches.values()).map((m) => m.getLifecycleStats());
@@ -177,6 +191,21 @@ export class MatchmakingService {
     for (const l of started) {
       if (l.startReason) startReasons[l.startReason] = (startReasons[l.startReason] ?? 0) + 1;
     }
+    const unitBuys: Record<string, number> = {};
+    const synergyTriggers: Record<string, number> = {};
+    for (const match of this.matches.values()) {
+      const telemetry = match.getBalanceTelemetry();
+      for (const [unitId, count] of Object.entries(telemetry.unitBuys)) {
+        unitBuys[unitId] = (unitBuys[unitId] ?? 0) + count;
+      }
+      for (const [synergyKey, count] of Object.entries(telemetry.synergyTriggers)) {
+        synergyTriggers[synergyKey] = (synergyTriggers[synergyKey] ?? 0) + count;
+      }
+    }
+    const unitBuyLabels: Record<string, string> = {};
+    for (const unit of UNIT_POOL) {
+      unitBuyLabels[unit.id] = unit.name;
+    }
 
     return {
       totalMatches,
@@ -188,7 +217,10 @@ export class MatchmakingService {
       bots,
       averageFillMs,
       startedMatches: started.length,
-      startReasons
+      startReasons,
+      unitBuys,
+      unitBuyLabels,
+      synergyTriggers
     };
   }
 

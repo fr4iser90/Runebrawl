@@ -18,6 +18,8 @@ export interface BalanceConfig {
   tavernUpgradeBaseCost: number;
   tavernUpgradeStepCost: number;
   mergeCopiesRequired: number;
+  unitCopiesByTier: number[];
+  tierOddsByTavernTier: Record<string, number[]>;
   quickLobbyTimeoutMs: number;
   privateLobbyTimeoutMs: number;
   quickStartOnTimeoutFillBots: boolean;

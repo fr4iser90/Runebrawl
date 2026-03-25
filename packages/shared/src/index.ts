@@ -2,6 +2,7 @@ export type GamePhase = "LOBBY" | "HERO_SELECTION" | "TAVERN" | "POSITIONING" | 
 
 export type UnitRole = "Tank" | "Melee" | "Ranged" | "Support";
 export type AbilityKey = "NONE" | "DEATH_BURST" | "TAUNT" | "BLOODLUST" | "LIFESTEAL";
+export type SynergyKey = "BERSERKER";
 export type HeroPowerType = "PASSIVE" | "ACTIVE";
 export type HeroPowerKey = "BONUS_GOLD" | "WAR_DRUM" | "RECRUITER" | "FORTIFY";
 
@@ -12,6 +13,7 @@ export interface HeroDefinition {
   powerType: HeroPowerType;
   powerKey: HeroPowerKey;
   powerCost: number;
+  offerWeight?: number;
 }
 
 export interface UnitDefinition {
@@ -23,6 +25,8 @@ export interface UnitDefinition {
   hp: number;
   speed: number;
   ability: AbilityKey;
+  shopWeight?: number;
+  tags?: SynergyKey[];
 }
 
 export interface UnitInstance {
@@ -36,6 +40,7 @@ export interface UnitInstance {
   ability: AbilityKey;
   role: UnitRole;
   name: string;
+  tags?: SynergyKey[];
 }
 
 export interface PlayerPublicState {
@@ -87,6 +92,7 @@ export interface CombatReplayEvent {
   targetSlotIndex?: number;
   targetUnitName?: string;
   abilityKey?: AbilityKey;
+  synergyKey?: SynergyKey;
   message: string;
 }
 
@@ -107,6 +113,19 @@ export interface MatchEvent {
   type: string;
   message: string;
 }
+
+export type ErrorCode =
+  | "RECONNECT_FAILED"
+  | "JOIN_FIRST_REQUIRED"
+  | "INVALID_MESSAGE_FORMAT"
+  | "PRIVATE_LOBBY_NOT_FOUND"
+  | "PRIVATE_LOBBY_NOT_JOINABLE"
+  | "LOBBY_NOT_JOINABLE"
+  | "MATCH_NOT_JOINABLE"
+  | "PLAYER_KICKED_FROM_LOBBY"
+  | "ADMIN_UNAUTHORIZED"
+  | "ADMIN_INVALID_CREDENTIALS"
+  | "ADMIN_MATCH_NOT_FOUND";
 
 export type ClientIntent =
   | { type: "JOIN_MATCH"; name: string; region?: string; mmr?: number } // Alias for QUICK_MATCH
@@ -133,4 +152,4 @@ export type ServerMessage =
   | { type: "CONNECTED"; playerId: string; matchId: string; inviteCode?: string }
   | { type: "LOBBY_LIST"; lobbies: LobbySummary[] }
   | { type: "MATCH_STATE"; state: MatchPublicState }
-  | { type: "ERROR"; message: string };
+  | { type: "ERROR"; message: string; errorCode?: ErrorCode };

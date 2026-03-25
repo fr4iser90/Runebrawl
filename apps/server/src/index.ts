@@ -2,14 +2,43 @@ import Fastify from "fastify";
 import websocket from "@fastify/websocket";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
-import type { ClientIntent } from "@runebrawl/shared";
+import type { ClientIntent, ErrorCode, HeroDefinition, UnitDefinition } from "@runebrawl/shared";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { ContentBuilderService } from "./admin/contentBuilderService.js";
 import { AdminAuthService } from "./auth/adminAuth.js";
 import { MatchmakingService } from "./matchmakingService.js";
 
 const server = Fastify({ logger: true });
 const matchmaking = new MatchmakingService();
 const adminAuth = new AdminAuthService();
+const contentBuilder = new ContentBuilderService();
+
+function sendWsError(socket: { send: (data: string) => void }, message: string, errorCode?: ErrorCode): void {
+  socket.send(JSON.stringify({ type: "ERROR", message, errorCode }));
+}
+
+function sendHttpError(reply: FastifyReply, statusCode: number, error: string, errorCode: ErrorCode): void {
+  reply.code(statusCode).send({ error, errorCode });
+}
+
+function mapErrorCode(error: unknown): ErrorCode | undefined {
+  if (!(error instanceof Error)) return undefined;
+  if (error.name === "SyntaxError") {
+    return "INVALID_MESSAGE_FORMAT";
+  }
+  switch (error.message) {
+    case "Private lobby not found":
+      return "PRIVATE_LOBBY_NOT_FOUND";
+    case "Private lobby is full or already started":
+      return "PRIVATE_LOBBY_NOT_JOINABLE";
+    case "Lobby not joinable":
+      return "LOBBY_NOT_JOINABLE";
+    case "Match is full or already started":
+      return "MATCH_NOT_JOINABLE";
+    default:
+      return undefined;
+  }
+}
 
 await server.register(cors, {
   origin: (origin, cb) => {
@@ -31,7 +60,7 @@ await server.register(websocket);
 
 async function requireAdmin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   if (!adminAuth.isAuthenticated(request)) {
-    reply.code(401).send({ error: "Unauthorized" });
+    sendHttpError(reply, 401, "Unauthorized", "ADMIN_UNAUTHORIZED");
     return;
   }
 }
@@ -47,8 +76,8 @@ server.post("/auth/admin/login", async (request, reply) => {
   const password = body.password ?? "";
   const ok = adminAuth.login(username, password, reply);
   if (!ok) {
-    reply.code(401);
-    return { ok: false, error: "Invalid credentials" };
+    sendHttpError(reply, 401, "Invalid credentials", "ADMIN_INVALID_CREDENTIALS");
+    return;
   }
   return { ok: true };
 });
@@ -68,8 +97,8 @@ server.get("/admin/lobbies/:matchId", { preHandler: requireAdmin }, async (reque
   const eventsLimit = Number.isFinite(eventsLimitRaw) ? Math.max(1, Math.min(500, eventsLimitRaw)) : 50;
   const detail = matchmaking.getAdminLobbyDetail(matchId, eventsLimit);
   if (!detail) {
-    reply.status(404);
-    return { error: "Match not found" };
+    sendHttpError(reply, 404, "Match not found", "ADMIN_MATCH_NOT_FOUND");
+    return;
   }
   return detail;
 });
@@ -83,8 +112,8 @@ server.get("/admin/lobbies/:matchId/events/stream", { preHandler: requireAdmin }
 
   const initialDetail = matchmaking.getAdminLobbyDetail(matchId, initialEvents);
   if (!initialDetail) {
-    reply.status(404);
-    return { error: "Match not found" };
+    sendHttpError(reply, 404, "Match not found", "ADMIN_MATCH_NOT_FOUND");
+    return;
   }
 
   reply.raw.writeHead(200, {
@@ -128,6 +157,42 @@ server.get("/admin/lobbies/:matchId/events/stream", { preHandler: requireAdmin }
   });
 });
 server.get("/admin/metrics", { preHandler: requireAdmin }, async () => matchmaking.getTelemetryMetrics());
+server.get("/admin/content/catalog", { preHandler: requireAdmin }, async () => contentBuilder.getCatalog());
+server.get("/admin/content/pool", { preHandler: requireAdmin }, async (request, reply) => {
+  const { matchId } = request.query as { matchId?: string };
+  if (matchId) {
+    const snapshot = matchmaking.getAdminUnitPool(matchId);
+    if (!snapshot) {
+      sendHttpError(reply, 404, "Match not found", "ADMIN_MATCH_NOT_FOUND");
+      return;
+    }
+    return snapshot;
+  }
+  return { matches: matchmaking.listAdminUnitPools() };
+});
+server.get("/admin/content/draft", { preHandler: requireAdmin }, async () => contentBuilder.getDraft());
+server.put("/admin/content/draft", { preHandler: requireAdmin }, async (request, reply) => {
+  const body = (request.body as { units?: unknown; heroes?: unknown } | undefined) ?? {};
+  if (!Array.isArray(body.units) || !Array.isArray(body.heroes)) {
+    sendHttpError(reply, 400, "Invalid draft payload.", "INVALID_MESSAGE_FORMAT");
+    return;
+  }
+  const result = contentBuilder.saveDraft(body.units as UnitDefinition[], body.heroes as HeroDefinition[]);
+  if (!result.ok) {
+    reply.code(400).send(result);
+    return;
+  }
+  return result;
+});
+server.post("/admin/content/draft/validate", { preHandler: requireAdmin }, async () => contentBuilder.validateDraft());
+server.post("/admin/content/draft/publish", { preHandler: requireAdmin }, async (request, reply) => {
+  const result = contentBuilder.publishDraft();
+  if (!result.ok) {
+    reply.code(400).send(result);
+    return;
+  }
+  return result;
+});
 server.get("/matches/:matchId/history", async (request, reply) => {
   const { matchId } = request.params as { matchId: string };
   const data = matchmaking.getMatchHistory(matchId);
@@ -176,7 +241,7 @@ server.register(async (instance) => {
             if (playerId) return;
             const ok = matchmaking.reconnect(msg.playerId, socket, msg.name, (msg as { matchId?: string }).matchId);
             if (!ok) {
-              socket.send(JSON.stringify({ type: "ERROR", message: "Reconnect failed, please join a new match." }));
+              sendWsError(socket, "Reconnect failed, please join a new match.", "RECONNECT_FAILED");
               return;
             }
             playerId = msg.playerId;
@@ -203,13 +268,14 @@ server.register(async (instance) => {
             return;
           }
           if (!playerId) {
-            socket.send(JSON.stringify({ type: "ERROR", message: "Please join first." }));
+            sendWsError(socket, "Please join first.", "JOIN_FIRST_REQUIRED");
             return;
           }
           matchmaking.handleIntent(playerId, msg);
         } catch (error) {
           const message = error instanceof Error ? error.message : "Invalid message format.";
-          socket.send(JSON.stringify({ type: "ERROR", message }));
+          const errorCode = error instanceof Error ? mapErrorCode(error) : "INVALID_MESSAGE_FORMAT";
+          sendWsError(socket, message, errorCode);
           instance.log.error(error);
         }
       });

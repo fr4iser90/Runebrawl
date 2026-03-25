@@ -5,7 +5,8 @@ export type EffectId =
   | "RESOLVE_ATTACK_HIT"
   | "BLOODLUST_ON_KILL"
   | "DEATH_BURST_ON_DEATH"
-  | "LIFESTEAL_ON_HIT";
+  | "LIFESTEAL_ON_HIT"
+  | "BERSERKER_ON_HIT_BUFF";
 
 type EffectParams = Record<string, number | string | boolean | undefined>;
 
@@ -13,7 +14,7 @@ export interface EffectContext {
   player?: { gold: number };
   maxGold?: number;
   attacker?: { attack: number; hp: number; maxHp: number; name: string };
-  sourceUnit?: { ownerId: CombatOwnerId; slotIndex: number; name: string; hp: number; maxHp?: number };
+  sourceUnit?: { ownerId: CombatOwnerId; slotIndex: number; name: string; attack: number; hp: number; maxHp?: number };
   targetUnit?: { ownerId: CombatOwnerId; slotIndex: number; name: string; hp: number };
   log?: string[];
 }
@@ -63,6 +64,14 @@ const effectRegistry: Record<EffectId, EffectHandler> = {
     if (healed > 0) {
       ctx.log?.push(`${ctx.sourceUnit.name} drains ${healed} health.`);
     }
+  },
+  BERSERKER_ON_HIT_BUFF: (event, ctx, params) => {
+    if (event.type !== "ATTACK_HIT") return;
+    if (!ctx.sourceUnit) return;
+    const amountRaw = params.amount;
+    const amount = typeof amountRaw === "number" ? amountRaw : 2;
+    ctx.sourceUnit.attack += amount;
+    ctx.log?.push(`${ctx.sourceUnit.name} is empowered by Berserker (+${amount} attack).`);
   }
 };
 

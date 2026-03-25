@@ -12,9 +12,18 @@ import type {
   UnitInstance
 } from "@runebrawl/shared";
 import { nanoid } from "nanoid";
+import {
+  autoPlaceBoard,
+  nextBotDifficulty,
+  selectShopIndex,
+  shouldReroll,
+  shouldUpgradeTavern,
+  shouldUseHeroPower,
+  type BotDifficulty
+} from "./ai/botLogic.js";
 import { BALANCE } from "./data/balance.js";
 import { findHeroById, randomHeroOptions } from "./data/heroes.js";
-import { unitsForTier } from "./data/units.js";
+import { UNIT_POOL, unitsForTier } from "./data/units.js";
 import { simulateCombat } from "./engine/combat.js";
 import { SeededRng } from "./engine/rng.js";
 import { applyEffect } from "./rules/effectRegistry.js";
@@ -27,6 +36,7 @@ interface PlayerInternal {
   playerId: string;
   name: string;
   isBot: boolean;
+  botDifficulty?: BotDifficulty;
   socket?: SocketLike;
   health: number;
   gold: number;
@@ -69,6 +79,8 @@ interface MatchInternal {
   startedAt?: number;
   finishedAt?: number;
   startReason?: "force" | "full" | "all_ready" | "timeout";
+  unitBuys: Record<string, number>;
+  synergyTriggers: Record<string, number>;
 }
 
 interface MatchOptions {
@@ -108,7 +120,8 @@ function cloneUnitFromDef(def: UnitDefinition): UnitInstance {
     hp: def.hp,
     maxHp: def.hp,
     speed: def.speed,
-    ability: def.ability
+    ability: def.ability,
+    tags: def.tags
   };
 }
 
@@ -135,6 +148,9 @@ function playerPublicState(p: PlayerInternal): PlayerPublicState {
 export class MatchInstance {
   private match: MatchInternal;
   private tickTimer: NodeJS.Timeout;
+  private botDifficultyCursor = 0;
+  private initialUnitCopyPool: Record<string, number>;
+  private unitCopyPool: Record<string, number>;
 
   constructor(options: MatchOptions) {
     const boundedMaxPlayers = Math.max(2, Math.min(BALANCE.maxPlayers, options.maxPlayers));
@@ -160,8 +176,12 @@ export class MatchInstance {
       ,
       region: options.region ?? "EU",
       mmrBucket: mmrBucket(options.mmr ?? 1000),
-      createdAt: now()
+      createdAt: now(),
+      unitBuys: {},
+      synergyTriggers: {}
     };
+    this.initialUnitCopyPool = this.createInitialUnitCopyPool();
+    this.unitCopyPool = { ...this.initialUnitCopyPool };
     this.tickTimer = setInterval(() => this.tick(), 1000);
   }
 
@@ -332,6 +352,79 @@ export class MatchInstance {
     };
   }
 
+  getBalanceTelemetry(): {
+    unitBuys: Record<string, number>;
+    synergyTriggers: Record<string, number>;
+  } {
+    return {
+      unitBuys: { ...this.match.unitBuys },
+      synergyTriggers: { ...this.match.synergyTriggers }
+    };
+  }
+
+  getUnitPoolSnapshot(): {
+    matchId: string;
+    phase: GamePhase;
+    round: number;
+    units: Array<{
+      unitId: string;
+      unitName: string;
+      tier: number;
+      initialCopies: number;
+      availableCopies: number;
+      inShop: number;
+      onBoard: number;
+      onBench: number;
+      consumedCopies: number;
+      availablePct: number;
+    }>;
+  } {
+    const inShop: Record<string, number> = {};
+    const onBoard: Record<string, number> = {};
+    const onBench: Record<string, number> = {};
+    for (const player of this.match.players) {
+      for (const unit of player.shop) {
+        if (!unit) continue;
+        inShop[unit.id] = (inShop[unit.id] ?? 0) + 1;
+      }
+      for (const unit of player.board) {
+        if (!unit) continue;
+        onBoard[unit.unitId] = (onBoard[unit.unitId] ?? 0) + 1;
+      }
+      for (const unit of player.bench) {
+        if (!unit) continue;
+        onBench[unit.unitId] = (onBench[unit.unitId] ?? 0) + 1;
+      }
+    }
+
+    const units = UNIT_POOL.map((unit) => {
+      const initial = this.initialUnitCopyPool[unit.id] ?? 0;
+      const available = this.unitCopyPool[unit.id] ?? 0;
+      const reserved = (inShop[unit.id] ?? 0) + (onBoard[unit.id] ?? 0) + (onBench[unit.id] ?? 0);
+      const consumed = Math.max(0, initial - (available + reserved));
+      const availablePct = initial > 0 ? available / initial : 0;
+      return {
+        unitId: unit.id,
+        unitName: unit.name,
+        tier: unit.tier,
+        initialCopies: initial,
+        availableCopies: available,
+        inShop: inShop[unit.id] ?? 0,
+        onBoard: onBoard[unit.id] ?? 0,
+        onBench: onBench[unit.id] ?? 0,
+        consumedCopies: consumed,
+        availablePct
+      };
+    }).sort((a, b) => a.availablePct - b.availablePct || a.availableCopies - b.availableCopies || a.tier - b.tier);
+
+    return {
+      matchId: this.match.matchId,
+      phase: this.match.phase,
+      round: this.match.round,
+      units
+    };
+  }
+
   joinHuman(name: string, socket: SocketLike): string {
     if (!this.isJoinable()) {
       throw new Error("Match is full or already started");
@@ -409,26 +502,7 @@ export class MatchInstance {
     if (this.match.phase !== "LOBBY") return false;
     if (this.match.creatorPlayerId !== requestedByPlayerId) return false;
     if (!this.isJoinable()) return false;
-    const id = nanoid(10);
-    this.match.players.push({
-      playerId: id,
-      name: `Bot-${id.slice(0, 4)}`,
-      isBot: true,
-      health: BALANCE.startingHealth,
-      gold: 0,
-      xp: 0,
-      tavernTier: 1,
-      lockedShop: false,
-      ready: true,
-      hero: null,
-      heroSelected: false,
-      heroPowerUsedThisTurn: false,
-      heroOptions: [],
-      shop: Array.from({ length: BALANCE.shopSlots }, () => null),
-      bench: Array.from({ length: BALANCE.benchSlots }, () => null),
-      board: Array.from({ length: BALANCE.boardSlots }, () => null),
-      eliminated: false
-    });
+    this.match.players.push(this.createBotPlayer(this.nextBotDifficulty()));
     this.bumpSequence("BOT_ADDED", `Bot added by lobby admin.`);
     this.broadcast();
     return true;
@@ -665,26 +739,7 @@ export class MatchInstance {
 
   private ensureBots(): void {
     while (this.match.players.length < this.match.maxPlayers) {
-      const id = nanoid(10);
-      this.match.players.push({
-        playerId: id,
-        name: `Bot-${id.slice(0, 4)}`,
-        isBot: true,
-        health: BALANCE.startingHealth,
-        gold: 0,
-        xp: 0,
-        tavernTier: 1,
-        lockedShop: false,
-        ready: true,
-        hero: null,
-        heroSelected: false,
-        heroPowerUsedThisTurn: false,
-        heroOptions: [],
-        shop: Array.from({ length: BALANCE.shopSlots }, () => null),
-        bench: Array.from({ length: BALANCE.benchSlots }, () => null),
-        board: Array.from({ length: BALANCE.boardSlots }, () => null),
-        eliminated: false
-      });
+      this.match.players.push(this.createBotPlayer(this.nextBotDifficulty()));
     }
   }
 
@@ -697,7 +752,11 @@ export class MatchInstance {
     if (idx < 0) return false;
     const target = this.match.players[idx];
     if (target.socket) {
-      this.send(target.socket, { type: "ERROR", message: "You were removed from the lobby by admin." });
+      this.send(target.socket, {
+        type: "ERROR",
+        message: "You were removed from the lobby by admin.",
+        errorCode: "PLAYER_KICKED_FROM_LOBBY"
+      });
     }
     this.match.players.splice(idx, 1);
     this.bumpSequence("PLAYER_KICKED", `${target.name} was removed from lobby.`);
@@ -721,6 +780,7 @@ export class MatchInstance {
       this.applyPassiveHeroPower(p);
       p.xp += 1;
       if (!p.lockedShop) {
+        this.releaseShopToPool(p);
         p.shop = this.rollShop(p.tavernTier, this.match.seed + this.match.round + p.gold);
       }
       this.resetBoardHealth(p);
@@ -732,15 +792,27 @@ export class MatchInstance {
   private runBots(): void {
     for (const p of this.match.players) {
       if (p.eliminated || !p.isBot) continue;
-      let loops = 20;
+      const difficulty = p.botDifficulty ?? "NORMAL";
+      let loops = difficulty === "EASY" ? 10 : difficulty === "HARD" ? 26 : 18;
+      const rng = new SeededRng(this.match.seed + this.match.round * 97 + p.playerId.length * 13 + this.match.sequence);
       while (loops > 0) {
         loops -= 1;
+        if (this.botShouldUseHeroPower(p, difficulty, rng)) {
+          this.useHeroPower(p);
+        }
+        if (difficulty === "HARD" && this.botShouldUpgradeTavern(p)) {
+          this.upgradeTavern(p);
+        }
         if (p.gold >= BALANCE.buyCost) {
-          const buyable = p.shop.findIndex((u) => !!u);
+          const buyable = this.botSelectShopIndex(p, difficulty, rng);
           if (buyable >= 0) {
             this.buyUnit(p, buyable);
           } else if (p.gold >= BALANCE.rerollCost) {
-            this.reroll(p);
+            if (this.botShouldReroll(p, difficulty, rng)) {
+              this.reroll(p);
+            } else {
+              break;
+            }
           } else {
             break;
           }
@@ -748,9 +820,66 @@ export class MatchInstance {
           break;
         }
       }
-      this.autoPlaceBoard(p);
+      this.autoPlaceBoardByDifficulty(p, difficulty);
       p.ready = true;
     }
+  }
+
+  private createBotPlayer(difficulty: BotDifficulty): PlayerInternal {
+    const id = nanoid(10);
+    return {
+      playerId: id,
+      name: `Bot-${difficulty}-${id.slice(0, 4)}`,
+      isBot: true,
+      botDifficulty: difficulty,
+      health: BALANCE.startingHealth,
+      gold: 0,
+      xp: 0,
+      tavernTier: 1,
+      lockedShop: false,
+      ready: true,
+      hero: null,
+      heroSelected: false,
+      heroPowerUsedThisTurn: false,
+      heroOptions: [],
+      shop: Array.from({ length: BALANCE.shopSlots }, () => null),
+      bench: Array.from({ length: BALANCE.benchSlots }, () => null),
+      board: Array.from({ length: BALANCE.boardSlots }, () => null),
+      eliminated: false
+    };
+  }
+
+  private nextBotDifficulty(): BotDifficulty {
+    const { difficulty, nextCursor } = nextBotDifficulty(this.botDifficultyCursor);
+    this.botDifficultyCursor = nextCursor;
+    return difficulty;
+  }
+
+  private botShouldReroll(player: PlayerInternal, difficulty: BotDifficulty, rng: SeededRng): boolean {
+    return shouldReroll(player, difficulty, BALANCE.rerollCost, () => rng.next());
+  }
+
+  private botShouldUpgradeTavern(player: PlayerInternal): boolean {
+    return shouldUpgradeTavern(
+      player,
+      this.match.round,
+      BALANCE.buyCost,
+      BALANCE.maxTavernTier,
+      BALANCE.tavernUpgradeBaseCost,
+      BALANCE.tavernUpgradeStepCost
+    );
+  }
+
+  private botShouldUseHeroPower(player: PlayerInternal, difficulty: BotDifficulty, rng: SeededRng): boolean {
+    return shouldUseHeroPower(player, difficulty, firstEmpty(player.bench) >= 0, () => rng.next());
+  }
+
+  private botSelectShopIndex(player: PlayerInternal, difficulty: BotDifficulty, rng: SeededRng): number {
+    return selectShopIndex(player, difficulty, () => rng.next());
+  }
+
+  private autoPlaceBoardByDifficulty(player: PlayerInternal, difficulty: BotDifficulty): void {
+    autoPlaceBoard(player, BALANCE.boardSlots, BALANCE.benchSlots, difficulty);
   }
 
   private startHeroSelectionPhase(): void {
@@ -845,9 +974,8 @@ export class MatchInstance {
     } else if (player.hero.powerKey === "RECRUITER") {
       const benchIndex = firstEmpty(player.bench);
       if (benchIndex >= 0) {
-        const pool = unitsForTier(player.tavernTier);
-        if (pool.length > 0) {
-          const def = pool[rng.int(pool.length)];
+        const def = this.drawUnitFromPool(player.tavernTier, rng);
+        if (def) {
           player.bench[benchIndex] = cloneUnitFromDef(def);
           applied = true;
         }
@@ -891,7 +1019,10 @@ export class MatchInstance {
     }
 
     for (const p of this.match.players) {
-      if (p.health <= 0) p.eliminated = true;
+      if (p.health <= 0 && !p.eliminated) {
+        this.releasePlayerUnitsToPool(p);
+        p.eliminated = true;
+      }
     }
 
     this.match.phase = "ROUND_END";
@@ -910,6 +1041,9 @@ export class MatchInstance {
     for (const line of result.log.slice(0, 12)) this.match.combatLog.push(line);
     if (result.log.length > 12) this.match.combatLog.push("... (combat log truncated)");
     for (const event of result.events) {
+      if (event.synergyKey) {
+        this.match.synergyTriggers[event.synergyKey] = (this.match.synergyTriggers[event.synergyKey] ?? 0) + 1;
+      }
       this.match.combatEvents.push({
         round: this.match.round,
         duelId,
@@ -925,6 +1059,7 @@ export class MatchInstance {
         targetSlotIndex: event.targetSlotIndex,
         targetUnitName: event.targetUnitName,
         abilityKey: event.abilityKey,
+        synergyKey: event.synergyKey,
         message: event.message
       });
     }
@@ -977,9 +1112,39 @@ export class MatchInstance {
 
   private rollShop(tier: number, seed: number): (UnitDefinition | null)[] {
     const rng = new SeededRng(seed);
-    const pool = unitsForTier(tier);
-    if (pool.length === 0) return Array.from({ length: BALANCE.shopSlots }, () => null);
-    return Array.from({ length: BALANCE.shopSlots }, () => pool[rng.int(pool.length)]);
+    return Array.from({ length: BALANCE.shopSlots }, () => {
+      return this.drawUnitFromPool(tier, rng);
+    });
+  }
+
+  private rollUnitTierForShop(tavernTier: number, rng: SeededRng): number {
+    const odds = BALANCE.tierOddsByTavernTier[String(tavernTier)] ?? BALANCE.tierOddsByTavernTier[String(BALANCE.maxTavernTier)] ?? [];
+    const cappedOdds = odds.slice(0, BALANCE.maxTavernTier);
+    const total = cappedOdds.reduce((sum, value) => sum + Math.max(0, value ?? 0), 0);
+    if (total <= 0) {
+      return Math.max(1, Math.min(BALANCE.maxTavernTier, tavernTier));
+    }
+    const roll = rng.next() * total;
+    let cursor = 0;
+    for (let i = 0; i < cappedOdds.length; i += 1) {
+      cursor += Math.max(0, cappedOdds[i] ?? 0);
+      if (roll <= cursor) {
+        return Math.min(i + 1, tavernTier);
+      }
+    }
+    return Math.max(1, Math.min(tavernTier, cappedOdds.length || tavernTier));
+  }
+
+  private pickWeightedUnitIndex(pool: UnitDefinition[], rng: SeededRng): number {
+    const total = pool.reduce((sum, unit) => sum + (unit.shopWeight ?? 1) * Math.max(1, this.unitCopyPool[unit.id] ?? 0), 0);
+    if (total <= 0) return rng.int(pool.length);
+    const roll = rng.next() * total;
+    let cursor = 0;
+    for (let i = 0; i < pool.length; i += 1) {
+      cursor += (pool[i].shopWeight ?? 1) * Math.max(1, this.unitCopyPool[pool[i].id] ?? 0);
+      if (roll <= cursor) return i;
+    }
+    return Math.max(0, pool.length - 1);
   }
 
   private buyUnit(player: PlayerInternal, shopIndex: number): void {
@@ -995,6 +1160,7 @@ export class MatchInstance {
 
     player.gold -= BALANCE.buyCost;
     const instance = cloneUnitFromDef(unit);
+    this.match.unitBuys[unit.id] = (this.match.unitBuys[unit.id] ?? 0) + 1;
     if (benchSlot >= 0) player.bench[benchSlot] = instance;
     else player.board[boardSlot] = instance;
     player.shop[shopIndex] = null;
@@ -1037,6 +1203,7 @@ export class MatchInstance {
     if (this.match.phase === "COMBAT" || player.eliminated) return;
     if (player.gold < BALANCE.rerollCost) return;
     player.gold -= BALANCE.rerollCost;
+    this.releaseShopToPool(player);
     player.shop = this.rollShop(player.tavernTier, this.match.seed + this.match.round + player.gold + player.xp);
   }
 
@@ -1052,8 +1219,61 @@ export class MatchInstance {
     if (this.match.phase === "COMBAT" || player.eliminated) return;
     const arr = zone === "bench" ? player.bench : player.board;
     if (index < 0 || index >= arr.length || !arr[index]) return;
+    const unit = arr[index];
     arr[index] = null;
     player.gold += BALANCE.sellRefund;
+    if (unit) {
+      this.returnUnitCopyToPool(unit.unitId);
+    }
+  }
+
+  private createInitialUnitCopyPool(): Record<string, number> {
+    const byTier = BALANCE.unitCopiesByTier;
+    const fallback = byTier[byTier.length - 1] ?? 0;
+    const pool: Record<string, number> = {};
+    for (const unit of UNIT_POOL) {
+      const perUnit = byTier[Math.max(0, Math.min(byTier.length - 1, unit.tier - 1))] ?? fallback;
+      pool[unit.id] = Math.max(0, perUnit);
+    }
+    return pool;
+  }
+
+  private drawUnitFromPool(tier: number, rng: SeededRng): UnitDefinition | null {
+    const maxTier = Math.max(1, Math.min(BALANCE.maxTavernTier, tier));
+    const rolledTier = this.rollUnitTierForShop(maxTier, rng);
+    const tierPool = unitsForTier(maxTier).filter((unit) => unit.tier === rolledTier && (this.unitCopyPool[unit.id] ?? 0) > 0);
+    const fallbackPool = unitsForTier(maxTier).filter((unit) => (this.unitCopyPool[unit.id] ?? 0) > 0);
+    const source = tierPool.length > 0 ? tierPool : fallbackPool;
+    if (source.length === 0) return null;
+    const pick = source[this.pickWeightedUnitIndex(source, rng)];
+    this.unitCopyPool[pick.id] = Math.max(0, (this.unitCopyPool[pick.id] ?? 0) - 1);
+    return pick;
+  }
+
+  private releaseShopToPool(player: PlayerInternal): void {
+    for (let i = 0; i < player.shop.length; i += 1) {
+      const unit = player.shop[i];
+      if (!unit) continue;
+      this.returnUnitCopyToPool(unit.id);
+      player.shop[i] = null;
+    }
+  }
+
+  private releasePlayerUnitsToPool(player: PlayerInternal): void {
+    this.releaseShopToPool(player);
+    for (const arr of [player.board, player.bench]) {
+      for (let i = 0; i < arr.length; i += 1) {
+        const unit = arr[i];
+        if (!unit) continue;
+        this.returnUnitCopyToPool(unit.unitId);
+        arr[i] = null;
+      }
+    }
+  }
+
+  private returnUnitCopyToPool(unitId: string): void {
+    if (!(unitId in this.unitCopyPool)) return;
+    this.unitCopyPool[unitId] = (this.unitCopyPool[unitId] ?? 0) + 1;
   }
 
   private moveUnit(

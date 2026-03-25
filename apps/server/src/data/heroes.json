@@ -5,7 +5,8 @@
     "description": "Passive: Gain +1 gold at the start of each tavern phase.",
     "powerType": "PASSIVE",
     "powerKey": "BONUS_GOLD",
-    "powerCost": 0
+    "powerCost": 0,
+    "offerWeight": 1
   },
   {
     "id": "war_chanter",
@@ -13,7 +14,8 @@
     "description": "Active (2 gold): Give a random friendly unit +1/+1. Once each tavern phase.",
     "powerType": "ACTIVE",
     "powerKey": "WAR_DRUM",
-    "powerCost": 2
+    "powerCost": 2,
+    "offerWeight": 0.95
   },
   {
     "id": "recruiter_queen",
@@ -21,7 +23,8 @@
     "description": "Active (2 gold): Add a random unit to your bench. Once each tavern phase.",
     "powerType": "ACTIVE",
     "powerKey": "RECRUITER",
-    "powerCost": 2
+    "powerCost": 2,
+    "offerWeight": 1.05
   },
   {
     "id": "iron_guardian",
@@ -29,6 +32,7 @@
     "description": "Active (1 gold): Give a random friendly unit +2 max HP. Once each tavern phase.",
     "powerType": "ACTIVE",
     "powerKey": "FORTIFY",
-    "powerCost": 1
+    "powerCost": 1,
+    "offerWeight": 1
   }
 ]

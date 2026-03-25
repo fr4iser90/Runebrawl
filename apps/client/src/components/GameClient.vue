@@ -4,9 +4,11 @@ import type {
   AbilityKey,
   ClientIntent,
   CombatReplayEvent,
+  ErrorCode,
   LobbySummary,
   MatchPublicState,
   ServerMessage,
+  SynergyKey,
   UnitDefinition,
   UnitInstance,
   UnitRole
@@ -20,6 +22,12 @@ import abilityDeathBurstIcon from "../assets/icons/ability-death-burst.svg";
 import abilityBloodlustIcon from "../assets/icons/ability-bloodlust.svg";
 import abilityLifestealIcon from "../assets/icons/ability-lifesteal.svg";
 import abilityNoneIcon from "../assets/icons/ability-none.svg";
+import statGoldIcon from "../assets/icons/stat-gold.svg";
+import statHealthIcon from "../assets/icons/stat-health.svg";
+import statPlayersIcon from "../assets/icons/stat-players.svg";
+import playerHumanIcon from "../assets/icons/player-human.svg";
+import playerBotIcon from "../assets/icons/player-bot.svg";
+import { useI18n } from "../i18n/useI18n";
 
 const name = ref("");
 const connected = ref(false);
@@ -37,10 +45,31 @@ const mmr = ref(1000);
 const openLobbies = ref<LobbySummary[]>([]);
 const selectedOpenLobby = ref("");
 let clock: number | null = null;
-let combatReplayTimer: number | null = null;
+let combatPlaybackTimer: number | null = null;
 let fadeCleanupTimer: number | null = null;
+let combatPlaybackRunId = 0;
 
 const dragging = ref<{ zone: "bench" | "board"; index: number } | null>(null);
+const { t } = useI18n();
+
+const ERROR_CODE_TO_KEY: Partial<Record<ErrorCode, string>> = {
+  RECONNECT_FAILED: "error.RECONNECT_FAILED",
+  JOIN_FIRST_REQUIRED: "error.JOIN_FIRST_REQUIRED",
+  INVALID_MESSAGE_FORMAT: "error.INVALID_MESSAGE_FORMAT",
+  PRIVATE_LOBBY_NOT_FOUND: "error.PRIVATE_LOBBY_NOT_FOUND",
+  PRIVATE_LOBBY_NOT_JOINABLE: "error.PRIVATE_LOBBY_NOT_JOINABLE",
+  LOBBY_NOT_JOINABLE: "error.LOBBY_NOT_JOINABLE",
+  MATCH_NOT_JOINABLE: "error.MATCH_NOT_JOINABLE",
+  PLAYER_KICKED_FROM_LOBBY: "error.PLAYER_KICKED_FROM_LOBBY"
+};
+
+function mapServerError(message: string, errorCode?: ErrorCode): string {
+  if (errorCode) {
+    const key = ERROR_CODE_TO_KEY[errorCode];
+    if (key) return t(key);
+  }
+  return message;
+}
 
 const me = computed(() => {
   if (!state.value?.yourPlayerId) return null;
@@ -69,17 +98,17 @@ const lobbyStatusText = computed(() => {
   if (!isLobby.value || !state.value) return "";
   if (isPrivateLobby.value) {
     if (!allReady.value) {
-      return `Waiting: all players ready (${readyPlayersCount.value}/${activePlayersCount.value}).`;
+      return t("game.lobby.waitReady", { ready: readyPlayersCount.value, total: activePlayersCount.value });
     }
     if (isCreator.value) {
-      return "All players are ready. Leader can start now.";
+      return t("game.lobby.creatorCanStart");
     }
-    return "All players are ready. Waiting for leader to start.";
+    return t("game.lobby.waitLeader");
   }
   if (activePlayersCount.value >= state.value.maxPlayers) {
-    return "Lobby is full. Match starting...";
+    return t("game.lobby.fullStarting");
   }
-  return `Waiting for full quick lobby (${activePlayersCount.value}/${state.value.maxPlayers}). Timeout in ${secondsLeft.value}s.`;
+  return t("game.lobby.waitFull", { current: activePlayersCount.value, max: state.value.maxPlayers, seconds: secondsLeft.value });
 });
 
 const myCombatEvents = computed<CombatReplayEvent[]>(() => {
@@ -107,14 +136,70 @@ const myCombatOpponent = computed(() => {
   return state.value.players.find((p) => p.playerId === myDuelMeta.value?.opponentPlayerId) ?? null;
 });
 
-const combatReplayStep = ref(0);
-const activeCombatEvent = computed(() => {
-  if (!myCombatEvents.value.length) return null;
-  return myCombatEvents.value[Math.min(combatReplayStep.value, myCombatEvents.value.length - 1)] ?? null;
+type AnimationPhase = "IDLE" | "WINDUP" | "HIT" | "RECOVER" | "ABILITY" | "DEATH" | "CLEANUP" | "RESULT";
+interface AnimationStep {
+  phase: AnimationPhase;
+  durationMs: number;
+  applyEvent?: boolean;
+}
+
+const EVENT_ANIMATION_MAP: Record<CombatReplayEvent["type"], AnimationStep[]> = {
+  ATTACK: [
+    { phase: "WINDUP", durationMs: 100 },
+    { phase: "HIT", durationMs: 150, applyEvent: true },
+    { phase: "RECOVER", durationMs: 140 }
+  ],
+  ABILITY_TRIGGERED: [{ phase: "ABILITY", durationMs: 180, applyEvent: true }],
+  UNIT_DIED: [
+    { phase: "DEATH", durationMs: 250, applyEvent: true },
+    { phase: "CLEANUP", durationMs: 120 }
+  ],
+  DUEL_RESULT: [{ phase: "RESULT", durationMs: 260, applyEvent: true }]
+};
+
+const combatReplayStep = ref(-1);
+const activeAnimatedEvent = ref<CombatReplayEvent | null>(null);
+const replayAnimationPhase = ref<AnimationPhase>("IDLE");
+
+const activeCombatEvent = computed(() => activeAnimatedEvent.value);
+const animationPhaseLabel = computed(() => {
+  switch (replayAnimationPhase.value) {
+    case "WINDUP":
+      return t("anim.WINDUP");
+    case "HIT":
+      return t("anim.HIT");
+    case "RECOVER":
+      return t("anim.RECOVER");
+    case "ABILITY":
+      return t("anim.ABILITY");
+    case "DEATH":
+      return t("anim.DEATH");
+    case "CLEANUP":
+      return t("anim.CLEANUP");
+    case "RESULT":
+      return t("anim.RESULT");
+    default:
+      return "";
+  }
 });
 
 const activeCombatLine = computed(() => {
-  return activeCombatEvent.value?.message ?? "";
+  if (!activeCombatEvent.value) return "";
+  const phase = animationPhaseLabel.value ? `${animationPhaseLabel.value}: ` : "";
+  return `${phase}${activeCombatEvent.value.message}`;
+});
+
+const activeTargetLine = computed(() => {
+  const event = activeCombatEvent.value;
+  if (!event || event.type !== "ATTACK") return null;
+  if (replayAnimationPhase.value !== "WINDUP" && replayAnimationPhase.value !== "HIT") return null;
+  const source = event.sourceUnitName ?? t("game.unknown");
+  const target = event.targetUnitName ?? t("game.unknown");
+  return {
+    source,
+    target,
+    isHit: replayAnimationPhase.value === "HIT"
+  };
 });
 
 interface ReplayUnit extends UnitInstance {
@@ -127,22 +212,6 @@ const recentDamageBySlot = ref<Record<string, string>>({});
 const deadSlots = ref<Record<string, boolean>>({});
 const replayDuelId = ref<string | null>(null);
 
-const ABILITY_LABELS: Record<AbilityKey, string> = {
-  NONE: "No Ability",
-  TAUNT: "Taunt",
-  DEATH_BURST: "Death Burst",
-  BLOODLUST: "Bloodlust",
-  LIFESTEAL: "Lifesteal"
-};
-
-const ABILITY_DESCRIPTIONS: Record<AbilityKey, string> = {
-  NONE: "No special effect.",
-  TAUNT: "Enemies prioritize attacking this unit when possible.",
-  DEATH_BURST: "On death: deals 2 damage to a random enemy.",
-  BLOODLUST: "On kill: gains +1 attack and +1 max health.",
-  LIFESTEAL: "On hit: heals for 50% of damage dealt (min 1)."
-};
-
 const ABILITY_ICON_PATHS: Record<AbilityKey, string> = {
   NONE: abilityNoneIcon,
   TAUNT: abilityTauntIcon,
@@ -153,7 +222,7 @@ const ABILITY_ICON_PATHS: Record<AbilityKey, string> = {
 
 function connect(): void {
   if (!name.value.trim() && !storedPlayerId.value) {
-    error.value = "Enter a name first.";
+    error.value = t("game.error.enterName");
     return;
   }
   const protocol = location.protocol === "https:" ? "wss" : "ws";
@@ -175,7 +244,7 @@ function connect(): void {
         send({ type: "CREATE_PRIVATE_MATCH", name: name.value.trim(), maxPlayers, region: region.value, mmr: mmr.value });
       } else if (joinMode.value === "joinPrivate") {
         if (!inviteCodeInput.value.trim()) {
-          error.value = "Invite code required.";
+          error.value = t("game.error.inviteRequired");
           socket.close();
           return;
         }
@@ -189,8 +258,8 @@ function connect(): void {
   socket.onmessage = (event) => {
     const message = JSON.parse(event.data as string) as ServerMessage;
     if (message.type === "ERROR") {
-      error.value = message.message;
-      if (message.message.toLowerCase().includes("reconnect")) {
+      error.value = mapServerError(message.message, message.errorCode);
+      if (message.errorCode === "RECONNECT_FAILED") {
         storedPlayerId.value = null;
         storedMatchId.value = null;
         localStorage.removeItem("runebrawl.playerId");
@@ -207,7 +276,7 @@ function connect(): void {
   };
 
   socket.onerror = () => {
-    error.value = "Connection failed.";
+    error.value = t("game.error.connectionFailed");
   };
 
   socket.onclose = () => {
@@ -278,7 +347,7 @@ async function loadOpenLobbies(): Promise<void> {
 
 function joinOpenLobby(matchId: string): void {
   if (!name.value.trim()) {
-    error.value = "Enter a name first.";
+    error.value = t("game.error.enterName");
     return;
   }
   const protocol = location.protocol === "https:" ? "wss" : "ws";
@@ -290,7 +359,7 @@ function joinOpenLobby(matchId: string): void {
   };
   socket.onmessage = (event) => {
     const message = JSON.parse(event.data as string) as ServerMessage;
-    if (message.type === "ERROR") error.value = message.message;
+    if (message.type === "ERROR") error.value = mapServerError(message.message, message.errorCode);
     else if (message.type === "CONNECTED") {
       storedPlayerId.value = message.playerId;
       storedMatchId.value = message.matchId;
@@ -331,7 +400,7 @@ function onDrop(toZone: "bench" | "board", toIndex: number): void {
 }
 
 function unitLabel(unit: UnitInstance | null): string {
-  if (!unit) return "Empty";
+  if (!unit) return t("game.empty");
   return `${unit.name} [${unit.attack}/${unit.hp}] L${unit.level}`;
 }
 
@@ -355,19 +424,66 @@ function abilityIconPath(ability: AbilityKey): string {
 }
 
 function abilityLabel(ability: AbilityKey): string {
-  return ABILITY_LABELS[ability];
+  return t(`ability.${ability}.label`);
 }
 
 function abilityDescription(ability: AbilityKey): string {
-  return ABILITY_DESCRIPTIONS[ability];
+  return t(`ability.${ability}.desc`);
 }
 
-const abilityKeysByLogMessage = computed(() => {
-  const buckets: Record<string, AbilityKey[]> = {};
+function synergyLabel(synergy: SynergyKey): string {
+  return t(`synergy.${synergy}.label`);
+}
+
+function synergyDescription(synergy: SynergyKey): string {
+  return t(`synergy.${synergy}.desc`);
+}
+
+function isBotPlayerName(name: string): boolean {
+  return name.startsWith("Bot-") || name.endsWith(" (Bot)");
+}
+
+function botDifficultyFromName(name: string): "EASY" | "NORMAL" | "HARD" | null {
+  const match = name.match(/^Bot-(EASY|NORMAL|HARD)-/);
+  if (!match) return null;
+  return match[1] as "EASY" | "NORMAL" | "HARD";
+}
+
+function playerTypeIconPath(name: string): string {
+  return isBotPlayerName(name) ? playerBotIcon : playerHumanIcon;
+}
+
+function playerTypeLabel(name: string): string {
+  if (!isBotPlayerName(name)) return t("game.human");
+  const difficulty = botDifficultyFromName(name);
+  return difficulty ? t("game.botDiff", { difficulty }) : t("game.bot");
+}
+
+function displayPlayerName(name: string): string {
+  const match = name.match(/^Bot-(?:EASY|NORMAL|HARD)-([a-zA-Z0-9]+)/);
+  if (match) return `Bot ${match[1]}`;
+  return name.replace(/\s+\(Bot\)$/, "");
+}
+
+function playerTypeBadgeClass(name: string): string {
+  if (!isBotPlayerName(name)) return "badge-human";
+  const difficulty = botDifficultyFromName(name);
+  if (difficulty === "EASY") return "badge-bot-easy";
+  if (difficulty === "HARD") return "badge-bot-hard";
+  return "badge-bot-normal";
+}
+
+interface TriggerHintMeta {
+  abilityKey?: AbilityKey;
+  synergyKey?: SynergyKey;
+}
+
+const triggerHintByLogMessage = computed(() => {
+  const buckets: Record<string, TriggerHintMeta[]> = {};
   for (const event of state.value?.combatEvents ?? []) {
-    if (event.type !== "ABILITY_TRIGGERED" || !event.abilityKey) continue;
+    if (event.type !== "ABILITY_TRIGGERED" || (!event.abilityKey && !event.synergyKey)) continue;
     if (!buckets[event.message]) buckets[event.message] = [];
-    buckets[event.message].push(event.abilityKey);
+    buckets[event.message].push({ abilityKey: event.abilityKey, synergyKey: event.synergyKey });
   }
   return buckets;
 });
@@ -376,16 +492,24 @@ const enrichedCombatLog = computed(() => {
   const lines = state.value?.combatLog ?? [];
   const consumedPerMessage: Record<string, number> = {};
   return lines.map((line) => {
-    const bucket = abilityKeysByLogMessage.value[line] ?? [];
+    const bucket = triggerHintByLogMessage.value[line] ?? [];
     const offset = consumedPerMessage[line] ?? 0;
     consumedPerMessage[line] = offset + 1;
-    const ability = bucket[offset] ?? null;
-    if (!ability) {
+    const triggerMeta = bucket[offset] ?? null;
+    if (!triggerMeta) {
       return { line, hint: "" };
     }
+    if (triggerMeta.synergyKey) {
+      return {
+        line,
+        hint: `${t("game.hint")}: ${synergyLabel(triggerMeta.synergyKey)} - ${synergyDescription(triggerMeta.synergyKey)}`
+      };
+    }
+    const ability = triggerMeta.abilityKey;
+    if (!ability) return { line, hint: "" };
     return {
       line,
-      hint: `Hint: ${abilityLabel(ability)} - ${abilityDescription(ability)}`
+      hint: `${t("game.hint")}: ${abilityLabel(ability)} - ${abilityDescription(ability)}`
     };
   });
 });
@@ -398,12 +522,12 @@ function unitTierClass(unit: UnitDefinition | null): string {
 }
 
 function unitQuickMeta(unit: UnitInstance | null): string {
-  if (!unit) return "Empty";
+  if (!unit) return t("game.empty");
   return `${unit.name} [${unit.attack}/${unit.hp}]`;
 }
 
 function unitLabelReplay(unit: ReplayUnit | null): string {
-  if (!unit) return "Empty";
+  if (!unit) return t("game.empty");
   return `${unit.name} [${unit.attack}/${Math.max(0, unit.hp)}] L${unit.level}`;
 }
 
@@ -452,6 +576,10 @@ function sideFromOwner(owner: "A" | "B"): "me" | "enemy" {
   return owner === "B" ? "me" : "enemy";
 }
 
+function phaseLabel(phase: string): string {
+  return t(`phase.${phase}`);
+}
+
 function applyCombatEvent(event: CombatReplayEvent): void {
   if (event.type === "ATTACK") {
     if (event.sourceOwnerId === undefined || event.sourceSlotIndex === undefined) return;
@@ -493,6 +621,8 @@ function initializeReplayBoards(): void {
   recentDamageBySlot.value = {};
   deadSlots.value = {};
   combatReplayStep.value = -1;
+  activeAnimatedEvent.value = null;
+  replayAnimationPhase.value = "IDLE";
 }
 
 function unitPulseClass(unit: UnitInstance | null, side: "me" | "enemy", slotIndex: number): string {
@@ -506,8 +636,10 @@ function unitPulseClass(unit: UnitInstance | null, side: "me" | "enemy", slotInd
     activeCombatEvent.value.targetOwnerId === expectedOwner &&
     activeCombatEvent.value.targetSlotIndex === slotIndex &&
     unit.name === activeCombatEvent.value.targetUnitName;
-  if (isAttacker) return "pulse-attack";
-  if (isDefender) return "pulse-hit";
+  if (replayAnimationPhase.value === "WINDUP" && isAttacker) return "pulse-windup";
+  if (replayAnimationPhase.value === "HIT" && isAttacker) return "pulse-attack";
+  if (replayAnimationPhase.value === "HIT" && isDefender) return "pulse-hit";
+  if (replayAnimationPhase.value === "RECOVER" && isAttacker) return "pulse-recover";
   return "";
 }
 
@@ -515,44 +647,89 @@ function slotAnimationClass(side: "me" | "enemy", idx: number): string {
   return deadSlots.value[slotKey(side, idx)] ? "dead-fade" : "";
 }
 
+function clearCombatPlaybackTimer(): void {
+  if (combatPlaybackTimer !== null) {
+    window.clearTimeout(combatPlaybackTimer);
+    combatPlaybackTimer = null;
+  }
+}
+
+function stopCombatPlayback(): void {
+  combatPlaybackRunId += 1;
+  clearCombatPlaybackTimer();
+  replayAnimationPhase.value = "IDLE";
+  activeAnimatedEvent.value = null;
+}
+
+function playAnimationSteps(
+  event: CombatReplayEvent,
+  steps: AnimationStep[],
+  stepIndex: number,
+  runId: number,
+  onDone: () => void
+): void {
+  if (runId !== combatPlaybackRunId) return;
+  if (stepIndex >= steps.length) {
+    onDone();
+    return;
+  }
+  const step = steps[stepIndex];
+  replayAnimationPhase.value = step.phase;
+  if (step.applyEvent) {
+    applyCombatEvent(event);
+  }
+  combatPlaybackTimer = window.setTimeout(() => {
+    playAnimationSteps(event, steps, stepIndex + 1, runId, onDone);
+  }, step.durationMs);
+}
+
+function playCombatQueue(nextIndex: number, runId: number): void {
+  if (runId !== combatPlaybackRunId) return;
+  const next = nextIndex + 1;
+  if (next >= myCombatEvents.value.length) {
+    replayAnimationPhase.value = "IDLE";
+    clearCombatPlaybackTimer();
+    return;
+  }
+  const event = myCombatEvents.value[next];
+  combatReplayStep.value = next;
+  activeAnimatedEvent.value = event;
+  const steps = EVENT_ANIMATION_MAP[event.type] ?? [{ phase: "RESULT", durationMs: 200, applyEvent: true }];
+  playAnimationSteps(event, steps, 0, runId, () => playCombatQueue(next, runId));
+}
+
+function startCombatPlayback(): void {
+  stopCombatPlayback();
+  combatReplayStep.value = -1;
+  const runId = combatPlaybackRunId;
+  playCombatQueue(-1, runId);
+}
+
+const replaySignature = computed(() => {
+  if (!isCombatView.value || myCombatEvents.value.length === 0) return "";
+  const duelId = myCombatEvents.value[0].duelId;
+  return `${duelId}:${myCombatEvents.value.length}`;
+});
+
 watch(
-  () => [isCombatView.value, state.value?.sequence, myCombatEvents.value.length, myCombatEvents.value[0]?.duelId],
-  () => {
-    if (!isCombatView.value) {
-      if (combatReplayTimer !== null) {
-        window.clearInterval(combatReplayTimer);
-        combatReplayTimer = null;
-      }
-      combatReplayStep.value = 0;
+  () => replaySignature.value,
+  (signature) => {
+    if (!signature) {
+      stopCombatPlayback();
       return;
     }
-    if (myCombatEvents.value.length === 0) return;
-    const duelId = myCombatEvents.value[0].duelId;
-    if (replayDuelId.value !== duelId) {
-      replayDuelId.value = duelId;
-      initializeReplayBoards();
-    }
-    if (combatReplayTimer !== null) return;
-    combatReplayTimer = window.setInterval(() => {
-      const next = combatReplayStep.value + 1;
-      if (next >= myCombatEvents.value.length) {
-        if (combatReplayTimer !== null) {
-          window.clearInterval(combatReplayTimer);
-          combatReplayTimer = null;
-        }
-        return;
-      }
-      combatReplayStep.value = next;
-      const event = myCombatEvents.value[next];
-      if (event) applyCombatEvent(event);
-    }, 700);
+    const duelId = myCombatEvents.value[0]?.duelId;
+    if (!duelId) return;
+    replayDuelId.value = duelId;
+    initializeReplayBoards();
+    startCombatPlayback();
   },
   { immediate: true }
 );
 
 onBeforeUnmount(() => {
   if (clock !== null) window.clearInterval(clock);
-  if (combatReplayTimer !== null) window.clearInterval(combatReplayTimer);
+  stopCombatPlayback();
   if (fadeCleanupTimer !== null) window.clearTimeout(fadeCleanupTimer);
   ws.value?.close();
 });
@@ -573,35 +750,35 @@ onMounted(() => {
 <template>
   <div class="app">
     <header class="header">
-      <h1>Runebrawl MVP</h1>
+      <h1>{{ t("game.title") }}</h1>
       <div v-if="state" class="round">
-        Match {{ state.matchId }} | Round {{ state.round }} | Phase: {{ state.phase }} | Seq {{ state.sequence }} | {{ secondsLeft }}s
+        {{ t("game.matchHeader", { matchId: state.matchId, round: state.round, phase: phaseLabel(state.phase), sequence: state.sequence, seconds: secondsLeft }) }}
       </div>
     </header>
 
     <div v-if="!connected" class="join-card">
       <select v-model="joinMode">
-        <option value="quick">Quick Match</option>
-        <option value="createPrivate">Create Private</option>
-        <option value="joinPrivate">Join Private</option>
+        <option value="quick">{{ t("game.join.quick") }}</option>
+        <option value="createPrivate">{{ t("game.join.createPrivate") }}</option>
+        <option value="joinPrivate">{{ t("game.join.joinPrivate") }}</option>
       </select>
-      <input v-model="name" placeholder="Your name" />
+      <input v-model="name" :placeholder="t('game.join.yourName')" />
       <input
         v-if="joinMode !== 'joinPrivate'"
         v-model="region"
-        placeholder="Region (e.g. EU)"
+        :placeholder="t('game.join.regionPlaceholder')"
       />
       <input
         v-if="joinMode !== 'joinPrivate'"
         v-model.number="mmr"
         type="number"
         min="1"
-        placeholder="MMR"
+        :placeholder="t('game.join.mmr')"
       />
       <input
         v-if="joinMode === 'joinPrivate'"
         v-model="inviteCodeInput"
-        placeholder="Invite code"
+        :placeholder="t('game.join.inviteCode')"
       />
       <input
         v-if="joinMode === 'createPrivate'"
@@ -609,48 +786,57 @@ onMounted(() => {
         type="number"
         min="2"
         max="8"
-        placeholder="Max players"
+        :placeholder="t('game.join.maxPlayers')"
       />
-      <button @click="connect">{{ storedPlayerId && storedMatchId ? "Reconnect / Join" : "Enter Lobby" }}</button>
-      <button @click="loadOpenLobbies">Refresh Lobbies</button>
+      <button @click="connect">{{ storedPlayerId && storedMatchId ? t("game.join.reconnect") : t("game.join.enterLobby") }}</button>
+      <button @click="loadOpenLobbies">{{ t("game.join.refreshLobbies") }}</button>
     </div>
 
     <div v-if="!connected && openLobbies.length > 0" class="join-card">
       <select v-model="selectedOpenLobby">
-        <option value="">Join Open Lobby...</option>
+        <option value="">{{ t("game.join.openLobbyPlaceholder") }}</option>
         <option v-for="lobby in openLobbies" :key="lobby.matchId" :value="lobby.matchId">
           {{ lobby.matchId }} | {{ lobby.currentPlayers }}/{{ lobby.maxPlayers }} | {{ lobby.region }} | {{ lobby.mmrBucket }}
         </option>
       </select>
-      <button @click="joinSelectedOpenLobby">Join Selected Lobby</button>
+      <button @click="joinSelectedOpenLobby">{{ t("game.join.selectedLobby") }}</button>
     </div>
 
     <p v-if="error" class="error">{{ error }}</p>
 
     <div v-if="state && me" class="layout">
       <section class="tavern">
-        <h2>Tavern / Shop</h2>
+        <h2>{{ t("game.tavernShop") }}</h2>
         <div v-if="state" class="stats">
-          <span>Players: {{ state.players.length }} / {{ state.maxPlayers }}</span>
-          <span v-if="state.isPrivate && state.inviteCode">Code: {{ state.inviteCode }}</span>
+          <span class="stat-pill">
+            <img class="chip-icon" :src="statPlayersIcon" alt="" />
+            {{ t("game.players") }}: {{ state.players.length }} / {{ state.maxPlayers }}
+          </span>
+          <span v-if="state.isPrivate && state.inviteCode">{{ t("game.code") }}: {{ state.inviteCode }}</span>
         </div>
         <p v-if="isLobby" class="slot-title">{{ lobbyStatusText }}</p>
-        <p v-if="isHeroSelection && !me.heroSelected" class="slot-title">Choose your hero before round 1 starts.</p>
+        <p v-if="isHeroSelection && !me.heroSelected" class="slot-title">{{ t("game.chooseHero") }}</p>
         <p v-if="isHeroSelection && me.heroSelected && me.hero" class="slot-title">
-          Hero locked: {{ me.hero.name }}.
+          {{ t("game.heroLocked", { hero: me.hero.name }) }}
         </p>
         <div class="stats">
-          <span>Gold: {{ me.gold }}</span>
-          <span>Health: {{ me.health }}</span>
-          <span>Tier: {{ me.tavernTier }}</span>
-          <span>XP: {{ me.xp }}</span>
+          <span class="stat-pill">
+            <img class="chip-icon" :src="statGoldIcon" alt="" />
+            {{ t("game.gold") }}: {{ me.gold }}
+          </span>
+          <span class="stat-pill">
+            <img class="chip-icon" :src="statHealthIcon" alt="" />
+            {{ t("game.health") }}: {{ me.health }}
+          </span>
+          <span>{{ t("game.tier") }}: {{ me.tavernTier }}</span>
+          <span>{{ t("game.xp") }}: {{ me.xp }}</span>
         </div>
         <div v-if="isHeroSelection" class="shop-row">
           <div v-for="hero in me.heroOptions" :key="hero.id" class="shop-card">
             <div class="unit-name">{{ hero.name }}</div>
             <div class="unit-meta">{{ hero.description }}</div>
             <button :disabled="me.heroSelected" @click="selectHero(hero.id)">
-              {{ me.heroSelected ? "Selected" : "Select Hero" }}
+              {{ me.heroSelected ? t("game.heroSelected") : t("game.selectHero") }}
             </button>
           </div>
         </div>
@@ -660,7 +846,7 @@ onMounted(() => {
               <img class="unit-icon" :src="roleIconPath(unit.role)" alt="" />
               <span>{{ unit.name }}</span>
             </div>
-            <div class="unit-name" v-else>Sold out</div>
+            <div class="unit-name" v-else>{{ t("game.soldOut") }}</div>
             <div v-if="unit" class="unit-meta">
               <span class="meta-chip">T{{ unit.tier }}</span>
               <span class="meta-chip">
@@ -671,36 +857,44 @@ onMounted(() => {
                 <img class="chip-icon" :src="abilityIconPath(unit.ability)" alt="" />
                 {{ abilityLabel(unit.ability) }}
               </span>
-              <div class="unit-meta-line">ATK {{ unit.attack }} | HP {{ unit.hp }} | SPD {{ unit.speed }}</div>
+              <span
+                v-for="tag in unit.tags ?? []"
+                :key="`shop-tag-${unit.id}-${tag}`"
+                class="meta-chip tag-chip"
+                :title="`${synergyLabel(tag)}: ${synergyDescription(tag)}`"
+              >
+                {{ synergyLabel(tag) }}
+              </span>
+              <div class="unit-meta-line">{{ t("game.unitMeta", { attack: unit.attack, hp: unit.hp, speed: unit.speed }) }}</div>
             </div>
-            <button :disabled="!isBuyPhase || !unit" @click="buy(idx)">Buy (3)</button>
+            <button :disabled="!isBuyPhase || !unit" @click="buy(idx)">{{ t("game.buy3") }}</button>
           </div>
         </div>
         <div v-if="me.hero" class="slot-title">
-          Hero: {{ me.hero.name }} - {{ me.hero.description }}
+          {{ t("game.heroLine", { name: me.hero.name, description: me.hero.description }) }}
         </div>
         <div class="actions">
-          <button v-if="isLobby && isCreator" @click="addBotToLobby">Add Bot</button>
-          <button v-if="isPrivateLobby && isCreator" @click="forceStartLobby">Force Start (Leader)</button>
-          <button v-if="isPrivateLobby" @click="readyLobbyToggle">{{ me.ready ? "Unready Lobby" : "Ready Lobby" }}</button>
+          <button v-if="isLobby && isCreator" @click="addBotToLobby">{{ t("game.addBot") }}</button>
+          <button v-if="isPrivateLobby && isCreator" @click="forceStartLobby">{{ t("game.forceStart") }}</button>
+          <button v-if="isPrivateLobby" @click="readyLobbyToggle">{{ me.ready ? t("game.unreadyLobby") : t("game.readyLobby") }}</button>
           <button
             v-if="me.hero && me.hero.powerType === 'ACTIVE'"
             :disabled="!isBuyPhase || me.heroPowerUsedThisTurn || me.gold < me.hero.powerCost"
             @click="useHeroPower"
           >
-            Hero Power ({{ me.hero.powerCost }}) {{ me.heroPowerUsedThisTurn ? "- Used" : "" }}
+            {{ t("game.heroPower", { cost: me.hero.powerCost }) }} {{ me.heroPowerUsedThisTurn ? t("game.heroPowerUsed") : "" }}
           </button>
-          <button :disabled="!isBuyPhase" @click="reroll">Reroll (1)</button>
-          <button :disabled="!isBuyPhase" @click="upgrade">Upgrade Tavern</button>
+          <button :disabled="!isBuyPhase" @click="reroll">{{ t("game.reroll1") }}</button>
+          <button :disabled="!isBuyPhase" @click="upgrade">{{ t("game.upgradeTavern") }}</button>
           <button :disabled="!isBuyPhase" @click="lockToggle">
-            {{ me.lockedShop ? "Unlock Shop" : "Lock Shop" }}
+            {{ me.lockedShop ? t("game.unlockShop") : t("game.lockShop") }}
           </button>
-          <button :disabled="!isBuyPhase || me.ready" @click="ready">Ready</button>
+          <button :disabled="!isBuyPhase || me.ready" @click="ready">{{ t("game.ready") }}</button>
         </div>
       </section>
 
       <section v-if="!isCombatView" class="board">
-        <h2>Battlefield</h2>
+        <h2>{{ t("game.battlefield") }}</h2>
         <div class="slot-row">
           <div
             v-for="(unit, idx) in me.board"
@@ -711,7 +905,7 @@ onMounted(() => {
             @dragover.prevent
             @drop="onDrop('board', idx)"
           >
-            <div class="slot-title">Board {{ idx + 1 }}</div>
+            <div class="slot-title">{{ t("game.boardSlot", { index: idx + 1 }) }}</div>
             <div class="slot-unit">{{ unitQuickMeta(unit) }}</div>
             <div
               v-if="unit"
@@ -721,11 +915,14 @@ onMounted(() => {
               <img class="chip-icon" :src="abilityIconPath(unit.ability)" alt="" />
               {{ abilityLabel(unit.ability) }}
             </div>
-            <button v-if="unit && isBuyPhase" @click="sell('board', idx)">Sell (+1)</button>
+            <div v-if="unit && (unit.tags?.length ?? 0) > 0" class="slot-mini-meta">
+              {{ (unit.tags ?? []).map((t) => synergyLabel(t)).join(" • ") }}
+            </div>
+            <button v-if="unit && isBuyPhase" @click="sell('board', idx)">{{ t("game.sell1") }}</button>
           </div>
         </div>
 
-        <h2>Bench</h2>
+        <h2>{{ t("game.bench") }}</h2>
         <div class="slot-row">
           <div
             v-for="(unit, idx) in me.bench"
@@ -736,7 +933,7 @@ onMounted(() => {
             @dragover.prevent
             @drop="onDrop('bench', idx)"
           >
-            <div class="slot-title">Bench {{ idx + 1 }}</div>
+            <div class="slot-title">{{ t("game.benchSlot", { index: idx + 1 }) }}</div>
             <div class="slot-unit">{{ unitQuickMeta(unit) }}</div>
             <div
               v-if="unit"
@@ -746,15 +943,23 @@ onMounted(() => {
               <img class="chip-icon" :src="abilityIconPath(unit.ability)" alt="" />
               {{ abilityLabel(unit.ability) }}
             </div>
-            <button v-if="unit && isBuyPhase" @click="sell('bench', idx)">Sell (+1)</button>
+            <div v-if="unit && (unit.tags?.length ?? 0) > 0" class="slot-mini-meta">
+              {{ (unit.tags ?? []).map((t) => synergyLabel(t)).join(" • ") }}
+            </div>
+            <button v-if="unit && isBuyPhase" @click="sell('bench', idx)">{{ t("game.sell1") }}</button>
           </div>
         </div>
       </section>
       <section v-else class="board combat-board">
-        <h2>Combat View</h2>
+        <h2>{{ t("game.combatView") }}</h2>
         <div class="combat-subtitle">
-          <span v-if="myDuelMeta">{{ myDuelMeta.meName }} vs {{ myDuelMeta.opponentName }}</span>
-          <span v-else>Waiting for your duel...</span>
+          <span v-if="myDuelMeta">{{ myDuelMeta.meName }} {{ t("game.vs") }} {{ myDuelMeta.opponentName }}</span>
+          <span v-else>{{ t("game.waitingDuel") }}</span>
+        </div>
+        <div v-if="activeTargetLine" class="target-line" :class="{ hit: activeTargetLine.isHit }">
+          <span class="target-name">{{ activeTargetLine.source }}</span>
+          <span class="target-arrow">→</span>
+          <span class="target-name">{{ activeTargetLine.target }}</span>
         </div>
         <div class="combat-arena" v-if="myCombatOpponent">
           <div class="combat-side">
@@ -766,7 +971,7 @@ onMounted(() => {
                 class="slot"
                 :class="[unitPulseClass(unit, 'me', idx), slotAnimationClass('me', idx)]"
               >
-                <div class="slot-title">Slot {{ idx + 1 }}</div>
+                <div class="slot-title">{{ t("game.slot", { index: idx + 1 }) }}</div>
                 <div class="slot-unit">{{ unitLabelReplay(replayMyBoard[idx] ?? null) }}</div>
                 <div class="hp-track" v-if="replayMyBoard[idx]">
                   <div class="hp-fill" :style="{ width: `${unitHpPercent(replayMyBoard[idx])}%` }"></div>
@@ -786,7 +991,7 @@ onMounted(() => {
                 class="slot"
                 :class="[unitPulseClass(unit, 'enemy', idx), slotAnimationClass('enemy', idx)]"
               >
-                <div class="slot-title">Slot {{ idx + 1 }}</div>
+                <div class="slot-title">{{ t("game.slot", { index: idx + 1 }) }}</div>
                 <div class="slot-unit">{{ unitLabelReplay(replayEnemyBoard[idx] ?? null) }}</div>
                 <div class="hp-track" v-if="replayEnemyBoard[idx]">
                   <div class="hp-fill" :style="{ width: `${unitHpPercent(replayEnemyBoard[idx])}%` }"></div>
@@ -798,19 +1003,22 @@ onMounted(() => {
             </div>
           </div>
         </div>
-        <p class="slot-title" v-if="activeCombatLine">Replay: {{ activeCombatLine }}</p>
+        <p class="slot-title" v-if="activeCombatLine">{{ t("game.replay") }}: {{ activeCombatLine }}</p>
       </section>
 
       <aside class="sidebar">
-        <h3>Players</h3>
+        <h3>{{ t("game.players") }}</h3>
         <ul>
           <li v-for="p in state.players" :key="p.playerId">
-            {{ p.name }} - HP {{ p.health }} - {{ p.hero ? p.hero.name : "No Hero" }} - {{ p.ready ? "Ready" : "Thinking" }}
-            <button v-if="isLobby && isCreator && p.playerId !== me.playerId" @click="kickPlayer(p.playerId)">Kick</button>
+            <img class="chip-icon" :src="playerTypeIconPath(p.name)" alt="" />
+            {{ displayPlayerName(p.name) }} - <span class="player-badge" :class="playerTypeBadgeClass(p.name)">{{ playerTypeLabel(p.name) }}</span> -
+            <img class="chip-icon" :src="statHealthIcon" alt="" /> {{ p.health }} {{ t("game.hpShort") }} -
+            {{ p.hero ? p.hero.name : t("game.noHero") }} - {{ p.ready ? t("game.ready") : t("game.thinking") }}
+            <button v-if="isLobby && isCreator && p.playerId !== me.playerId" @click="kickPlayer(p.playerId)">{{ t("game.kick") }}</button>
           </li>
         </ul>
 
-        <h3>Combat Log</h3>
+        <h3>{{ t("game.combatLog") }}</h3>
         <div class="log">
           <div v-for="(entry, idx) in enrichedCombatLog" :key="idx" class="log-entry">
             <div>{{ entry.line }}</div>

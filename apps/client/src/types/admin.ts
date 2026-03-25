@@ -1,3 +1,5 @@
+import type { HeroDefinition, UnitDefinition } from "@runebrawl/shared";
+
 export interface AdminMetrics {
   totalMatches: number;
   activeMatches: number;
@@ -9,6 +11,46 @@ export interface AdminMetrics {
   averageFillMs: number;
   startedMatches: number;
   startReasons: Record<string, number>;
+  unitBuys: Record<string, number>;
+  unitBuyLabels: Record<string, string>;
+  synergyTriggers: Record<string, number>;
+}
+
+export interface AdminContentSnapshot {
+  units: UnitDefinition[];
+  heroes: HeroDefinition[];
+  version: number;
+  updatedAt: number;
+}
+
+export interface AdminContentDraftResponse {
+  hasDraft: boolean;
+  snapshot: AdminContentSnapshot;
+}
+
+export interface AdminContentValidationResult {
+  ok: boolean;
+  errors: string[];
+}
+
+export interface AdminUnitPoolEntry {
+  unitId: string;
+  unitName: string;
+  tier: number;
+  initialCopies: number;
+  availableCopies: number;
+  inShop: number;
+  onBoard: number;
+  onBench: number;
+  consumedCopies: number;
+  availablePct: number;
+}
+
+export interface AdminUnitPoolSnapshot {
+  matchId: string;
+  phase: string;
+  round: number;
+  units: AdminUnitPoolEntry[];
 }
 
 export interface AdminLobbySnapshot {

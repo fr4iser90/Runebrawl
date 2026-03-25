@@ -1,4 +1,4 @@
-import type { AbilityKey, UnitInstance } from "@runebrawl/shared";
+import type { AbilityKey, SynergyKey, UnitInstance } from "@runebrawl/shared";
 import { SeededRng } from "./rng.js";
 import { applyEffect } from "../rules/effectRegistry.js";
 import type { GameEvent } from "../rules/events.js";
@@ -19,6 +19,7 @@ export interface CombatStepEvent {
   targetSlotIndex?: number;
   targetUnitName?: string;
   abilityKey?: AbilityKey;
+  synergyKey?: SynergyKey;
   message: string;
 }
 
@@ -32,10 +33,10 @@ export interface CombatResult {
 
 function pushAbilityTriggeredEvent(
   events: CombatStepEvent[],
-  payload: Omit<CombatStepEvent, "type"> & { abilityKey: AbilityKey }
+  payload: Omit<CombatStepEvent, "type"> & { abilityKey?: AbilityKey; synergyKey?: SynergyKey }
 ): void {
-  if (!payload.abilityKey) {
-    throw new Error("Combat integrity violation: ABILITY_TRIGGERED event requires abilityKey.");
+  if (!payload.abilityKey && !payload.synergyKey) {
+    throw new Error("Combat integrity violation: ABILITY_TRIGGERED event requires abilityKey or synergyKey.");
   }
   events.push({
     type: "ABILITY_TRIGGERED",
@@ -46,10 +47,15 @@ function pushAbilityTriggeredEvent(
 function assertCombatEventsIntegrity(events: CombatStepEvent[]): void {
   for (const event of events) {
     if (event.type !== "ABILITY_TRIGGERED") continue;
-    if (!event.abilityKey) {
-      throw new Error("Combat integrity violation: ABILITY_TRIGGERED event missing abilityKey.");
+    if (!event.abilityKey && !event.synergyKey) {
+      throw new Error("Combat integrity violation: ABILITY_TRIGGERED event missing trigger key.");
     }
   }
+}
+
+function hasSynergy(units: CombatUnit[], key: SynergyKey, threshold: number): boolean {
+  const count = units.filter((u) => u.alive && u.tags?.includes(key)).length;
+  return count >= threshold;
 }
 
 function living(units: CombatUnit[]): CombatUnit[] {
@@ -176,28 +182,49 @@ function applyOnHitEffects(
   defender: CombatUnit,
   hitEvent: GameEvent,
   log: string[],
-  events: CombatStepEvent[]
+  events: CombatStepEvent[],
+  activeSynergies: { A: Set<SynergyKey>; B: Set<SynergyKey> }
 ): void {
-  const beforeLogLen = log.length;
   switch (attacker.ability) {
     case "LIFESTEAL":
-      applyEffect("LIFESTEAL_ON_HIT", hitEvent, { sourceUnit: attacker, log }, { ratio: 0.5 });
+      {
+        const before = log.length;
+        applyEffect("LIFESTEAL_ON_HIT", hitEvent, { sourceUnit: attacker, log }, { ratio: 0.5 });
+        const newLogs = log.slice(before);
+        for (const message of newLogs) {
+          pushAbilityTriggeredEvent(events, {
+            sourceOwnerId: attacker.ownerId,
+            sourceSlotIndex: attacker.slotIndex,
+            sourceUnitName: attacker.name,
+            targetOwnerId: defender.ownerId,
+            targetSlotIndex: defender.slotIndex,
+            targetUnitName: defender.name,
+            abilityKey: "LIFESTEAL",
+            message
+          });
+        }
+      }
       break;
     default:
       break;
   }
-  const newLogs = log.slice(beforeLogLen);
-  for (const message of newLogs) {
-    pushAbilityTriggeredEvent(events, {
-      sourceOwnerId: attacker.ownerId,
-      sourceSlotIndex: attacker.slotIndex,
-      sourceUnitName: attacker.name,
-      targetOwnerId: defender.ownerId,
-      targetSlotIndex: defender.slotIndex,
-      targetUnitName: defender.name,
-      abilityKey: attacker.ability,
-      message
-    });
+
+  if (attacker.tags?.includes("BERSERKER") && activeSynergies[attacker.ownerId].has("BERSERKER")) {
+    const before = log.length;
+    applyEffect("BERSERKER_ON_HIT_BUFF", hitEvent, { sourceUnit: attacker, log }, { amount: 2 });
+    const newLogs = log.slice(before);
+    for (const message of newLogs) {
+      pushAbilityTriggeredEvent(events, {
+        sourceOwnerId: attacker.ownerId,
+        sourceSlotIndex: attacker.slotIndex,
+        sourceUnitName: attacker.name,
+        targetOwnerId: defender.ownerId,
+        targetSlotIndex: defender.slotIndex,
+        targetUnitName: defender.name,
+        synergyKey: "BERSERKER",
+        message
+      });
+    }
   }
 }
 
@@ -224,6 +251,12 @@ export function simulateCombat(
     alive: true,
     nextActionAt: 100 / Math.max(1, u.speed)
   }));
+  const activeSynergies = {
+    A: new Set<SynergyKey>(),
+    B: new Set<SynergyKey>()
+  };
+  if (hasSynergy(a, "BERSERKER", 3)) activeSynergies.A.add("BERSERKER");
+  if (hasSynergy(b, "BERSERKER", 3)) activeSynergies.B.add("BERSERKER");
 
   let maxIterations = 300;
 
@@ -265,7 +298,7 @@ export function simulateCombat(
       sourceUnit: attacker,
       targetUnit: defender
     });
-    applyOnHitEffects(attacker, defender, hitEvent, log, events);
+    applyOnHitEffects(attacker, defender, hitEvent, log, events, activeSynergies);
 
     const defenderDied = defender.hp <= 0 && defender.alive;
     const attackerDied = attacker.hp <= 0 && attacker.alive;

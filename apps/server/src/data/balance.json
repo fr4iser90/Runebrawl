@@ -16,6 +16,15 @@
   "tavernUpgradeBaseCost": 4,
   "tavernUpgradeStepCost": 2,
   "mergeCopiesRequired": 3,
+  "unitCopiesByTier": [16, 15, 13, 11, 9, 7],
+  "tierOddsByTavernTier": {
+    "1": [1, 0, 0, 0, 0, 0],
+    "2": [0.75, 0.25, 0, 0, 0, 0],
+    "3": [0.55, 0.3, 0.15, 0, 0, 0],
+    "4": [0.38, 0.32, 0.22, 0.08, 0, 0],
+    "5": [0.25, 0.3, 0.25, 0.15, 0.05, 0],
+    "6": [0.15, 0.2, 0.25, 0.2, 0.14, 0.06]
+  },
   "quickLobbyTimeoutMs": 20000,
   "privateLobbyTimeoutMs": 120000,
   "quickStartOnTimeoutFillBots": true
