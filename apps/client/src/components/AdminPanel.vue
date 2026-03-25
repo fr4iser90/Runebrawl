@@ -3,7 +3,16 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { HeroDefinition, UnitDefinition } from "@runebrawl/shared";
 import { useAdminApi } from "../composables/useAdminApi";
 import { hasHeroPortrait, hasUnitPortrait, heroPortraitPath, unitPortraitPath } from "../assets/portraits/loader";
+import {
+  PORTRAIT_FRAME_IDS,
+  type PortraitFrameId,
+  coercePortraitFrameId,
+  DEFAULT_PORTRAIT_FRAME_ID
+} from "../content/portraitFrameStyles";
+import PortraitFrameSvg from "./PortraitFrameSvg.vue";
 import { useI18n } from "../i18n/useI18n";
+
+const ADMIN_PORTRAIT_FRAME_KEY = "runebrawl.admin.portraitPreviewFrame";
 
 const showAdmin = ref(true);
 const username = ref("admin");
@@ -101,10 +110,14 @@ const topStartReasons = computed(() => {
   return entries.sort((a, b) => b[1] - a[1]);
 });
 
+const adminPortraitPreviewFrame = ref<PortraitFrameId>(DEFAULT_PORTRAIT_FRAME_ID);
+
 const portraitUnitPreview = computed(() =>
   (adminContentCatalog.value?.units ?? []).map((unit) => ({
     id: unit.id,
     name: unit.name,
+    tier: unit.tier,
+    role: unit.role,
     src: unitPortraitPath(unit.id),
     exists: hasUnitPortrait(unit.id)
   }))
@@ -118,6 +131,15 @@ const portraitHeroPreview = computed(() =>
     exists: hasHeroPortrait(hero.id)
   }))
 );
+
+type AdminTierPreviewClass = "tier-low" | "tier-mid" | "tier-high";
+
+function adminPreviewTierClass(tier: number): AdminTierPreviewClass {
+  const n = Math.round(Number(tier)) || 1;
+  if (n <= 2) return "tier-low";
+  if (n <= 4) return "tier-mid";
+  return "tier-high";
+}
 
 const SYNERGY_LABELS: Record<string, string> = {
   BERSERKER: t("synergy.BERSERKER.label")
@@ -579,7 +601,21 @@ async function lookupRatingPlayer(): Promise<void> {
   ratingLookupStatus.value = t("admin.ratings.loaded", { playerId: rating.playerId });
 }
 
+watch(adminPortraitPreviewFrame, (v) => {
+  try {
+    localStorage.setItem(ADMIN_PORTRAIT_FRAME_KEY, v);
+  } catch {
+    /* ignore */
+  }
+});
+
 onMounted(() => {
+  try {
+    const stored = localStorage.getItem(ADMIN_PORTRAIT_FRAME_KEY);
+    if (stored) adminPortraitPreviewFrame.value = coercePortraitFrameId(stored);
+  } catch {
+    /* ignore */
+  }
   void checkAuth().then(() => {
     if (isAuthenticated.value) {
       void refreshAdmin();
@@ -840,16 +876,42 @@ onBeforeUnmount(() => {
 
       <div class="admin-card">
         <h3>{{ t("admin.portraits.title") }}</h3>
+        <div class="portrait-preview-toolbar">
+          <label class="admin-portrait-frame-picker">
+            {{ t("admin.portraits.frameLabel") }}
+            <select v-model="adminPortraitPreviewFrame">
+              <option v-for="fid in PORTRAIT_FRAME_IDS" :key="fid" :value="fid">{{ t(`suggest.frame.${fid}`) }}</option>
+            </select>
+          </label>
+          <p class="slot-title admin-portrait-frame-hint">{{ t("admin.portraits.frameHint") }}</p>
+        </div>
         <div class="portrait-preview-block">
           <div class="slot-title">
             <strong>{{ t("admin.portraits.units") }}</strong> -
             {{ t("admin.builder.unitsCount", { count: portraitUnitPreview.length }) }}
           </div>
-          <div class="portrait-preview-grid">
-            <div v-for="entry in portraitUnitPreview" :key="`unit-portrait-${entry.id}`" class="portrait-preview-card">
-              <img class="portrait-preview-image" :src="entry.src" :alt="entry.name" loading="lazy" />
-              <div class="portrait-preview-meta">
-                <div>{{ entry.name }}</div>
+          <div class="portrait-preview-grid admin-portrait-shop-grid">
+            <div v-for="entry in portraitUnitPreview" :key="`unit-portrait-${entry.id}`" class="admin-portrait-unit-cell">
+              <div
+                :class="`portrait-frame-variant portrait-frame-variant--${adminPortraitPreviewFrame} portrait-frame-preview-svg`"
+              >
+                <div class="shop-card admin-portrait-mini-shop" :class="adminPreviewTierClass(entry.tier)">
+                  <div class="portrait-slot portrait-slot-unit admin-portrait-mini-slot portrait-slot--svg-frame">
+                    <div class="portrait-frame-stack">
+                      <img class="portrait-image portrait-frame-stack__art" :src="entry.src" :alt="entry.name" loading="lazy" />
+                      <PortraitFrameSvg :frame-id="adminPortraitPreviewFrame" :tier-class="adminPreviewTierClass(entry.tier)" />
+                    </div>
+                  </div>
+                  <div class="unit-name">
+                    <span>{{ entry.name }}</span>
+                  </div>
+                  <div class="unit-meta">
+                    <span class="meta-chip">T{{ entry.tier }}</span>
+                    <span class="meta-chip">{{ entry.role }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="portrait-preview-meta admin-portrait-unit-meta">
                 <div class="slot-title">{{ entry.id }}</div>
                 <span class="player-badge" :class="entry.exists ? 'badge-human' : 'badge-bot-hard'">
                   {{ entry.exists ? t("admin.portraits.loaded") : t("admin.portraits.missing") }}

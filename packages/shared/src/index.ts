@@ -3,6 +3,10 @@ export type GamePhase = "LOBBY" | "HERO_SELECTION" | "TAVERN" | "POSITIONING" | 
 export type UnitRole = "Tank" | "Melee" | "Ranged" | "Support";
 export type AbilityKey = "NONE" | "DEATH_BURST" | "TAUNT" | "BLOODLUST" | "LIFESTEAL";
 export type SynergyKey = "BERSERKER";
+
+/** Lore / UI grouping; no combat rules wired yet (optional on units). */
+export const UNIT_RACES = ["HUMAN", "ORC", "ELF", "DWARF", "UNDEAD"] as const;
+export type UnitRace = (typeof UNIT_RACES)[number];
 export type HeroPowerType = "PASSIVE" | "ACTIVE";
 export type HeroPowerKey = "BONUS_GOLD" | "WAR_DRUM" | "RECRUITER" | "FORTIFY";
 export type BotDifficulty = "EASY" | "NORMAL" | "HARD";
@@ -26,8 +30,17 @@ export interface UnitDefinition {
   hp: number;
   speed: number;
   ability: AbilityKey;
+  /** Optional; when set must be one of `UNIT_RACES`. */
+  race?: UnitRace;
   shopWeight?: number;
   tags?: SynergyKey[];
+  // Trigger casting (long-term model): when a trigger happens, cast the specified ability (event only for now).
+  castOnDeath?: AbilityKey;
+  castOnKill?: AbilityKey;
+  castOnCrit?: AbilityKey;
+  castOnFirstStrike?: AbilityKey;
+  castOnBattlefieldAdded?: AbilityKey;
+  castOnRecruitmentRefresh?: AbilityKey;
 }
 
 export interface UnitInstance {
@@ -41,7 +54,15 @@ export interface UnitInstance {
   ability: AbilityKey;
   role: UnitRole;
   name: string;
+  race?: UnitRace;
   tags?: SynergyKey[];
+  // Copied from UnitDefinition at spawn time
+  castOnDeath?: AbilityKey;
+  castOnKill?: AbilityKey;
+  castOnCrit?: AbilityKey;
+  castOnFirstStrike?: AbilityKey;
+  castOnBattlefieldAdded?: AbilityKey;
+  castOnRecruitmentRefresh?: AbilityKey;
 }
 
 export interface PlayerPublicState {
@@ -140,7 +161,10 @@ export type ErrorCode =
   | "ADMIN_MATCH_NOT_FOUND"
   | "ADMIN_RATING_NOT_FOUND"
   | "ADMIN_CONTENT_SUBMISSION_NOT_FOUND"
-  | "ADMIN_CONTENT_AUDIT_NOT_FOUND";
+  | "ADMIN_CONTENT_AUDIT_NOT_FOUND"
+  | "PUBLIC_SUBMISSIONS_DISABLED"
+  | "PUBLIC_SUBMISSION_NOT_FOUND"
+  | "PUBLIC_DUPLICATE_PACK_ID";
 
 export type ClientIntent =
   | { type: "JOIN_MATCH"; name: string; accountId?: string; region?: string; mmr?: number } // Alias for QUICK_MATCH

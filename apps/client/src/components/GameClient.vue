@@ -428,7 +428,7 @@ const ABILITY_ICON_PATHS: Record<AbilityKey, string> = {
   TAUNT: abilityTauntIcon,
   DEATH_BURST: abilityDeathBurstIcon,
   BLOODLUST: abilityBloodlustIcon,
-  LIFESTEAL: abilityLifestealIcon
+  LIFESTEAL: abilityLifestealIcon,
 };
 
 function mockUnit(seed: number, name: string, role: UnitRole, ability: AbilityKey): UnitInstance {

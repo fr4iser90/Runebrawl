@@ -140,7 +140,14 @@ function cloneUnitFromDef(def: UnitDefinition): UnitInstance {
     maxHp: def.hp,
     speed: def.speed,
     ability: def.ability,
-    tags: def.tags
+    race: def.race,
+    tags: def.tags,
+    castOnDeath: def.castOnDeath,
+    castOnKill: def.castOnKill,
+    castOnCrit: def.castOnCrit,
+    castOnFirstStrike: def.castOnFirstStrike,
+    castOnBattlefieldAdded: def.castOnBattlefieldAdded,
+    castOnRecruitmentRefresh: def.castOnRecruitmentRefresh
   };
 }
 

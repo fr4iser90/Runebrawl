@@ -1868,6 +1868,47 @@ textarea:focus-visible {
   margin-bottom: 12px;
 }
 
+.portrait-preview-toolbar {
+  margin-bottom: 10px;
+}
+
+.admin-portrait-frame-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  max-width: 280px;
+}
+
+.admin-portrait-frame-picker select {
+  font: inherit;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #3b4b7a;
+  background: #1b2441;
+  color: inherit;
+}
+
+.admin-portrait-frame-hint {
+  margin: 8px 0 0;
+  max-width: 560px;
+  line-height: 1.35;
+}
+
+.admin-portrait-shop-grid {
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+}
+
+.admin-portrait-unit-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-portrait-unit-meta {
+  padding-top: 0;
+}
+
 .portrait-preview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

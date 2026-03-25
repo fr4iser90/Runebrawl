@@ -2,11 +2,22 @@ import Fastify from "fastify";
 import websocket from "@fastify/websocket";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import type { ClientIntent, ErrorCode, HeroDefinition, UnitDefinition } from "@runebrawl/shared";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { ContentBuilderService } from "./admin/contentBuilderService.js";
 import { CommunityContentService } from "./admin/communityContentService.js";
 import { SqlContentAuditStore } from "./admin/sqlContentAuditStore.js";
+import {
+  convertAndSaveUnitPortrait,
+  listPortraitUnitIdsForSubmission,
+  readPortraitFileIfExists
+} from "./public/publicSubmissionPortraits.js";
+import {
+  parseSubmissionMetadata,
+  PublicSubmissionStore,
+  type PublicSubmissionStatus
+} from "./public/publicSubmissionStore.js";
 import { AdminAuthService } from "./auth/adminAuth.js";
 import { PlayerIdentityService } from "./auth/playerIdentity.js";
 import { PlayerProfileService } from "./auth/playerProfile.js";
@@ -20,6 +31,7 @@ const playerIdentity = new PlayerIdentityService();
 const playerProfiles = new PlayerProfileService(process.env.DATABASE_URL);
 const contentBuilder = new ContentBuilderService();
 const contentAuditStore = new SqlContentAuditStore(process.env.DATABASE_URL);
+const publicSubmissionStore = new PublicSubmissionStore(process.env.DATABASE_URL);
 const communityContent = new CommunityContentService(contentBuilder);
 
 function sendWsError(socket: { send: (data: string) => void }, message: string, errorCode?: ErrorCode): void {
@@ -28,6 +40,16 @@ function sendWsError(socket: { send: (data: string) => void }, message: string, 
 
 function sendHttpError(reply: FastifyReply, statusCode: number, error: string, errorCode: ErrorCode): void {
   reply.code(statusCode).send({ error, errorCode });
+}
+
+function isPgUndefinedTable(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code: string }).code === "42P01";
+}
+
+const PORTRAIT_UPLOAD_STATUSES: PublicSubmissionStatus[] = ["pending_validation", "pending_review"];
+
+function submissionAllowsPortraitUpload(status: PublicSubmissionStatus): boolean {
+  return PORTRAIT_UPLOAD_STATUSES.includes(status);
 }
 
 function mapErrorCode(error: unknown): ErrorCode | undefined {
@@ -86,6 +108,7 @@ await server.register(cors, {
   credentials: true
 });
 await server.register(cookie);
+await server.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
 await server.register(websocket);
 
 async function requireAdmin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
@@ -97,6 +120,297 @@ async function requireAdmin(request: FastifyRequest, reply: FastifyReply): Promi
 
 server.get("/health", async () => ({ ok: true }));
 server.get("/content/manifest", async () => getGameContentManifest());
+
+server.get("/public/submissions", async (request, reply) => {
+  if (!publicSubmissionStore.enabled) {
+    sendHttpError(reply, 503, "Public submissions require DATABASE_URL and migration 004.", "PUBLIC_SUBMISSIONS_DISABLED");
+    return;
+  }
+  const q = request.query as { validOnly?: string; limit?: string };
+  const validOnly = q.validOnly === "1" || q.validOnly === "true";
+  const limit = q.limit ? Number(q.limit) : 50;
+  try {
+    const submissions = await publicSubmissionStore.listSubmissions({
+      validOnly,
+      limit: Number.isFinite(limit) ? limit : 50
+    });
+    return { submissions };
+  } catch (error: unknown) {
+    if (isPgUndefinedTable(error)) {
+      request.log.warn({ err: error }, "public submissions: DB tables missing (run db/migrations)");
+      sendHttpError(
+        reply,
+        503,
+        "Public submissions require database tables from db/migrations applied to PostgreSQL.",
+        "PUBLIC_SUBMISSIONS_DISABLED"
+      );
+      return;
+    }
+    throw error;
+  }
+});
+
+server.get("/public/submissions/:id", async (request, reply) => {
+  if (!publicSubmissionStore.enabled) {
+    sendHttpError(reply, 503, "Public submissions require DATABASE_URL and migration 004.", "PUBLIC_SUBMISSIONS_DISABLED");
+    return;
+  }
+  const { id } = request.params as { id: string };
+  try {
+    const submission = await publicSubmissionStore.getSubmission(id);
+    if (!submission) {
+      sendHttpError(reply, 404, "Submission not found", "PUBLIC_SUBMISSION_NOT_FOUND");
+      return;
+    }
+    const portraitUnitIds = await listPortraitUnitIdsForSubmission(id, new Set(submission.units.map((u) => u.id)));
+    return { submission, portraitUnitIds };
+  } catch (error: unknown) {
+    if (isPgUndefinedTable(error)) {
+      request.log.warn({ err: error }, "public submissions: DB tables missing (run db/migrations)");
+      sendHttpError(
+        reply,
+        503,
+        "Public submissions require database tables from db/migrations applied to PostgreSQL.",
+        "PUBLIC_SUBMISSIONS_DISABLED"
+      );
+      return;
+    }
+    throw error;
+  }
+});
+
+server.get("/public/submissions/:id/portraits/:unitId", async (request, reply) => {
+  if (!publicSubmissionStore.enabled) {
+    sendHttpError(reply, 503, "Public submissions require DATABASE_URL and migration 004.", "PUBLIC_SUBMISSIONS_DISABLED");
+    return;
+  }
+  const { id, unitId } = request.params as { id: string; unitId: string };
+  try {
+    const submission = await publicSubmissionStore.getSubmission(id);
+    if (!submission || !submission.units.some((u) => u.id === unitId)) {
+      sendHttpError(reply, 404, "Submission or unit not found", "PUBLIC_SUBMISSION_NOT_FOUND");
+      return;
+    }
+    const buf = await readPortraitFileIfExists(id, unitId);
+    if (!buf) {
+      sendHttpError(reply, 404, "Portrait not found", "PUBLIC_SUBMISSION_NOT_FOUND");
+      return;
+    }
+    return reply.type("image/webp").send(buf);
+  } catch (error: unknown) {
+    if (isPgUndefinedTable(error)) {
+      request.log.warn({ err: error }, "public submissions: DB tables missing (run db/migrations)");
+      sendHttpError(
+        reply,
+        503,
+        "Public submissions require database tables from db/migrations applied to PostgreSQL.",
+        "PUBLIC_SUBMISSIONS_DISABLED"
+      );
+      return;
+    }
+    throw error;
+  }
+});
+
+server.post("/public/submissions/:id/portraits/:unitId", async (request, reply) => {
+  if (!publicSubmissionStore.enabled) {
+    sendHttpError(reply, 503, "Public submissions require DATABASE_URL and migration 004.", "PUBLIC_SUBMISSIONS_DISABLED");
+    return;
+  }
+  const { id, unitId } = request.params as { id: string; unitId: string };
+  playerIdentity.createOrRefreshSession(request, reply);
+  let submission;
+  try {
+    submission = await publicSubmissionStore.getSubmission(id);
+  } catch (error: unknown) {
+    if (isPgUndefinedTable(error)) {
+      request.log.warn({ err: error }, "public submissions: DB tables missing (run db/migrations)");
+      sendHttpError(
+        reply,
+        503,
+        "Public submissions require database tables from db/migrations applied to PostgreSQL.",
+        "PUBLIC_SUBMISSIONS_DISABLED"
+      );
+      return;
+    }
+    throw error;
+  }
+  if (!submission) {
+    sendHttpError(reply, 404, "Submission not found", "PUBLIC_SUBMISSION_NOT_FOUND");
+    return;
+  }
+  if (!submissionAllowsPortraitUpload(submission.status)) {
+    sendHttpError(reply, 400, "This submission no longer accepts portrait uploads.", "INVALID_MESSAGE_FORMAT");
+    return;
+  }
+  if (!submission.units.some((u) => u.id === unitId)) {
+    sendHttpError(reply, 400, "Unit is not part of this submission.", "INVALID_MESSAGE_FORMAT");
+    return;
+  }
+  const file = await request.file();
+  if (!file) {
+    sendHttpError(reply, 400, "Expected multipart field \"file\" with image data.", "INVALID_MESSAGE_FORMAT");
+    return;
+  }
+  const chunks: Buffer[] = [];
+  for await (const chunk of file.file) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  const buf = Buffer.concat(chunks);
+  const result = await convertAndSaveUnitPortrait(id, unitId, buf, file.mimetype, file.filename);
+  if (!result.ok) {
+    sendHttpError(reply, 400, result.error, "INVALID_MESSAGE_FORMAT");
+    return;
+  }
+  return {
+    ok: true,
+    path: `/public/submissions/${encodeURIComponent(id)}/portraits/${encodeURIComponent(unitId)}`
+  };
+});
+
+server.post("/public/submissions", async (request, reply) => {
+  if (!publicSubmissionStore.enabled) {
+    sendHttpError(reply, 503, "Public submissions require DATABASE_URL and migration 004.", "PUBLIC_SUBMISSIONS_DISABLED");
+    return;
+  }
+  const body = (request.body as { metadata?: unknown; units?: unknown; heroes?: unknown } | undefined) ?? {};
+  const metaParsed = parseSubmissionMetadata(body.metadata);
+  if (!metaParsed.ok) {
+    sendHttpError(reply, 400, metaParsed.error, "INVALID_MESSAGE_FORMAT");
+    return;
+  }
+  if (!Array.isArray(body.units) || !Array.isArray(body.heroes)) {
+    sendHttpError(reply, 400, "units and heroes must be arrays.", "INVALID_MESSAGE_FORMAT");
+    return;
+  }
+  const units = body.units as UnitDefinition[];
+  const heroes = body.heroes as HeroDefinition[];
+  const validation = contentBuilder.validateContent(units, heroes, { allowPartialCatalog: true });
+  try {
+    const { id } = await publicSubmissionStore.createSubmission({
+      metadata: metaParsed.metadata,
+      units,
+      heroes,
+      validationOk: validation.ok,
+      validationErrors: validation.errors
+    });
+    return { ok: true, id, validation };
+  } catch (error: unknown) {
+    const code = typeof error === "object" && error !== null && "code" in error ? (error as { code?: string }).code : undefined;
+    if (code === "23505") {
+      sendHttpError(
+        reply,
+        409,
+        "A submission with this pack_id is already open for review.",
+        "PUBLIC_DUPLICATE_PACK_ID"
+      );
+      return;
+    }
+    if (isPgUndefinedTable(error)) {
+      request.log.warn({ err: error }, "public submissions: DB tables missing (run db/migrations)");
+      sendHttpError(
+        reply,
+        503,
+        "Public submissions require database tables from db/migrations applied to PostgreSQL.",
+        "PUBLIC_SUBMISSIONS_DISABLED"
+      );
+      return;
+    }
+    server.log.error({ error }, "public submission insert failed");
+    return reply.code(500).send({ error: "Failed to save submission" });
+  }
+});
+
+server.post("/public/submissions/:id/vote", async (request, reply) => {
+  if (!publicSubmissionStore.enabled) {
+    sendHttpError(reply, 503, "Public submissions require DATABASE_URL and migration 004.", "PUBLIC_SUBMISSIONS_DISABLED");
+    return;
+  }
+  const { id } = request.params as { id: string };
+  const body = (request.body as { value?: unknown } | undefined) ?? {};
+  const raw = body.value;
+  const value = raw === 1 || raw === -1 ? raw : Number(raw);
+  if (value !== 1 && value !== -1) {
+    sendHttpError(reply, 400, "value must be 1 or -1", "INVALID_MESSAGE_FORMAT");
+    return;
+  }
+  let existing;
+  try {
+    existing = await publicSubmissionStore.getSubmission(id);
+  } catch (error: unknown) {
+    if (isPgUndefinedTable(error)) {
+      request.log.warn({ err: error }, "public submissions: DB tables missing (run db/migrations)");
+      sendHttpError(
+        reply,
+        503,
+        "Public submissions require database tables from db/migrations applied to PostgreSQL.",
+        "PUBLIC_SUBMISSIONS_DISABLED"
+      );
+      return;
+    }
+    throw error;
+  }
+  if (!existing) {
+    sendHttpError(reply, 404, "Submission not found", "PUBLIC_SUBMISSION_NOT_FOUND");
+    return;
+  }
+  const accountId = playerIdentity.createOrRefreshSession(request, reply);
+  try {
+    const agg = await publicSubmissionStore.castVote(id, accountId, value);
+    return { ok: true, submissionId: id, voteScore: agg.voteScore, voteCount: agg.voteCount };
+  } catch (error: unknown) {
+    if (isPgUndefinedTable(error)) {
+      request.log.warn({ err: error }, "public submissions: DB tables missing (run db/migrations)");
+      sendHttpError(
+        reply,
+        503,
+        "Public submissions require database tables from db/migrations applied to PostgreSQL.",
+        "PUBLIC_SUBMISSIONS_DISABLED"
+      );
+      return;
+    }
+    server.log.error({ error }, "public vote failed");
+    return reply.code(500).send({ error: "Failed to record vote" });
+  }
+});
+
+server.get("/admin/content/public-submissions", { preHandler: requireAdmin }, async (request, reply) => {
+  if (!publicSubmissionStore.enabled) {
+    sendHttpError(reply, 503, "Public submissions store not configured.", "PUBLIC_SUBMISSIONS_DISABLED");
+    return;
+  }
+  const q = request.query as { status?: string; limit?: string };
+  const limit = q.limit ? Number(q.limit) : 100;
+  const statusTokens = q.status
+    ? q.status
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+  const statusIn =
+    statusTokens.length > 0 ? (statusTokens as PublicSubmissionStatus[]) : undefined;
+  const submissions = await publicSubmissionStore.listSubmissions({
+    listAll: !statusIn,
+    statusIn: statusIn && statusIn.length > 0 ? statusIn : undefined,
+    validOnly: false,
+    limit: Number.isFinite(limit) ? limit : 100
+  });
+  return { submissions };
+});
+
+server.get("/admin/content/public-submissions/:id", { preHandler: requireAdmin }, async (request, reply) => {
+  if (!publicSubmissionStore.enabled) {
+    sendHttpError(reply, 503, "Public submissions store not configured.", "PUBLIC_SUBMISSIONS_DISABLED");
+    return;
+  }
+  const { id } = request.params as { id: string };
+  const submission = await publicSubmissionStore.getSubmission(id);
+  if (!submission) {
+    sendHttpError(reply, 404, "Submission not found", "PUBLIC_SUBMISSION_NOT_FOUND");
+    return;
+  }
+  return { submission };
+});
 server.get("/lobbies", async () => ({ lobbies: matchmaking.listOpenLobbies() }));
 server.get("/auth/admin/status", async (request) => ({
   authenticated: adminAuth.isAuthenticated(request)

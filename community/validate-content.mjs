@@ -8,6 +8,7 @@ const snakeCaseId = /^[a-z0-9]+(?:_[a-z0-9]+)*$/;
 const UNIT_ROLES = new Set(["Tank", "Melee", "Ranged", "Support"]);
 const ABILITIES = new Set(["NONE", "DEATH_BURST", "TAUNT", "BLOODLUST", "LIFESTEAL"]);
 const SYNERGIES = new Set(["BERSERKER"]);
+const UNIT_RACES = new Set(["HUMAN", "ORC", "ELF", "DWARF", "UNDEAD"]);
 const HERO_POWER_TYPES = new Set(["PASSIVE", "ACTIVE"]);
 const HERO_POWER_KEYS = new Set(["BONUS_GOLD", "WAR_DRUM", "RECRUITER", "FORTIFY"]);
 
@@ -108,8 +109,31 @@ function validateUnits(units, filePath, packName, takenUnitIds) {
     if (!ABILITIES.has(unit.ability)) {
       fail(row, `field "ability" must be one of: ${Array.from(ABILITIES).join(", ")}`);
     }
+    if ("castOnDeath" in unit && (!unit.castOnDeath || !ABILITIES.has(unit.castOnDeath))) {
+      fail(row, `field "castOnDeath" must be one of: ${Array.from(ABILITIES).join(", ")}`);
+    }
+    if ("castOnKill" in unit && (!unit.castOnKill || !ABILITIES.has(unit.castOnKill))) {
+      fail(row, `field "castOnKill" must be one of: ${Array.from(ABILITIES).join(", ")}`);
+    }
+    if ("castOnCrit" in unit && (!unit.castOnCrit || !ABILITIES.has(unit.castOnCrit))) {
+      fail(row, `field "castOnCrit" must be one of: ${Array.from(ABILITIES).join(", ")}`);
+    }
+    if ("castOnFirstStrike" in unit && (!unit.castOnFirstStrike || !ABILITIES.has(unit.castOnFirstStrike))) {
+      fail(row, `field "castOnFirstStrike" must be one of: ${Array.from(ABILITIES).join(", ")}`);
+    }
+    if ("castOnBattlefieldAdded" in unit && (!unit.castOnBattlefieldAdded || !ABILITIES.has(unit.castOnBattlefieldAdded))) {
+      fail(row, `field "castOnBattlefieldAdded" must be one of: ${Array.from(ABILITIES).join(", ")}`);
+    }
+    if ("castOnRecruitmentRefresh" in unit && (!unit.castOnRecruitmentRefresh || !ABILITIES.has(unit.castOnRecruitmentRefresh))) {
+      fail(row, `field "castOnRecruitmentRefresh" must be one of: ${Array.from(ABILITIES).join(", ")}`);
+    }
     if ("shopWeight" in unit && !isPositiveNumber(unit.shopWeight)) {
       fail(row, 'field "shopWeight" must be a number > 0');
+    }
+    if ("race" in unit && unit.race !== undefined && unit.race !== null) {
+      if (typeof unit.race !== "string" || !UNIT_RACES.has(unit.race)) {
+        fail(row, `field "race" must be one of: ${Array.from(UNIT_RACES).join(", ")}`);
+      }
     }
     if ("tags" in unit) {
       if (!Array.isArray(unit.tags) || unit.tags.some((tag) => !SYNERGIES.has(tag))) {

@@ -52,6 +52,14 @@ This repository now includes a runnable MVP:
 Notes:
 - Server uses container-internal DB URL (`postgres`) automatically in Compose.
 - Hot-reload works via bind mounts for `apps/client`, `apps/server`, and shared packages.
+- On **first** PostgreSQL startup (empty `pg_data` volume), `db/migrations/*.sql` runs from `/docker-entrypoint-initdb.d` in order (`001` … `004`), creating `players`, `content_publish_audit`, `content_public_submission`, etc.
+- If you already have a non-empty DB volume from before this mount existed, either wipe and recreate (`docker compose down -v` then `up --build`) or apply migrations once:
+
+  ```bash
+  for f in db/migrations/*.sql; do docker compose exec -T postgres psql -U runebrawl -d runebrawl -v ON_ERROR_STOP=1 -f - < "$f"; done
+  ```
+
+  Run from the repo root with Compose running.
 
 ## Run Behind Traefik (Subdomains)
 

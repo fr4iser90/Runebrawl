@@ -38,4 +38,36 @@ describe("combat contracts", () => {
     const broken = result.events.some((e) => e.type === "ABILITY_TRIGGERED" && !e.abilityKey && !e.synergyKey);
     expect(broken).toBe(false);
   });
+
+  it("emits castOnDeath trigger when the unit dies", () => {
+    const teamA: UnitInstance[] = [
+      unit({
+        instanceId: "a1",
+        unitId: "caster",
+        name: "Caster",
+        ability: "NONE",
+        castOnDeath: "TAUNT",
+        attack: 1,
+        hp: 1,
+        maxHp: 1,
+        speed: 1
+      })
+    ];
+    const teamB: UnitInstance[] = [
+      unit({
+        instanceId: "b1",
+        unitId: "killer",
+        name: "Killer",
+        ability: "NONE",
+        attack: 10,
+        hp: 12,
+        maxHp: 12,
+        speed: 10
+      })
+    ];
+
+    const result = simulateCombat(teamA, teamB, 2026);
+    const triggered = result.events.some((e) => e.type === "ABILITY_TRIGGERED" && e.abilityKey === "TAUNT");
+    expect(triggered).toBe(true);
+  });
 });

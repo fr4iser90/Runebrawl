@@ -1,4 +1,14 @@
-import type { AbilityKey, HeroDefinition, HeroPowerKey, HeroPowerType, SynergyKey, UnitDefinition, UnitRole } from "@runebrawl/shared";
+import type {
+  AbilityKey,
+  HeroDefinition,
+  HeroPowerKey,
+  HeroPowerType,
+  SynergyKey,
+  UnitDefinition,
+  UnitRace,
+  UnitRole
+} from "@runebrawl/shared";
+import { UNIT_RACES } from "@runebrawl/shared";
 import { nanoid } from "nanoid";
 import { HERO_POOL, replaceHeroPool } from "../data/heroes.js";
 import { replaceUnitPool, UNIT_POOL } from "../data/units.js";
@@ -6,6 +16,7 @@ import { replaceUnitPool, UNIT_POOL } from "../data/units.js";
 const ALLOWED_ROLES: UnitRole[] = ["Tank", "Melee", "Ranged", "Support"];
 const ALLOWED_ABILITIES: AbilityKey[] = ["NONE", "DEATH_BURST", "TAUNT", "BLOODLUST", "LIFESTEAL"];
 const ALLOWED_SYNERGIES: SynergyKey[] = ["BERSERKER"];
+const ALLOWED_RACES: readonly UnitRace[] = UNIT_RACES;
 const ALLOWED_POWER_TYPES: HeroPowerType[] = ["PASSIVE", "ACTIVE"];
 const ALLOWED_POWER_KEYS: HeroPowerKey[] = ["BONUS_GOLD", "WAR_DRUM", "RECRUITER", "FORTIFY"];
 
@@ -19,6 +30,11 @@ export interface ContentSnapshot {
 export interface ContentValidationResult {
   ok: boolean;
   errors: string[];
+}
+
+/** When true, allows units-only or heroes-only packs (public ingest). Publish path stays strict. */
+export interface ContentValidationOptions {
+  allowPartialCatalog?: boolean;
 }
 
 export interface ContentPublishAuditEntry {
@@ -70,7 +86,8 @@ function cloneUnits(units: UnitDefinition[]): UnitDefinition[] {
   return units.map((unit) => ({
     ...unit,
     shopWeight: Number.isFinite(unit.shopWeight) && (unit.shopWeight ?? 0) > 0 ? unit.shopWeight : 1,
-    tags: unit.tags ? [...unit.tags] : undefined
+    tags: unit.tags ? [...unit.tags] : undefined,
+    race: unit.race
   }));
 }
 
@@ -196,8 +213,12 @@ export class ContentBuilderService {
     return { ok: true, errors: [] };
   }
 
-  validateContent(units: UnitDefinition[], heroes: HeroDefinition[]): ContentValidationResult {
-    return this.validatePayload(units, heroes);
+  validateContent(
+    units: UnitDefinition[],
+    heroes: HeroDefinition[],
+    options?: ContentValidationOptions
+  ): ContentValidationResult {
+    return this.validatePayload(units, heroes, options);
   }
 
   getPublishHistory(limit = 50): ContentPublishAuditEntry[] {
@@ -282,11 +303,20 @@ export class ContentBuilderService {
     }
   }
 
-  private validatePayload(units: UnitDefinition[], heroes: HeroDefinition[]): ContentValidationResult {
+  private validatePayload(
+    units: UnitDefinition[],
+    heroes: HeroDefinition[],
+    options?: ContentValidationOptions
+  ): ContentValidationResult {
     const errors: string[] = [];
+    const relaxed = options?.allowPartialCatalog === true;
 
-    if (units.length === 0) errors.push("Unit list cannot be empty.");
-    if (heroes.length === 0) errors.push("Hero list cannot be empty.");
+    if (!relaxed) {
+      if (units.length === 0) errors.push("Unit list cannot be empty.");
+      if (heroes.length === 0) errors.push("Hero list cannot be empty.");
+    } else if (units.length === 0 && heroes.length === 0) {
+      errors.push("Pack must include at least one unit or one hero.");
+    }
 
     const duplicateUnitIds = hasDuplicates(units.map((u) => u.id));
     if (duplicateUnitIds.length > 0) {
@@ -302,12 +332,33 @@ export class ContentBuilderService {
       if (!unit.name.trim()) errors.push(`Unit ${unit.id}: name is required.`);
       if (!ALLOWED_ROLES.includes(unit.role)) errors.push(`Unit ${unit.id}: invalid role ${unit.role}.`);
       if (!ALLOWED_ABILITIES.includes(unit.ability)) errors.push(`Unit ${unit.id}: invalid ability ${unit.ability}.`);
+      if (unit.castOnDeath !== undefined && !ALLOWED_ABILITIES.includes(unit.castOnDeath)) {
+        errors.push(`Unit ${unit.id}: invalid castOnDeath ${unit.castOnDeath}.`);
+      }
+      if (unit.castOnKill !== undefined && !ALLOWED_ABILITIES.includes(unit.castOnKill)) {
+        errors.push(`Unit ${unit.id}: invalid castOnKill ${unit.castOnKill}.`);
+      }
+      if (unit.castOnCrit !== undefined && !ALLOWED_ABILITIES.includes(unit.castOnCrit)) {
+        errors.push(`Unit ${unit.id}: invalid castOnCrit ${unit.castOnCrit}.`);
+      }
+      if (unit.castOnFirstStrike !== undefined && !ALLOWED_ABILITIES.includes(unit.castOnFirstStrike)) {
+        errors.push(`Unit ${unit.id}: invalid castOnFirstStrike ${unit.castOnFirstStrike}.`);
+      }
+      if (unit.castOnBattlefieldAdded !== undefined && !ALLOWED_ABILITIES.includes(unit.castOnBattlefieldAdded)) {
+        errors.push(`Unit ${unit.id}: invalid castOnBattlefieldAdded ${unit.castOnBattlefieldAdded}.`);
+      }
+      if (unit.castOnRecruitmentRefresh !== undefined && !ALLOWED_ABILITIES.includes(unit.castOnRecruitmentRefresh)) {
+        errors.push(`Unit ${unit.id}: invalid castOnRecruitmentRefresh ${unit.castOnRecruitmentRefresh}.`);
+      }
       if (!Number.isFinite(unit.tier) || unit.tier < 1 || unit.tier > 6) errors.push(`Unit ${unit.id}: tier must be 1..6.`);
       if (!Number.isFinite(unit.attack) || unit.attack < 0) errors.push(`Unit ${unit.id}: attack must be >= 0.`);
       if (!Number.isFinite(unit.hp) || unit.hp <= 0) errors.push(`Unit ${unit.id}: hp must be > 0.`);
       if (!Number.isFinite(unit.speed) || unit.speed <= 0) errors.push(`Unit ${unit.id}: speed must be > 0.`);
       if (unit.shopWeight !== undefined && (!Number.isFinite(unit.shopWeight) || unit.shopWeight <= 0)) {
         errors.push(`Unit ${unit.id}: shopWeight must be > 0.`);
+      }
+      if (unit.race !== undefined && !ALLOWED_RACES.includes(unit.race)) {
+        errors.push(`Unit ${unit.id}: invalid race ${String(unit.race)}.`);
       }
       for (const tag of unit.tags ?? []) {
         if (!ALLOWED_SYNERGIES.includes(tag)) {

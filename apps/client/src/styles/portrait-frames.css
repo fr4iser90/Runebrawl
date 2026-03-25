@@ -1,0 +1,79 @@
+/**
+ * Portrait / shop-card preview frames (Suggest wizard, Admin).
+ * Parent gets .portrait-frame-variant + .portrait-frame-variant--<id>
+ * SVG overlays: PortraitFrameSvg.vue + .portrait-frame-preview-svg
+ */
+
+.portrait-frame-variant .shop-card {
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+/* —— SVG preview mode: art fills slot; frame is drawn by PortraitFrameSvg —— */
+.portrait-frame-preview-svg .shop-card.tier-low,
+.portrait-frame-preview-svg .shop-card.tier-mid,
+.portrait-frame-preview-svg .shop-card.tier-high {
+  border: 1px solid rgba(70, 90, 140, 0.45);
+  box-shadow: 0 8px 22px rgba(6, 10, 22, 0.42);
+}
+
+.portrait-frame-preview-svg .shop-card:hover {
+  border-color: rgba(100, 120, 190, 0.55);
+}
+
+.portrait-slot.portrait-slot--svg-frame {
+  position: relative;
+  border: none !important;
+  background: #0a0f1c;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.portrait-frame-stack {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.portrait-frame-stack__art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  z-index: 0;
+}
+
+.portrait-frame-stack__art.suggest-preview-empty-ph {
+  object-fit: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--rb-text-muted, #8a9bc4);
+  padding: 0.35rem;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #1a2438, #121a2c);
+}
+
+/* Admin portrait grid: compact shop preview */
+.admin-portrait-mini-shop.shop-card {
+  padding: 8px;
+  margin: 0 0 8px;
+  pointer-events: none;
+}
+
+.admin-portrait-mini-shop.shop-card:hover {
+  transform: none;
+}
+
+.admin-portrait-mini-slot.portrait-slot-unit {
+  height: 96px;
+  margin-bottom: 0;
+}
+
+.admin-portrait-mini-slot.portrait-slot--svg-frame.portrait-slot-unit {
+  /* height comes from .admin-portrait-mini-slot.portrait-slot-unit */
+  margin-bottom: 0;
+}

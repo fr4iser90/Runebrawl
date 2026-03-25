@@ -4,6 +4,7 @@ dist
 .env
 coverage
 *.log
+data/public-submissions/
 *.tsbuildinfo
 apps/client/node_modules
 apps/server/node_modules
