@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted } from "vue";
 import type { AbilityKey, HeroDefinition, MatchPublicState, SynergyKey, UnitDefinition } from "@runebrawl/shared";
 import { useI18n } from "../../../i18n/useI18n";
+import PortraitFrameSvg from "../../shared/PortraitFrameSvg.vue";
 
 interface PlayerView {
   gold: number;
@@ -33,7 +34,7 @@ const props = defineProps<{
   statPlayersIcon: string;
   statGoldIcon: string;
   statHealthIcon: string;
-  unitTierClass: (unit: UnitDefinition | null) => string;
+  unitTierClass: (unit: UnitDefinition | null) => "" | "tier-low" | "tier-mid" | "tier-high";
   roleIconPath: (role: UnitDefinition["role"]) => string;
   abilityIconPath: (ability: AbilityKey) => string;
   abilityLabel: (ability: AbilityKey) => string;
@@ -87,6 +88,11 @@ const upgradeButtonText = computed(() => {
   return t("game.upgradeTavernCost", { cost });
 });
 
+function frameTierClass(unit: UnitDefinition): "tier-low" | "tier-mid" | "tier-high" {
+  const tierClass = props.unitTierClass(unit);
+  return tierClass === "" ? "tier-low" : tierClass;
+}
+
 const isTypingTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName;
@@ -128,7 +134,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="tavern" :class="{ 'tavern-bottom-only': !!props.bottomOnly }">
+  <section
+    class="tavern portrait-frame-live-svg portrait-frame-variant portrait-frame-variant--ornate"
+    :class="{ 'tavern-bottom-only': !!props.bottomOnly }"
+  >
     <div v-if="!props.bottomOnly" class="hall-header">
       <h2>{{ t("game.tavernShop") }}</h2>
       <div class="stats">
@@ -178,34 +187,39 @@ onBeforeUnmount(() => {
         class="shop-card"
         :class="[props.unitTierClass(unit), { 'anim-buy-pop': props.animatingShopIndex === idx }]"
       >
-        <div v-if="unit" class="portrait-slot portrait-slot-unit" :style="backplateStyle(props.unitBackplatePath(unit.id))">
-          <img class="portrait-image portrait-image-contain" :src="props.unitPortraitPath(unit.id)" :alt="unit.name" loading="lazy" />
-        </div>
-        <div class="unit-name" v-if="unit">
-          <img class="unit-icon" :src="props.roleIconPath(unit.role)" alt="" />
-          <span>{{ unit.name }}</span>
+        <div v-if="unit" class="unit-card-chrome">
+          <div class="unit-card-chrome__content">
+            <div class="portrait-slot portrait-slot-unit portrait-slot--svg-frame" :style="backplateStyle(props.unitBackplatePath(unit.id))">
+              <img class="portrait-image portrait-image-contain" :src="props.unitPortraitPath(unit.id)" :alt="unit.name" loading="lazy" />
+            </div>
+            <div class="unit-name">
+              <img class="unit-icon" :src="props.roleIconPath(unit.role)" alt="" />
+              <span>{{ unit.name }}</span>
+            </div>
+            <div class="unit-meta">
+              <span class="meta-chip">T{{ unit.tier }}</span>
+              <span class="meta-chip">
+                <img class="chip-icon" :src="props.roleIconPath(unit.role)" alt="" />
+                {{ unit.role }}
+              </span>
+              <span class="meta-chip" :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`">
+                <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
+                {{ props.abilityLabel(unit.ability) }}
+              </span>
+              <span
+                v-for="tag in unit.tags ?? []"
+                :key="`shop-tag-${unit.id}-${tag}`"
+                class="meta-chip tag-chip"
+                :title="`${props.synergyLabel(tag)}: ${props.synergyDescription(tag)}`"
+              >
+                {{ props.synergyLabel(tag) }}
+              </span>
+              <div class="unit-meta-line">{{ t("game.unitMeta", { attack: unit.attack, hp: unit.hp, speed: unit.speed }) }}</div>
+            </div>
+          </div>
+          <PortraitFrameSvg frame-id="ornate" :tier-class="frameTierClass(unit)" scope="unitShopCard" />
         </div>
         <div class="unit-name" v-else>{{ t("game.soldOut") }}</div>
-        <div v-if="unit" class="unit-meta">
-          <span class="meta-chip">T{{ unit.tier }}</span>
-          <span class="meta-chip">
-            <img class="chip-icon" :src="props.roleIconPath(unit.role)" alt="" />
-            {{ unit.role }}
-          </span>
-          <span class="meta-chip" :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`">
-            <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
-            {{ props.abilityLabel(unit.ability) }}
-          </span>
-          <span
-            v-for="tag in unit.tags ?? []"
-            :key="`shop-tag-${unit.id}-${tag}`"
-            class="meta-chip tag-chip"
-            :title="`${props.synergyLabel(tag)}: ${props.synergyDescription(tag)}`"
-          >
-            {{ props.synergyLabel(tag) }}
-          </span>
-          <div class="unit-meta-line">{{ t("game.unitMeta", { attack: unit.attack, hp: unit.hp, speed: unit.speed }) }}</div>
-        </div>
         <button
           class="cta-primary"
           :class="{ 'cta-next': props.tutorialStepKey === 'buy' && idx === firstBuyableShopIndex }"

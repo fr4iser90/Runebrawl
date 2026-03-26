@@ -759,7 +759,7 @@ textarea:focus-visible {
 }
 
 .portrait-slot-mini {
-  height: clamp(56px, 11vh, 88px);
+  height: clamp(64px, 12vh, 104px);
   margin-bottom: 6px;
 }
 
@@ -815,13 +815,29 @@ textarea:focus-visible {
 .slot {
   border: 1px dashed #8f7443;
   border-radius: 10px;
-  min-height: 100px;
+  min-height: clamp(132px, 18vh, 190px);
   padding: 8px;
   background: #202844;
 }
 
 .bench-slot {
   background: #1e2540;
+}
+
+.board .slot {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.board .slot .slot-unit,
+.board .slot .slot-mini-meta {
+  overflow-wrap: anywhere;
+}
+
+.board .portrait-slot-mini .portrait-image {
+  object-fit: contain;
+  object-position: center center;
 }
 
 

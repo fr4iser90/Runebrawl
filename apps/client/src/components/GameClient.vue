@@ -989,7 +989,7 @@ const enrichedCombatLog = computed(() => {
   });
 });
 
-function unitTierClass(unit: UnitDefinition | null): string {
+function unitTierClass(unit: UnitDefinition | null): "" | "tier-low" | "tier-mid" | "tier-high" {
   if (!unit) return "";
   if (unit.tier <= 2) return "tier-low";
   if (unit.tier <= 4) return "tier-mid";

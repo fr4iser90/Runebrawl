@@ -16,23 +16,19 @@ const isSuggestRoute = computed(() => {
   const p = pathname.value.replace(/\/$/, "") || "/";
   return p === "/suggest";
 });
+const isGameRoute = computed(() => !isAdminRoute.value && !isReviewRoute.value && !isSuggestRoute.value);
 const { locale, setLocale, t } = useI18n();
-
-function openGameSettings(): void {
-  window.dispatchEvent(new CustomEvent("runebrawl:open-settings"));
-}
 </script>
 
 <template>
   <div>
-    <header class="header top-nav">
+    <header v-if="!isGameRoute" class="header top-nav">
       <h1>Runebrawl</h1>
       <div class="actions">
         <a href="/" class="nav-link">{{ t("nav.game") }}</a>
         <a href="/suggest" class="nav-link">{{ t("nav.suggest") }}</a>
         <a href="/review" class="nav-link">{{ t("nav.review") }}</a>
         <a href="/admin" class="nav-link">{{ t("nav.admin") }}</a>
-        <button v-if="!isAdminRoute && !isReviewRoute && !isSuggestRoute" @click="openGameSettings">{{ t("game.settings.open") }}</button>
         <label>
           {{ t("nav.language") }}
           <select :value="locale" @change="setLocale(($event.target as HTMLSelectElement).value as 'en' | 'de')">

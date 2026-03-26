@@ -45,3 +45,23 @@
   padding-bottom: 4px;
   scroll-snap-type: x proximity;
 }
+
+.tavern.tavern-bottom-only {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tavern.tavern-bottom-only .shop-card {
+  flex: 0 0 clamp(220px, 22vw, 300px);
+  min-width: 220px;
+  max-width: 320px;
+  min-height: clamp(210px, 28vh, 280px);
+  scroll-snap-align: start;
+}
+
+.tavern.tavern-bottom-only .actions.hall-actions {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(90, 112, 168, 0.28);
+}
