@@ -23,8 +23,13 @@ const props = withDefaults(
     tierClass: "tier-low" | "tier-mid" | "tier-high";
     /** unitShopCard: frame around portrait + name + chips (admin / suggest). */
     scope?: ShopCardFrameScope;
+    /**
+     * When true, ornate frame does not draw the four gold stud circles (replaced by HTML in
+     * `UnitCardFrameCorners` — see `cards/unitCardFrameGeometry.ts`).
+     */
+    hideOrnateCornerStuds?: boolean;
   }>(),
-  { scope: "unitShopCard" }
+  { scope: "unitShopCard", hideOrnateCornerStuds: false }
 );
 
 const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -124,7 +129,7 @@ const accent = computed(() => {
         />
         <line x1="10" y1="106" x2="90" y2="106" stroke="#8b6220" stroke-width="0.65" stroke-opacity="0.9" />
         <line x1="10" y1="107.5" x2="90" y2="107.5" stroke="#f0d080" stroke-width="0.35" stroke-opacity="0.5" />
-        <g fill="#e8c070" stroke="#5c4018" stroke-width="0.22">
+        <g v-if="!props.hideOrnateCornerStuds" fill="#e8c070" stroke="#5c4018" stroke-width="0.22">
           <circle cx="5.5" cy="5" r="2.3" />
           <circle cx="94.5" cy="5" r="2.3" />
           <circle cx="94.5" cy="167" r="2.3" />

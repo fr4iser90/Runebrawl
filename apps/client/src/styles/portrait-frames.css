@@ -8,8 +8,9 @@
  *         ├── .unit-card-chrome__content (z-index 0; padding = safe inset inside SVG stroke)
  *         │     ├── .portrait-slot  — PortraitRegion (flex-grow; art only)
  *         │     ├── .unit-name      — TitleRow
- *         │     └── .unit-meta      — StatRow (T#, role, …)
- *         └── PortraitFrameSvg (scope=unitShopCard) — full-card stroke layer, z-index 1
+ *         │     └── .unit-meta      — StatRow (role, tags; combat stats in UnitCardFrameCorners)
+ *         ├── UnitCardFrameCorners — tier / spd / atk / ability / hp on stud positions (unitCardFrameGeometry.ts), z-index 2
+ *         └── PortraitFrameSvg (scope=unitShopCard) — full-card stroke layer, z-index 1; studs optional (hideOrnateCornerStuds)
  *
  * Below the card (admin): .portrait-preview-meta — technical id + loaded/missing (not player-facing chrome).
  */

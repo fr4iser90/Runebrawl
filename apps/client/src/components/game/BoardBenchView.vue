@@ -5,6 +5,7 @@ import { useI18n } from "../../i18n/useI18n";
 import { benchDensityClass as densityClassForBench } from "./layoutDensity";
 import PortraitFrameSvg from "../shared/PortraitFrameSvg.vue";
 import { unitCardFromInstance } from "./cards/unitCardVm";
+import UnitCardFrameCorners from "./cards/UnitCardFrameCorners.vue";
 
 interface MeView {
   board: (UnitInstance | null)[];
@@ -141,18 +142,21 @@ onBeforeUnmount(() => {
               <div class="portrait-slot portrait-slot-mini portrait-slot--svg-frame" :style="backplateStyle(props.unitBackplatePath(card.portraitUnitId))">
                 <img class="portrait-image" :src="props.unitPortraitPath(card.portraitUnitId)" :alt="card.name" loading="lazy" />
               </div>
-              <div class="slot-card-footer">
-                <div class="slot-card-stat-badges">
-                  <span class="slot-badge stat-chip stat-chip--atk" :aria-label="`Attack ${card.stats.atk}`">{{ card.stats.atk }}</span>
-                  <span class="slot-badge stat-chip stat-chip--hp" :aria-label="`Health ${card.stats.hp}`">{{ card.stats.hp }}</span>
-                  <span class="slot-badge stat-chip stat-chip--spd" :aria-label="`Speed ${card.stats.speed ?? 0}`">{{ card.stats.speed ?? 0 }}</span>
-                  <span class="slot-badge" :title="`${props.abilityLabel(card.ability)}: ${props.abilityDescription(card.ability)}`">
-                    <img class="chip-icon" :src="props.abilityIconPath(card.ability)" alt="" />
-                  </span>
-                </div>
-              </div>
             </div>
-            <PortraitFrameSvg frame-id="ornate" :tier-class="frameTierClass(props.me.board[idx] as UnitInstance)" scope="unitShopCard" />
+            <UnitCardFrameCorners
+              :tier="card.tier"
+              :atk="card.stats.atk"
+              :hp="card.stats.hp"
+              :speed="card.stats.speed ?? 0"
+              :ability-icon-url="props.abilityIconPath(card.ability)"
+              :ability-title="`${props.abilityLabel(card.ability)}: ${props.abilityDescription(card.ability)}`"
+            />
+            <PortraitFrameSvg
+              frame-id="ornate"
+              :tier-class="frameTierClass(props.me.board[idx] as UnitInstance)"
+              scope="unitShopCard"
+              :hide-ornate-corner-studs="true"
+            />
           </div>
           <div class="slot-unit" v-else>{{ props.unitQuickMeta(props.me.board[idx]) }}</div>
           <div v-if="card && (card.tags.length ?? 0) > 0" class="slot-badge-row">
@@ -198,18 +202,21 @@ onBeforeUnmount(() => {
               <div class="portrait-slot portrait-slot-mini portrait-slot--svg-frame" :style="backplateStyle(props.unitBackplatePath(card.portraitUnitId))">
                 <img class="portrait-image" :src="props.unitPortraitPath(card.portraitUnitId)" :alt="card.name" loading="lazy" />
               </div>
-              <div class="slot-card-footer">
-                <div class="slot-card-stat-badges">
-                  <span class="slot-badge stat-chip stat-chip--atk" :aria-label="`Attack ${card.stats.atk}`">{{ card.stats.atk }}</span>
-                  <span class="slot-badge stat-chip stat-chip--hp" :aria-label="`Health ${card.stats.hp}`">{{ card.stats.hp }}</span>
-                  <span class="slot-badge stat-chip stat-chip--spd" :aria-label="`Speed ${card.stats.speed ?? 0}`">{{ card.stats.speed ?? 0 }}</span>
-                  <span class="slot-badge" :title="`${props.abilityLabel(card.ability)}: ${props.abilityDescription(card.ability)}`">
-                    <img class="chip-icon" :src="props.abilityIconPath(card.ability)" alt="" />
-                  </span>
-                </div>
-              </div>
             </div>
-            <PortraitFrameSvg frame-id="ornate" :tier-class="frameTierClass(props.me.bench[idx] as UnitInstance)" scope="unitShopCard" />
+            <UnitCardFrameCorners
+              :tier="card.tier"
+              :atk="card.stats.atk"
+              :hp="card.stats.hp"
+              :speed="card.stats.speed ?? 0"
+              :ability-icon-url="props.abilityIconPath(card.ability)"
+              :ability-title="`${props.abilityLabel(card.ability)}: ${props.abilityDescription(card.ability)}`"
+            />
+            <PortraitFrameSvg
+              frame-id="ornate"
+              :tier-class="frameTierClass(props.me.bench[idx] as UnitInstance)"
+              scope="unitShopCard"
+              :hide-ornate-corner-studs="true"
+            />
           </div>
           <div class="slot-unit" v-else>{{ props.unitQuickMeta(props.me.bench[idx]) }}</div>
           <div v-if="card && (card.tags.length ?? 0) > 0" class="slot-badge-row">

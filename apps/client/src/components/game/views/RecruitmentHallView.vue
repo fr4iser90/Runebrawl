@@ -5,6 +5,7 @@ import { useI18n } from "../../../i18n/useI18n";
 import PortraitFrameSvg from "../../shared/PortraitFrameSvg.vue";
 import { shopDensityClass } from "../layoutDensity";
 import { unitCardFromDefinition } from "../cards/unitCardVm";
+import UnitCardFrameCorners from "../cards/UnitCardFrameCorners.vue";
 
 interface PlayerView {
   gold: number;
@@ -96,7 +97,7 @@ const previewCursor = ref<{ x: number; y: number } | null>(null);
 let hoverPreviewTimer: number | null = null;
 
 const shopCards = computed(() =>
-  props.me.shop.map((unit) => (unit ? unitCardFromDefinition(unit, "shop", { cost: 3, canBuy: props.isBuyPhase }) : null))
+  props.me.shop.map((unit) => (unit ? unitCardFromDefinition(unit, "shop", { canBuy: props.isBuyPhase }) : null))
 );
 
 const hoveredShopUnit = computed(() => {
@@ -265,21 +266,9 @@ onBeforeUnmount(() => {
               <span>{{ card.name }}</span>
             </div>
             <div class="unit-meta">
-              <span class="meta-chip">T{{ card.tier }}</span>
               <span class="meta-chip">
                 <img class="chip-icon" :src="props.roleIconPath(card.role)" alt="" />
                 {{ card.role }}
-              </span>
-              <span class="meta-chip stat-chip stat-chip--atk" :aria-label="`Attack ${card.stats.atk}`">{{ card.stats.atk }}</span>
-              <span class="meta-chip stat-chip stat-chip--hp" :aria-label="`Health ${card.stats.hp}`">{{ card.stats.hp }}</span>
-              <span class="meta-chip stat-chip stat-chip--spd" :aria-label="`Speed ${card.stats.speed ?? 0}`">{{ card.stats.speed ?? 0 }}</span>
-              <span
-                v-if="!props.bottomOnly"
-                class="meta-chip"
-                :title="`${props.abilityLabel(card.ability)}: ${props.abilityDescription(card.ability)}`"
-              >
-                <img class="chip-icon" :src="props.abilityIconPath(card.ability)" alt="" />
-                {{ props.abilityLabel(card.ability) }}
               </span>
               <span
                 v-if="!props.bottomOnly"
@@ -290,10 +279,22 @@ onBeforeUnmount(() => {
               >
                 {{ props.synergyLabel(tag) }}
               </span>
-              <div v-if="!props.bottomOnly" class="unit-meta-line">{{ t("game.unitMeta", { attack: card.stats.atk, hp: card.stats.hp, speed: card.stats.speed ?? 0 }) }}</div>
             </div>
           </div>
-          <PortraitFrameSvg frame-id="ornate" :tier-class="frameTierClass(props.me.shop[idx] as UnitDefinition)" scope="unitShopCard" />
+          <UnitCardFrameCorners
+            :tier="card.tier"
+            :atk="card.stats.atk"
+            :hp="card.stats.hp"
+            :speed="card.stats.speed ?? 0"
+            :ability-icon-url="props.abilityIconPath(card.ability)"
+            :ability-title="`${props.abilityLabel(card.ability)}: ${props.abilityDescription(card.ability)}`"
+          />
+          <PortraitFrameSvg
+            frame-id="ornate"
+            :tier-class="frameTierClass(props.me.shop[idx] as UnitDefinition)"
+            scope="unitShopCard"
+            :hide-ornate-corner-studs="true"
+          />
         </div>
         <div class="unit-name" v-else>{{ t("game.soldOut") }}</div>
         <button
