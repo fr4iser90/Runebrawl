@@ -5,6 +5,7 @@
   --rb-scene-bg-lobby: url("./assets/optimized/backgrounds/lobby-bg.svg");
   --rb-scene-bg-combat: url("./assets/optimized/backgrounds/combat-bg.svg");
   --rb-scene-bg-finished: url("./assets/optimized/backgrounds/finished-bg.svg");
+  --rb-menu-bg: url("./assets/optimized/backgrounds/runes_menu.webp");
 
   --rb-bg: #121624;
   --rb-surface-1: #1a2033;
@@ -282,15 +283,101 @@ body {
   margin-bottom: 8px;
 }
 
+/* Main menu: full viewport (GameClient shows only MenuScreen before connect) */
+.app:has(> .menu-screen) {
+  padding: 0;
+  min-height: 100vh;
+  height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
+}
+
+.app:has(> .menu-screen) > .error {
+  flex-shrink: 0;
+  padding: 0 clamp(14px, 5vw, 36px) 12px;
+  margin: 0;
+}
+
+.app:has(> .menu-screen) > .menu-screen {
+  margin-bottom: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .menu-stage {
   border: 1px solid var(--scene-panel-border);
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(30, 40, 66, 0.84), rgba(23, 31, 51, 0.86));
+  background:
+    linear-gradient(180deg, rgba(16, 22, 38, 0.88), rgba(12, 18, 32, 0.92)),
+    var(--rb-menu-bg);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   padding: 16px;
 }
 
+.app:has(> .menu-screen) > .menu-screen.menu-stage {
+  border-radius: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: clamp(14px, 4vw, 28px) clamp(14px, 5vw, 36px);
+}
+
 .menu-stage h2 {
-  margin: 0 0 6px;
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.menu-header-brand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.menu-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem 0.75rem;
+}
+
+.menu-auth-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(220, 230, 255, 0.92);
+  text-decoration: none;
+  padding: 6px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.menu-auth-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  text-decoration: none;
+}
+
+.menu-auth-link:focus-visible {
+  outline: 2px solid var(--scene-accent-strong, #8aa6f2);
+  outline-offset: 2px;
 }
 
 .menu-title-row {
@@ -298,6 +385,50 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+}
+
+.menu-btn-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--scene-pill-border, #435384);
+  background: rgba(22, 32, 58, 0.85);
+  color: #e8eeff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.menu-btn-icon:hover {
+  background: rgba(34, 48, 86, 0.95);
+  border-color: var(--scene-accent-strong, #8aa6f2);
+}
+
+.menu-btn-icon:focus-visible {
+  outline: 2px solid var(--scene-accent-strong, #8aa6f2);
+  outline-offset: 2px;
+}
+
+.menu-icon-gear {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  .menu-btn-icon-text {
+    display: none;
+  }
+
+  .menu-btn-icon {
+    padding: 10px;
+    border-radius: 999px;
+  }
 }
 
 .menu-mode-badge {
@@ -311,13 +442,114 @@ body {
   letter-spacing: 0.03em;
 }
 
+.menu-shell {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.menu-shell .menu-header {
+  margin-bottom: 4px;
+}
+
 .menu-lead {
-  margin: 0;
+  margin: 0 0 4px;
+  max-width: none;
+  line-height: 1.45;
   color: #cbd8ff;
+  font-size: 0.95rem;
+}
+
+.menu-identity-panel {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.menu-identity-panel--compact {
+  margin-top: 0;
+  padding: 10px 12px;
+  border-top: none;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(10, 14, 26, 0.38);
+}
+
+.menu-identity--row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+}
+
+.menu-name-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 200px;
+  min-width: 0;
+  max-width: 300px;
+}
+
+.menu-name-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(200, 210, 245, 0.65);
+}
+
+.menu-name-input {
+  width: 100%;
+  max-width: 100%;
+}
+
+.menu-profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.menu-btn-save {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(120, 140, 200, 0.45);
+  background: rgba(34, 48, 82, 0.9);
+  color: #e8eeff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.menu-btn-save:hover:not(:disabled) {
+  background: rgba(44, 60, 100, 0.95);
+  border-color: rgba(150, 170, 230, 0.55);
+}
+
+.menu-btn-save:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.menu-section-label {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(210, 220, 255, 0.75);
 }
 
 .menu-identity {
-  margin: 10px 0 14px;
+  margin: 0;
 }
 
 .menu-identity label {
@@ -359,20 +591,29 @@ body {
 
 .menu-primary-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
 }
 
 .menu-card {
   border: 1px solid #3a4d79;
   border-radius: 10px;
-  background: rgba(28, 40, 68, 0.9);
+  background: rgba(22, 32, 54, 0.82);
+  backdrop-filter: blur(6px);
   padding: 12px;
-  box-shadow: 0 10px 20px rgba(10, 14, 28, 0.26);
+  box-shadow: 0 8px 18px rgba(10, 14, 28, 0.22);
+}
+
+.menu-card .slot-title {
+  margin-bottom: 10px;
+  font-size: 0.88rem;
 }
 
 .menu-card h3 {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 .menu-card-solo {
@@ -381,6 +622,23 @@ body {
 
 .menu-card-multi {
   border-color: #596995;
+}
+
+.menu-btn-secondary {
+  border: 1px solid rgba(120, 140, 200, 0.45);
+  background: rgba(30, 42, 72, 0.75);
+  color: #e8eeff;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.menu-btn-secondary:hover {
+  background: rgba(40, 56, 92, 0.9);
+  border-color: rgba(150, 170, 230, 0.55);
 }
 
 .menu-action-list {
@@ -404,8 +662,13 @@ body {
   background: linear-gradient(180deg, #a96060, #8e4f4f);
 }
 
+.menu-open-lobbies {
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
 .menu-advanced {
-  margin-top: 10px;
+  margin-top: 14px;
 }
 
 .menu-advanced summary {
@@ -794,6 +1057,10 @@ textarea:focus-visible {
     padding: 10px;
   }
 
+  .app:has(> .menu-screen) {
+    padding: 0;
+  }
+
   .header {
     flex-direction: column;
     align-items: stretch;
@@ -807,6 +1074,33 @@ textarea:focus-visible {
   .menu-title-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .menu-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .menu-header-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .menu-btn-icon {
+    align-self: flex-start;
+  }
+
+  .menu-identity--row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .menu-name-field {
+    max-width: none;
+  }
+
+  .menu-profile-meta {
+    justify-content: space-between;
   }
 
   .stats {
@@ -837,6 +1131,10 @@ textarea:focus-visible {
 @media (max-height: 600px) and (orientation: landscape) {
   .app {
     padding: 8px;
+  }
+
+  .app:has(> .menu-screen) {
+    padding: 0;
   }
 
   .header {
@@ -886,6 +1184,10 @@ textarea:focus-visible {
 @media (max-width: 380px) {
   .app {
     padding: 8px;
+  }
+
+  .app:has(> .menu-screen) {
+    padding: 0;
   }
 
   .header h1 {
@@ -980,4 +1282,54 @@ textarea:focus-visible {
     animation: none !important;
   }
 
+}
+
+/* /login and /register — no password auth in API yet; copy is honest */
+.account-stub {
+  max-width: 38rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 2.5rem;
+  overflow-y: auto;
+}
+
+.account-stub h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.account-stub-lead,
+.account-stub-hint {
+  margin: 0 0 1rem;
+  line-height: 1.5;
+  color: var(--rb-text-muted);
+}
+
+.account-stub-actions {
+  margin: 1.25rem 0 0;
+}
+
+.account-stub-primary {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.55rem 1rem;
+  border-radius: var(--rb-radius);
+  border: 1px solid var(--rb-border-strong);
+  background: var(--rb-surface-2);
+  color: var(--rb-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.account-stub-primary:hover {
+  background: var(--rb-surface-3);
+}
+
+.account-stub-operator {
+  margin: 1.5rem 0 0;
+  font-size: 0.9rem;
+}
+
+.account-stub-operator a {
+  color: var(--rb-accent);
 }

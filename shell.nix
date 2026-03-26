@@ -15,6 +15,6 @@ pkgs.mkShell {
   ];
 
   shellHook = ''
-    echo "Runebrawl dev shell: node $(node -v), cwebp ($(command -v cwebp))"
+    echo "Runebrawl dev shell: node $(${pkgs.nodejs_22}/bin/node -v), cwebp ($(command -v cwebp))"
   '';
 }

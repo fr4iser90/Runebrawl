@@ -8,6 +8,13 @@ import {
   type UnitDefinition,
   type UnitRace
 } from "@runebrawl/shared";
+import {
+  analyzeContentRoster,
+  roleTierMatrixRows,
+  sortedEntries,
+  sortedTierEntries,
+  type RosterAnalysis
+} from "../../admin/contentRosterAnalysis";
 import { useAdminApi } from "../../composables/useAdminApi";
 import {
   hasHeroPortrait,
@@ -51,6 +58,7 @@ const apiBaseUrl =
 const { t } = useI18n();
 
 const UNIT_ROLES: UnitDefinition["role"][] = ["Tank", "Melee", "Ranged", "Support"];
+const ROSTER_SHOP_CA_KEYS = ["melee", "ranged", "magic"] as const;
 const ABILITY_KEYS: UnitDefinition["ability"][] = ["NONE", "DEATH_BURST", "TAUNT", "BLOODLUST", "LIFESTEAL"];
 const SYNERGY_KEYS: string[] = ["BERSERKER"];
 const HERO_POWER_TYPES: HeroDefinition["powerType"][] = ["PASSIVE", "ACTIVE"];
@@ -123,6 +131,52 @@ const topStartReasons = computed(() => {
   const entries = Object.entries(adminMetrics.value?.startReasons ?? {});
   return entries.sort((a, b) => b[1] - a[1]);
 });
+
+const rosterAnalysis = computed((): RosterAnalysis | null => {
+  const c = adminContentCatalog.value;
+  if (!c) return null;
+  return analyzeContentRoster(c.units ?? [], c.heroes ?? []);
+});
+
+const rosterTierColumnIndices = computed(() => {
+  const r = rosterAnalysis.value;
+  const n = r ? Math.max(6, r.maxUnitTier) : 6;
+  return Array.from({ length: n }, (_, i) => i + 1);
+});
+
+const rosterRoleTierMatrix = computed(() => {
+  const r = rosterAnalysis.value;
+  if (!r) return [];
+  return roleTierMatrixRows(r.byRoleByTier, UNIT_ROLES, rosterTierColumnIndices.value.length);
+});
+
+function combatArchetypeLabel(key: string): string {
+  if (key === "melee") return t("admin.roster.combat.melee");
+  if (key === "ranged") return t("admin.roster.combat.ranged");
+  if (key === "magic") return t("admin.roster.combat.magic");
+  return key;
+}
+
+function formatRosterWarning(w: RosterAnalysis["warningKeys"][number]): string {
+  const params: Record<string, string | number> = {};
+  if (w.count !== undefined) params.count = w.count;
+  if (w.tier !== undefined) params.tier = w.tier;
+  if (w.race !== undefined) params.race = w.race;
+  if (w.role !== undefined) params.role = w.role;
+  if (w.tag !== undefined) params.tag = w.tag;
+  if (w.lateTier !== undefined) params.lateTier = w.lateTier;
+  if (w.pct !== undefined) params.pct = w.pct;
+  if (w.archetype !== undefined) params.archetype = combatArchetypeLabel(w.archetype);
+  return t(`admin.roster.warning.${w.key}`, params);
+}
+
+function formatShopWeightStats(shop: NonNullable<RosterAnalysis["shopWeight"]>): string {
+  return t("admin.roster.shopWeightStats", {
+    min: shop.min.toFixed(2),
+    max: shop.max.toFixed(2),
+    avg: shop.avg.toFixed(2)
+  });
+}
 
 const adminPortraitPreviewFrame = ref<PortraitFrameId>(DEFAULT_PORTRAIT_FRAME_ID);
 const ADMIN_PREVIEW_PHASES: GamePhase[] = ["LOBBY", "HERO_SELECTION", "TAVERN", "POSITIONING", "COMBAT", "ROUND_END", "FINISHED"];
@@ -1005,6 +1059,187 @@ onBeforeUnmount(() => {
             {{ formatStartReasonLabel(reason) }} ({{ reason }}): {{ count }}
           </div>
           <div v-if="topStartReasons.length === 0">{{ t("admin.noStartReasonTelemetry") }}</div>
+        </div>
+      </div>
+
+      <div v-if="rosterAnalysis" class="admin-card roster-analysis-card">
+        <h3>{{ t("admin.roster.title") }}</h3>
+        <p class="slot-title">{{ t("admin.roster.subtitle") }}</p>
+        <details class="roster-analysis-help">
+          <summary>{{ t("admin.roster.helpTitle") }}</summary>
+          <p class="slot-title roster-analysis-help-body">{{ t("admin.roster.helpBody") }}</p>
+        </details>
+        <p class="slot-title">
+          {{ t("admin.roster.totals", { units: rosterAnalysis.unitCount, heroes: rosterAnalysis.heroCount }) }}
+        </p>
+        <div v-if="rosterAnalysis.warningKeys.length > 0" class="roster-analysis-warnings">
+          <strong>{{ t("admin.roster.warningsTitle") }}</strong>
+          <ul>
+            <li v-for="(w, idx) in rosterAnalysis.warningKeys" :key="`rw-${idx}`">{{ formatRosterWarning(w) }}</li>
+          </ul>
+        </div>
+        <div class="roster-analysis-grid">
+          <div class="roster-analysis-block">
+            <h4>{{ t("admin.roster.section.unitsByTier") }}</h4>
+            <table class="roster-analysis-table">
+              <thead><tr><th>{{ t("admin.roster.col.tier") }}</th><th>{{ t("admin.roster.col.count") }}</th></tr></thead>
+              <tbody>
+                <tr v-for="row in sortedTierEntries(rosterAnalysis.byTier)" :key="`tier-${row.tier}`">
+                  <td>T{{ row.tier }}</td><td>{{ row.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="roster-analysis-block">
+            <h4>{{ t("admin.roster.section.unitsByRole") }}</h4>
+            <table class="roster-analysis-table">
+              <thead><tr><th>{{ t("admin.roster.col.role") }}</th><th>{{ t("admin.roster.col.count") }}</th></tr></thead>
+              <tbody>
+                <tr v-for="row in sortedEntries(rosterAnalysis.byRole)" :key="`role-${row.key}`">
+                  <td>{{ row.key }}</td><td>{{ row.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="roster-analysis-block roster-analysis-block--wide">
+            <h4>{{ t("admin.roster.section.roleByTier") }}</h4>
+            <p class="slot-title">{{ t("admin.roster.roleByTierHint") }}</p>
+            <div class="roster-analysis-matrix-wrap">
+              <table class="roster-analysis-table roster-analysis-matrix">
+                <thead>
+                  <tr>
+                    <th>{{ t("admin.roster.col.role") }}</th>
+                    <th v-for="ti in rosterTierColumnIndices" :key="`th-t${ti}`">T{{ ti }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="mrow in rosterRoleTierMatrix" :key="`m-${mrow.role}`">
+                    <td>{{ mrow.role }}</td>
+                    <td v-for="(c, idx) in mrow.cells" :key="`${mrow.role}-t${idx}`">{{ c }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="roster-analysis-block">
+            <h4>{{ t("admin.roster.section.unitsByRace") }}</h4>
+            <table class="roster-analysis-table">
+              <thead><tr><th>{{ t("admin.roster.col.race") }}</th><th>{{ t("admin.roster.col.count") }}</th></tr></thead>
+              <tbody>
+                <tr v-for="row in sortedEntries(rosterAnalysis.byRace)" :key="`urace-${row.key}`">
+                  <td>{{ row.key }}</td><td>{{ row.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="rosterAnalysis.unitsMissingRace > 0" class="slot-title">{{ t("admin.roster.unitsMissingRace", { n: rosterAnalysis.unitsMissingRace }) }}</p>
+          </div>
+          <div class="roster-analysis-block">
+            <h4>{{ t("admin.roster.section.unitsByCombatArchetype") }}</h4>
+            <p class="slot-title">{{ t("admin.roster.combatHint") }}</p>
+            <table class="roster-analysis-table">
+              <thead><tr><th>{{ t("admin.roster.col.style") }}</th><th>{{ t("admin.roster.col.count") }}</th></tr></thead>
+              <tbody>
+                <tr v-for="row in sortedEntries(rosterAnalysis.byCombatArchetype as Record<string, number>)" :key="`ca-${row.key}`">
+                  <td>{{ combatArchetypeLabel(row.key) }}</td><td>{{ row.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="rosterAnalysis.shopCombatArchetype" class="roster-analysis-shop-ca">
+              <h5>{{ t("admin.roster.section.shopCombatArchetype") }}</h5>
+              <p class="slot-title">{{ t("admin.roster.shopCombatHint") }}</p>
+              <table class="roster-analysis-table">
+                <thead>
+                  <tr>
+                    <th>{{ t("admin.roster.col.style") }}</th>
+                    <th>{{ t("admin.roster.col.unitCount") }}</th>
+                    <th>{{ t("admin.roster.col.weightSum") }}</th>
+                    <th>{{ t("admin.roster.col.sharePct") }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="caKey in ROSTER_SHOP_CA_KEYS" :key="`sca-${caKey}`">
+                    <td>{{ combatArchetypeLabel(caKey) }}</td>
+                    <td>{{ rosterAnalysis.shopCombatArchetype[caKey].unitCount }}</td>
+                    <td>{{ rosterAnalysis.shopCombatArchetype[caKey].weightSum.toFixed(2) }}</td>
+                    <td>{{ rosterAnalysis.shopCombatArchetype[caKey].sharePct }}%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="roster-analysis-block">
+            <h4>{{ t("admin.roster.section.unitsByAbility") }}</h4>
+            <table class="roster-analysis-table">
+              <thead><tr><th>{{ t("admin.roster.col.ability") }}</th><th>{{ t("admin.roster.col.count") }}</th></tr></thead>
+              <tbody>
+                <tr v-for="row in sortedEntries(rosterAnalysis.byAbility)" :key="`ab-${row.key}`">
+                  <td>{{ row.key }}</td><td>{{ row.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="roster-analysis-block">
+            <h4>{{ t("admin.roster.section.unitsByTag") }}</h4>
+            <table class="roster-analysis-table">
+              <thead><tr><th>{{ t("admin.roster.col.tag") }}</th><th>{{ t("admin.roster.col.count") }}</th></tr></thead>
+              <tbody>
+                <tr v-for="row in sortedEntries(rosterAnalysis.byTag)" :key="`tag-${row.key}`">
+                  <td>{{ row.key }}</td><td>{{ row.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="Object.keys(rosterAnalysis.byTag).length === 0" class="slot-title">{{ t("admin.roster.none") }}</p>
+          </div>
+          <div class="roster-analysis-block">
+            <h4>{{ t("admin.roster.section.unitsByMagicSpell") }}</h4>
+            <table class="roster-analysis-table">
+              <thead><tr><th>{{ t("admin.roster.col.magicSpell") }}</th><th>{{ t("admin.roster.col.count") }}</th></tr></thead>
+              <tbody>
+                <tr v-for="row in sortedEntries(rosterAnalysis.byMagicSpell)" :key="`ms-${row.key}`">
+                  <td>{{ row.key }}</td><td>{{ row.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="Object.keys(rosterAnalysis.byMagicSpell).length === 0" class="slot-title">{{ t("admin.roster.none") }}</p>
+          </div>
+          <div v-if="rosterAnalysis.shopWeight" class="roster-analysis-block roster-analysis-block--wide">
+            <h4>{{ t("admin.roster.section.shopWeight") }}</h4>
+            <p class="slot-title">{{ formatShopWeightStats(rosterAnalysis.shopWeight) }}</p>
+          </div>
+          <div class="roster-analysis-block">
+            <h4>{{ t("admin.roster.section.heroesByRace") }}</h4>
+            <table class="roster-analysis-table">
+              <thead><tr><th>{{ t("admin.roster.col.race") }}</th><th>{{ t("admin.roster.col.count") }}</th></tr></thead>
+              <tbody>
+                <tr v-for="row in sortedEntries(rosterAnalysis.heroesByRace)" :key="`hrace-${row.key}`">
+                  <td>{{ row.key }}</td><td>{{ row.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="rosterAnalysis.heroesMissingRace > 0" class="slot-title">{{ t("admin.roster.heroesMissingRace", { n: rosterAnalysis.heroesMissingRace }) }}</p>
+          </div>
+          <div class="roster-analysis-block">
+            <h4>{{ t("admin.roster.section.heroesByPowerKey") }}</h4>
+            <table class="roster-analysis-table">
+              <thead><tr><th>{{ t("admin.roster.col.powerKey") }}</th><th>{{ t("admin.roster.col.count") }}</th></tr></thead>
+              <tbody>
+                <tr v-for="row in sortedEntries(rosterAnalysis.heroesByPowerKey)" :key="`pk-${row.key}`">
+                  <td>{{ row.key }}</td><td>{{ row.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="roster-analysis-block">
+            <h4>{{ t("admin.roster.section.heroesByPowerType") }}</h4>
+            <table class="roster-analysis-table">
+              <thead><tr><th>{{ t("admin.roster.col.powerType") }}</th><th>{{ t("admin.roster.col.count") }}</th></tr></thead>
+              <tbody>
+                <tr v-for="row in sortedEntries(rosterAnalysis.heroesByPowerType)" :key="`pt-${row.key}`">
+                  <td>{{ row.key }}</td><td>{{ row.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 

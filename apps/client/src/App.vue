@@ -2,21 +2,26 @@
 import { computed } from "vue";
 import AdminPanel from "./components/admin/AdminPanel.vue";
 import GameClient from "./components/GameClient.vue";
+import PlayerAccountStubView from "./components/public/PlayerAccountStubView.vue";
 import PublicReviewView from "./components/public/PublicReviewView.vue";
 import PublicSuggestView from "./components/public/PublicSuggestView.vue";
 import { useI18n } from "./i18n/useI18n";
 
 const pathname = computed(() => window.location.pathname);
+const normalizedPath = computed(() => pathname.value.replace(/\/$/, "") || "/");
 const isAdminRoute = computed(() => pathname.value.startsWith("/admin"));
-const isReviewRoute = computed(() => {
-  const p = pathname.value.replace(/\/$/, "") || "/";
-  return p === "/review";
-});
-const isSuggestRoute = computed(() => {
-  const p = pathname.value.replace(/\/$/, "") || "/";
-  return p === "/suggest";
-});
-const isGameRoute = computed(() => !isAdminRoute.value && !isReviewRoute.value && !isSuggestRoute.value);
+const isReviewRoute = computed(() => normalizedPath.value === "/review");
+const isSuggestRoute = computed(() => normalizedPath.value === "/suggest");
+const isLoginRoute = computed(() => normalizedPath.value === "/login");
+const isRegisterRoute = computed(() => normalizedPath.value === "/register");
+const isGameRoute = computed(
+  () =>
+    !isAdminRoute.value &&
+    !isReviewRoute.value &&
+    !isSuggestRoute.value &&
+    !isLoginRoute.value &&
+    !isRegisterRoute.value
+);
 const { locale, setLocale, t } = useI18n();
 </script>
 
@@ -41,6 +46,8 @@ const { locale, setLocale, t } = useI18n();
     <AdminPanel v-if="isAdminRoute" />
     <PublicSuggestView v-else-if="isSuggestRoute" />
     <PublicReviewView v-else-if="isReviewRoute" />
+    <PlayerAccountStubView v-else-if="isLoginRoute" variant="login" />
+    <PlayerAccountStubView v-else-if="isRegisterRoute" variant="register" />
     <GameClient v-else />
   </div>
 </template>
