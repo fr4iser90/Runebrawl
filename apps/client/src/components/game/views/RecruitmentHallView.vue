@@ -78,6 +78,12 @@ const highlightReady = computed(
   () => props.isBuyPhase && !props.isHeroSelection && !props.me.ready && props.tutorialStepKey === "ready"
 );
 const firstBuyableShopIndex = computed(() => props.me.shop.findIndex((unit) => !!unit));
+const bottomShopDensityClass = computed(() => {
+  const slots = props.me.shop.length;
+  if (slots >= 5) return "tavern-density-dense";
+  if (slots <= 3) return "tavern-density-roomy";
+  return "tavern-density-balanced";
+});
 const upgradeButtonText = computed(() => {
   const cost = props.me.tavernUpgradeCost ?? 0;
   const discount = props.me.tavernUpgradeDiscount ?? 0;
@@ -136,7 +142,10 @@ onBeforeUnmount(() => {
 <template>
   <section
     class="tavern portrait-frame-live-svg portrait-frame-variant portrait-frame-variant--ornate"
-    :class="{ 'tavern-bottom-only': !!props.bottomOnly }"
+    :class="{
+      'tavern-bottom-only': !!props.bottomOnly,
+      [bottomShopDensityClass]: !!props.bottomOnly
+    }"
   >
     <div v-if="!props.bottomOnly" class="hall-header">
       <h2>{{ t("game.tavernShop") }}</h2>

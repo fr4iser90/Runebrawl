@@ -49,8 +49,7 @@
 
 .game-shell-bottom {
   padding: 10px;
-  overflow: auto;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 .phase-shell {
