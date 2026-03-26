@@ -268,18 +268,30 @@ function onShopDragStart(shopIndex: number, event: DragEvent): void {
         @focusin="onShopCardHover(card?.id ?? null, $event)"
         @mouseleave="onShopCardLeave"
       >
-        <div v-if="card" class="unit-card-chrome">
+        <div
+          v-if="card"
+          class="unit-card-chrome"
+          :draggable="props.isBuyPhase"
+          @dragstart="onShopDragStart(idx, $event)"
+          @dragend="emit('shopDragEnd')"
+        >
           <div class="unit-card-chrome__content">
             <div class="portrait-slot portrait-slot-unit portrait-slot--svg-frame" :style="backplateStyle(props.unitBackplatePath(card.portraitUnitId))">
-              <img class="portrait-image portrait-image-contain" :src="props.unitPortraitPath(card.portraitUnitId)" :alt="card.name" loading="lazy" />
+              <img
+                class="portrait-image portrait-image-contain"
+                draggable="false"
+                :src="props.unitPortraitPath(card.portraitUnitId)"
+                :alt="card.name"
+                loading="lazy"
+              />
             </div>
             <div class="unit-name">
-              <img class="unit-icon" :src="props.roleIconPath(card.role)" alt="" />
+              <img class="unit-icon" draggable="false" :src="props.roleIconPath(card.role)" alt="" />
               <span>{{ card.name }}</span>
             </div>
             <div class="unit-meta">
               <span class="meta-chip">
-                <img class="chip-icon" :src="props.roleIconPath(card.role)" alt="" />
+                <img class="chip-icon" draggable="false" :src="props.roleIconPath(card.role)" alt="" />
                 {{ card.role }}
               </span>
               <span

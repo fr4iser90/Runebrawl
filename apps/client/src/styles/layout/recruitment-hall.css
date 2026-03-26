@@ -87,6 +87,12 @@
   margin: 0 auto;
 }
 
+/* Let the parent .unit-card-chrome own HTML5 drag; imgs default to native image-drag in some browsers. */
+.tavern .shop-card .unit-card-chrome img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
 .tavern.tavern-bottom-only.tavern-density-roomy .shop-row {
   grid-template-columns: repeat(3, minmax(150px, 1fr));
 }
