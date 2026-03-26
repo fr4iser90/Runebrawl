@@ -2,7 +2,14 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { HeroDefinition, UnitDefinition } from "@runebrawl/shared";
 import { useAdminApi } from "../composables/useAdminApi";
-import { hasHeroPortrait, hasUnitPortrait, heroPortraitPath, unitPortraitPath } from "../assets/optimized/portraits/loader";
+import {
+  hasHeroPortrait,
+  hasUnitPortrait,
+  heroPortraitBackplatePath,
+  heroPortraitPath,
+  unitPortraitBackplatePath,
+  unitPortraitPath
+} from "../assets/optimized/portraits/loader";
 import {
   PORTRAIT_FRAME_IDS,
   type PortraitFrameId,
@@ -118,6 +125,7 @@ const portraitUnitPreview = computed(() =>
     name: unit.name,
     tier: unit.tier,
     role: unit.role,
+    bgSrc: unitPortraitBackplatePath(unit.id),
     src: unitPortraitPath(unit.id),
     exists: hasUnitPortrait(unit.id)
   }))
@@ -127,6 +135,7 @@ const portraitHeroPreview = computed(() =>
   (adminContentCatalog.value?.heroes ?? []).map((hero) => ({
     id: hero.id,
     name: hero.name,
+    bgSrc: heroPortraitBackplatePath(hero.id),
     src: heroPortraitPath(hero.id),
     exists: hasHeroPortrait(hero.id)
   }))
@@ -900,6 +909,13 @@ onBeforeUnmount(() => {
                     <div class="unit-card-chrome__content">
                       <div class="portrait-slot portrait-slot-unit admin-portrait-mini-slot portrait-slot--svg-frame">
                         <div class="portrait-frame-stack">
+                          <img
+                            v-if="entry.bgSrc"
+                            class="portrait-image portrait-frame-stack__art"
+                            :src="entry.bgSrc"
+                            :alt="''"
+                            loading="lazy"
+                          />
                           <img class="portrait-image portrait-frame-stack__art" :src="entry.src" :alt="entry.name" loading="lazy" />
                         </div>
                       </div>
@@ -936,7 +952,12 @@ onBeforeUnmount(() => {
           </div>
           <div class="portrait-preview-grid">
             <div v-for="entry in portraitHeroPreview" :key="`hero-portrait-${entry.id}`" class="portrait-preview-card">
-              <img class="portrait-preview-image" :src="entry.src" :alt="entry.name" loading="lazy" />
+              <div
+                class="portrait-preview-image"
+                :style="entry.bgSrc ? { backgroundImage: `url(${JSON.stringify(entry.bgSrc)})`, backgroundSize: 'cover', backgroundPosition: 'center center', backgroundRepeat: 'no-repeat' } : undefined"
+              >
+                <img class="portrait-image" :src="entry.src" :alt="entry.name" loading="lazy" />
+              </div>
               <div class="portrait-preview-meta">
                 <div>{{ entry.name }}</div>
                 <div class="slot-title">{{ entry.id }}</div>

@@ -1926,6 +1926,13 @@ textarea:focus-visible {
 .portrait-preview-image {
   width: 100%;
   aspect-ratio: 4 / 5;
+  display: block;
+  overflow: hidden;
+}
+
+.portrait-preview-image .portrait-image {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   object-position: center top;
   display: block;

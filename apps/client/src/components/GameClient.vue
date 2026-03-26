@@ -29,7 +29,12 @@ import statHealthIcon from "../assets/optimized/icons/stat-health.svg";
 import statPlayersIcon from "../assets/optimized/icons/stat-players.svg";
 import playerHumanIcon from "../assets/optimized/icons/player-human.svg";
 import playerBotIcon from "../assets/optimized/icons/player-bot.svg";
-import { heroPortraitPath, unitPortraitPath } from "../assets/optimized/portraits/loader";
+import {
+  heroPortraitBackplatePath,
+  heroPortraitPath,
+  unitPortraitBackplatePath,
+  unitPortraitPath
+} from "../assets/optimized/portraits/loader";
 import { useI18n } from "../i18n/useI18n";
 import MenuScreen from "./game/MenuScreen.vue";
 import RecruitmentHallView from "./game/RecruitmentHallView.vue";
@@ -1379,6 +1384,7 @@ onMounted(() => {
               :stat-gold-icon="statGoldIcon"
               :stat-health-icon="statHealthIcon"
               :hero-portrait-path="heroPortraitPath"
+              :hero-backplate-path="heroPortraitBackplatePath"
               @select-hero="selectHero"
             />
 
@@ -1403,6 +1409,7 @@ onMounted(() => {
                   :replay-enemy-board="replayEnemyBoard"
                   :recent-damage-by-slot="recentDamageBySlot"
                   :unit-portrait-path="unitPortraitPath"
+                  :unit-backplate-path="unitPortraitBackplatePath"
                   :unit-label-replay="unitLabelReplay"
                   :unit-hp-percent="unitHpPercent"
                   :unit-pulse-class="unitPulseClass"
@@ -1447,7 +1454,9 @@ onMounted(() => {
                   :synergy-label="synergyLabel"
                   :synergy-description="synergyDescription"
                   :hero-portrait-path="heroPortraitPath"
+                  :hero-backplate-path="heroPortraitBackplatePath"
                   :unit-portrait-path="unitPortraitPath"
+                  :unit-backplate-path="unitPortraitBackplatePath"
                   @select-hero="selectHero"
                   @buy="buy"
                   @add-bot-to-lobby="addBotToLobby"
@@ -1465,6 +1474,7 @@ onMounted(() => {
                   :is-buy-phase="isBuyPhase"
                   :tutorial-step-key="tutorialStepKey"
                   :unit-portrait-path="unitPortraitPath"
+                  :unit-backplate-path="unitPortraitBackplatePath"
                   :unit-quick-meta="unitQuickMeta"
                   :ability-label="abilityLabel"
                   :ability-description="abilityDescription"

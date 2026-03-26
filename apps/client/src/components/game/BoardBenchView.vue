@@ -12,12 +12,23 @@ const props = defineProps<{
   isBuyPhase: boolean;
   tutorialStepKey: "hero" | "buy" | "move" | "ready" | "watch" | null;
   unitPortraitPath: (unitId: string) => string;
+  unitBackplatePath: (unitId: string) => string | null;
   unitQuickMeta: (unit: UnitInstance | null) => string;
   abilityLabel: (ability: UnitInstance["ability"]) => string;
   abilityDescription: (ability: UnitInstance["ability"]) => string;
   abilityIconPath: (ability: UnitInstance["ability"]) => string;
   synergyLabel: (synergy: SynergyKey) => string;
 }>();
+
+function backplateStyle(url: string | null): Record<string, string> | undefined {
+  if (!url) return undefined;
+  return {
+    backgroundImage: `url("${url}")`,
+    backgroundSize: "cover",
+    backgroundPosition: "center center",
+    backgroundRepeat: "no-repeat"
+  };
+}
 
 const emit = defineEmits<{
   (e: "sell", zone: "bench" | "board", index: number): void;
@@ -42,7 +53,7 @@ const { t } = useI18n();
         @drop="emit('drop', 'board', idx)"
       >
         <div class="slot-title">{{ t("game.boardSlot", { index: idx + 1 }) }}</div>
-        <div v-if="unit" class="portrait-slot portrait-slot-mini">
+        <div v-if="unit" class="portrait-slot portrait-slot-mini" :style="backplateStyle(props.unitBackplatePath(unit.unitId))">
           <img class="portrait-image" :src="props.unitPortraitPath(unit.unitId)" :alt="unit.name" loading="lazy" />
         </div>
         <div class="slot-unit">{{ props.unitQuickMeta(unit) }}</div>
@@ -73,7 +84,7 @@ const { t } = useI18n();
         @drop="emit('drop', 'bench', idx)"
       >
         <div class="slot-title">{{ t("game.benchSlot", { index: idx + 1 }) }}</div>
-        <div v-if="unit" class="portrait-slot portrait-slot-mini">
+        <div v-if="unit" class="portrait-slot portrait-slot-mini" :style="backplateStyle(props.unitBackplatePath(unit.unitId))">
           <img class="portrait-image" :src="props.unitPortraitPath(unit.unitId)" :alt="unit.name" loading="lazy" />
         </div>
         <div class="slot-unit">{{ props.unitQuickMeta(unit) }}</div>

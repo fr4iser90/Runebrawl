@@ -38,6 +38,7 @@ const props = defineProps<{
   replayEnemyBoard: (ReplayUnit | null)[];
   recentDamageBySlot: Record<string, string>;
   unitPortraitPath: (unitId: string) => string;
+  unitBackplatePath: (unitId: string) => string | null;
   unitLabelReplay: (unit: ReplayUnit | null) => string;
   unitHpPercent: (unit: ReplayUnit | null) => number;
   unitPulseClass: (unit: UnitInstance | null, side: "me" | "enemy", slotIndex: number) => string;
@@ -45,6 +46,16 @@ const props = defineProps<{
   slotHitClass: (side: "me" | "enemy", idx: number) => string;
   slotKey: (side: "me" | "enemy", idx: number) => string;
 }>();
+
+function backplateStyle(url: string | null): Record<string, string> | undefined {
+  if (!url) return undefined;
+  return {
+    backgroundImage: `url("${url}")`,
+    backgroundSize: "cover",
+    backgroundPosition: "center center",
+    backgroundRepeat: "no-repeat"
+  };
+}
 
 const { t } = useI18n();
 </script>
@@ -75,7 +86,12 @@ const { t } = useI18n();
             :class="[props.unitPulseClass(unit, 'me', idx), props.slotAnimationClass('me', idx), props.slotHitClass('me', idx)]"
           >
             <div class="slot-title">{{ t("game.slot", { index: idx + 1 }) }}</div>
-            <div v-if="props.replayMyBoard[idx]" class="portrait-slot portrait-slot-mini" :class="{ dead: props.replayMyBoard[idx]?.isDead }">
+            <div
+              v-if="props.replayMyBoard[idx]"
+              class="portrait-slot portrait-slot-mini"
+              :class="{ dead: props.replayMyBoard[idx]?.isDead }"
+              :style="backplateStyle(props.unitBackplatePath((props.replayMyBoard[idx] ?? null)?.unitId ?? ''))"
+            >
               <img
                 class="portrait-image"
                 :src="props.unitPortraitPath((props.replayMyBoard[idx] ?? null)?.unitId ?? '')"
@@ -103,7 +119,12 @@ const { t } = useI18n();
             :class="[props.unitPulseClass(unit, 'enemy', idx), props.slotAnimationClass('enemy', idx), props.slotHitClass('enemy', idx)]"
           >
             <div class="slot-title">{{ t("game.slot", { index: idx + 1 }) }}</div>
-            <div v-if="props.replayEnemyBoard[idx]" class="portrait-slot portrait-slot-mini" :class="{ dead: props.replayEnemyBoard[idx]?.isDead }">
+            <div
+              v-if="props.replayEnemyBoard[idx]"
+              class="portrait-slot portrait-slot-mini"
+              :class="{ dead: props.replayEnemyBoard[idx]?.isDead }"
+              :style="backplateStyle(props.unitBackplatePath((props.replayEnemyBoard[idx] ?? null)?.unitId ?? ''))"
+            >
               <img
                 class="portrait-image"
                 :src="props.unitPortraitPath((props.replayEnemyBoard[idx] ?? null)?.unitId ?? '')"

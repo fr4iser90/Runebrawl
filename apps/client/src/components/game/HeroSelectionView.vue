@@ -21,7 +21,18 @@ const props = defineProps<{
   statGoldIcon: string;
   statHealthIcon: string;
   heroPortraitPath: (heroId: string) => string;
+  heroBackplatePath: (heroId: string) => string | null;
 }>();
+
+function backplateStyle(url: string | null): Record<string, string> | undefined {
+  if (!url) return undefined;
+  return {
+    backgroundImage: `url("${url}")`,
+    backgroundSize: "cover",
+    backgroundPosition: "center center",
+    backgroundRepeat: "no-repeat"
+  };
+}
 
 const emit = defineEmits<{
   (e: "selectHero", heroId: string): void;
@@ -125,7 +136,7 @@ onBeforeUnmount(() => {
         ]"
         :style="{ '--stagger-index': heroIdx }"
       >
-        <div class="portrait-slot portrait-slot-hero hero-select-portrait">
+        <div class="portrait-slot portrait-slot-hero hero-select-portrait" :style="backplateStyle(props.heroBackplatePath(hero.id))">
           <img class="portrait-image portrait-image-contain" :src="props.heroPortraitPath(hero.id)" :alt="hero.name" loading="lazy" />
         </div>
         <h3 class="hero-select-name">{{ hero.name }}</h3>

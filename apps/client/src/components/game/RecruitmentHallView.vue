@@ -41,8 +41,20 @@ const props = defineProps<{
   synergyLabel: (synergy: SynergyKey) => string;
   synergyDescription: (synergy: SynergyKey) => string;
   heroPortraitPath: (heroId: string) => string;
+  heroBackplatePath: (heroId: string) => string | null;
   unitPortraitPath: (unitId: string) => string;
+  unitBackplatePath: (unitId: string) => string | null;
 }>();
+
+function backplateStyle(url: string | null): Record<string, string> | undefined {
+  if (!url) return undefined;
+  return {
+    backgroundImage: `url("${url}")`,
+    backgroundSize: "cover",
+    backgroundPosition: "center center",
+    backgroundRepeat: "no-repeat"
+  };
+}
 
 const emit = defineEmits<{
   (e: "selectHero", heroId: string): void;
@@ -147,7 +159,7 @@ onBeforeUnmount(() => {
     </div>
     <div v-if="props.isHeroSelection" class="shop-row hero-row">
       <div v-for="(hero, heroIdx) in props.me.heroOptions" :key="hero.id" class="shop-card hero-card">
-        <div class="portrait-slot portrait-slot-hero">
+        <div class="portrait-slot portrait-slot-hero" :style="backplateStyle(props.heroBackplatePath(hero.id))">
           <img class="portrait-image portrait-image-contain" :src="props.heroPortraitPath(hero.id)" :alt="hero.name" loading="lazy" />
         </div>
         <div class="unit-name">{{ hero.name }}</div>
@@ -165,7 +177,7 @@ onBeforeUnmount(() => {
         class="shop-card"
         :class="[props.unitTierClass(unit), { 'anim-buy-pop': props.animatingShopIndex === idx }]"
       >
-        <div v-if="unit" class="portrait-slot portrait-slot-unit">
+        <div v-if="unit" class="portrait-slot portrait-slot-unit" :style="backplateStyle(props.unitBackplatePath(unit.id))">
           <img class="portrait-image" :src="props.unitPortraitPath(unit.id)" :alt="unit.name" loading="lazy" />
         </div>
         <div class="unit-name" v-if="unit">
