@@ -69,9 +69,12 @@
 }
 
 @media (max-height: 900px) {
-  .game-shell--shop {
-    grid-template-rows: auto minmax(0, 1fr) minmax(132px, 32vh);
+  .game-shell {
     gap: 8px;
+  }
+
+  .game-shell--shop {
+    grid-template-rows: auto minmax(0, 1fr) minmax(120px, 30vh);
   }
 
   .game-shell-top,
@@ -79,14 +82,45 @@
   .game-shell-bottom {
     padding: 8px;
   }
+
+  .game-shell--shop .game-shell-top .stats {
+    gap: 6px;
+  }
+
+  .game-shell--shop .game-shell-top .stat-pill {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+
+  .game-shell--shop .game-shell-top .danger-ghost {
+    min-height: 30px;
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  .game-shell--shop .game-shell-bottom .actions button {
+    min-height: 30px;
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  .game-shell-main {
+    grid-template-columns: minmax(0, 2.35fr) minmax(240px, 0.85fr);
+    gap: 8px;
+  }
 }
 
 @media (max-height: 820px) {
   .game-shell--shop {
-    grid-template-rows: minmax(0, 1fr) minmax(120px, 30vh);
+    grid-template-rows: minmax(0, 1fr) minmax(110px, 28vh);
   }
 
   .game-shell--shop .game-shell-top {
     display: none;
+  }
+
+  .game-shell-main {
+    grid-template-columns: minmax(0, 2.55fr) minmax(220px, 0.75fr);
+    gap: 6px;
   }
 }

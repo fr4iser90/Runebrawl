@@ -65,3 +65,27 @@
   padding-top: 6px;
   border-top: 1px solid rgba(90, 112, 168, 0.28);
 }
+
+@media (max-height: 900px) {
+  .tavern.tavern-bottom-only {
+    gap: 6px;
+  }
+
+  .tavern.tavern-bottom-only .shop-row {
+    gap: 8px;
+  }
+
+  .tavern.tavern-bottom-only .shop-card {
+    flex-basis: clamp(200px, 21vw, 260px);
+    min-width: 200px;
+    min-height: clamp(170px, 24vh, 230px);
+  }
+}
+
+@media (max-height: 820px) {
+  .tavern.tavern-bottom-only .shop-card {
+    flex-basis: clamp(188px, 20vw, 240px);
+    min-width: 188px;
+    min-height: clamp(156px, 22vh, 205px);
+  }
+}

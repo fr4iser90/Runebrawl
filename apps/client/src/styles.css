@@ -840,6 +840,25 @@ textarea:focus-visible {
   object-position: center center;
 }
 
+@media (max-height: 900px) {
+  .slot {
+    min-height: clamp(112px, 16vh, 158px);
+    padding: 6px;
+  }
+
+  .portrait-slot-mini {
+    height: clamp(56px, 10vh, 86px);
+  }
+
+  .slot-title {
+    font-size: 11px;
+  }
+
+  .slot-unit {
+    font-size: 12px;
+  }
+}
+
 
 .combat-subtitle {
   font-size: 13px;

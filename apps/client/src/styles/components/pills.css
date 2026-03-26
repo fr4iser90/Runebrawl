@@ -117,6 +117,20 @@
   }
 }
 
+@media (max-height: 900px) {
+  .stat-pill {
+    font-size: 11px;
+    padding: 2px 6px;
+    gap: 4px;
+  }
+
+  .meta-chip {
+    font-size: 10px;
+    padding: 1px 5px;
+    margin: 0 3px 3px 0;
+  }
+}
+
 @media (max-width: 380px) {
   .stat-pill {
     font-size: 11px;

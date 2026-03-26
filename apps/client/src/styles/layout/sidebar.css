@@ -37,3 +37,37 @@
   font-size: 13px;
   overflow-x: hidden;
 }
+
+@media (max-height: 900px) {
+  .sidebar {
+    padding: 8px;
+  }
+
+  .player-list {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .player-list li {
+    padding: 5px 6px;
+    font-size: 12px;
+  }
+
+  .log {
+    height: 210px;
+    padding: 6px;
+    font-size: 12px;
+  }
+}
+
+@media (max-height: 820px) {
+  .player-list li {
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .log {
+    height: 160px;
+    font-size: 11px;
+  }
+}
