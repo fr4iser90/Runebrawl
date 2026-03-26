@@ -88,7 +88,10 @@ let fadeCleanupTimer: number | null = null;
 let profileSyncTimer: number | null = null;
 let combatPlaybackRunId = 0;
 
-const dragging = ref<{ zone: "bench" | "board"; index: number } | null>(null);
+type DraggingState =
+  | { kind: "shop"; shopIndex: number }
+  | { kind: "unit"; zone: "bench" | "board"; index: number };
+const dragging = ref<DraggingState | null>(null);
 const { t, locale } = useI18n();
 
 const uiThemeKey = ref(localStorage.getItem("runebrawl.ui.theme")?.trim() || getGameContentManifest().defaultThemeKey);
@@ -947,15 +950,39 @@ function sell(zone: "bench" | "board", index: number): void {
 }
 
 function onDragStart(zone: "bench" | "board", index: number): void {
-  dragging.value = { zone, index };
+  dragging.value = { kind: "unit", zone, index };
+}
+
+function onShopDragStart(shopIndex: number): void {
+  dragging.value = { kind: "shop", shopIndex };
+}
+
+function clearDrag(): void {
+  dragging.value = null;
 }
 
 function onDrop(toZone: "bench" | "board", toIndex: number): void {
-  if (!dragging.value) return;
+  const d = dragging.value;
+  if (!d) return;
+  if (d.kind === "shop") {
+    animatingShopIndex.value = d.shopIndex;
+    window.setTimeout(() => {
+      if (animatingShopIndex.value === d.shopIndex) {
+        animatingShopIndex.value = null;
+      }
+    }, 260);
+    send({
+      type: "BUY_UNIT",
+      shopIndex: d.shopIndex,
+      place: { zone: toZone, index: toIndex }
+    });
+    dragging.value = null;
+    return;
+  }
   send({
     type: "MOVE_UNIT",
-    from: dragging.value.zone,
-    fromIndex: dragging.value.index,
+    from: d.zone,
+    fromIndex: d.index,
     to: toZone,
     toIndex
   });
@@ -1571,6 +1598,9 @@ onMounted(() => {
                     :slot-animation-class="slotAnimationClass"
                     :slot-hit-class="slotHitClass"
                     :slot-key="slotKey"
+                    :ability-icon-path="abilityIconPath"
+                    :ability-label="abilityLabel"
+                    :ability-description="abilityDescription"
                   />
                   <BoardBenchView
                     v-else
@@ -1587,6 +1617,7 @@ onMounted(() => {
                     :synergy-label="synergyLabel"
                     @sell="sell"
                     @dragstart="onDragStart"
+                    @dragend="clearDrag"
                     @drop="onDrop"
                   />
                 </section>
@@ -1632,6 +1663,8 @@ onMounted(() => {
                   :unit-backplate-path="unitPortraitBackplatePath"
                   @select-hero="selectHero"
                   @buy="buy"
+                  @shop-drag-start="onShopDragStart"
+                  @shop-drag-end="clearDrag"
                   @add-bot-to-lobby="addBotToLobby"
                   @force-start-lobby="forceStartLobby"
                   @ready-lobby-toggle="readyLobbyToggle"

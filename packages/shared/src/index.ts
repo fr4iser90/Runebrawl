@@ -179,7 +179,7 @@ export type ClientIntent =
   | { type: "FORCE_START" }
   | { type: "SELECT_HERO"; heroId: string }
   | { type: "USE_HERO_POWER" }
-  | { type: "BUY_UNIT"; shopIndex: number }
+  | { type: "BUY_UNIT"; shopIndex: number; place?: { zone: "bench" | "board"; index: number } }
   | { type: "REROLL_SHOP" }
   | { type: "LOCK_SHOP"; locked: boolean }
   | { type: "UPGRADE_TAVERN" }

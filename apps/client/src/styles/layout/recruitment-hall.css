@@ -78,6 +78,15 @@
   overflow: hidden;
 }
 
+/* Prevent banner-wide cards: keep height, compute width via aspect-ratio and center. */
+.tavern.tavern-bottom-only .shop-card .unit-card-chrome {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: var(--rb-unit-card-aspect-shop);
+  margin: 0 auto;
+}
+
 .tavern.tavern-bottom-only.tavern-density-roomy .shop-row {
   grid-template-columns: repeat(3, minmax(150px, 1fr));
 }
@@ -234,6 +243,12 @@
   padding: 4px 6px;
   font-size: 12px;
   margin-top: auto;
+}
+
+.tavern.tavern-bottom-only .shop-card > .cta-shop-buy {
+  width: fit-content;
+  max-width: 100%;
+  align-self: center;
 }
 
 .tavern.tavern-bottom-only .unit-card-chrome__content {
@@ -441,6 +456,10 @@
     min-height: 20px;
     font-size: 10px;
     padding: 2px 4px;
+  }
+
+  .tavern.tavern-bottom-only .shop-card > .cta-shop-buy {
+    align-self: center;
   }
 }
 

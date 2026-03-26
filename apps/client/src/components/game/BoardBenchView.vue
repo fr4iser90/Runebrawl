@@ -39,6 +39,7 @@ function backplateStyle(url: string | null): Record<string, string> | undefined 
 const emit = defineEmits<{
   (e: "sell", zone: "bench" | "board", index: number): void;
   (e: "dragstart", zone: "bench" | "board", index: number): void;
+  (e: "dragend"): void;
   (e: "drop", zone: "bench" | "board", index: number): void;
 }>();
 
@@ -98,6 +99,12 @@ function onSlotLeave(): void {
   hoverCursor.value = null;
 }
 
+function onSlotContextMenu(zone: "bench" | "board", index: number): void {
+  const unit = zone === "board" ? props.me.board[index] : props.me.bench[index];
+  if (!unit || !props.isBuyPhase) return;
+  emit("sell", zone, index);
+}
+
 onBeforeUnmount(() => {
   if (hoverTimer !== null) {
     window.clearTimeout(hoverTimer);
@@ -117,6 +124,7 @@ onBeforeUnmount(() => {
           v-for="(card, idx) in boardCards"
           :key="`board-${idx}`"
           class="slot"
+          :class="{ 'slot--filled': !!card }"
           draggable="true"
           @dragstart="emit('dragstart', 'board', idx)"
           @dragover.prevent
@@ -177,10 +185,13 @@ onBeforeUnmount(() => {
           v-for="(card, idx) in benchCards"
           :key="`bench-${idx}`"
           class="slot bench-slot"
-          draggable="true"
+          :class="{ 'slot--filled': !!card }"
+          :draggable="!!card"
           @dragstart="emit('dragstart', 'bench', idx)"
+          @dragend="emit('dragend')"
           @dragover.prevent
           @drop="emit('drop', 'bench', idx)"
+          @contextmenu.prevent="onSlotContextMenu('bench', idx)"
           @mouseenter="onSlotHover(props.me.bench[idx], $event)"
           @mousemove="onSlotHover(props.me.bench[idx], $event)"
           @focusin="onSlotHover(props.me.bench[idx], $event)"

@@ -28,4 +28,8 @@
   --rb-shop-zone: 35%;
   --rb-board-zone: 66%;
   --rb-bench-zone: 34%;
+
+  /* Unit card aspect ratios (width / height). */
+  --rb-unit-card-aspect-shop: 1 / 1.25;
+  --rb-unit-card-aspect-board: 1 / 1.15;
 }

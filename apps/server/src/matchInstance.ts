@@ -605,7 +605,7 @@ export class MatchInstance {
     let actionLabel: string | null = null;
     switch (intent.type) {
       case "BUY_UNIT":
-        this.buyUnit(player, intent.shopIndex);
+        this.buyUnit(player, intent.shopIndex, intent.place);
         actionLabel = `${player.name} bought from shop slot ${intent.shopIndex + 1}.`;
         break;
       case "REROLL_SHOP":
@@ -1305,7 +1305,7 @@ export class MatchInstance {
     return Math.max(0, pool.length - 1);
   }
 
-  private buyUnit(player: PlayerInternal, shopIndex: number): void {
+  private buyUnit(player: PlayerInternal, shopIndex: number, place?: { zone: "bench" | "board"; index: number }): void {
     if (this.match.phase === "COMBAT" || player.eliminated) return;
     if (shopIndex < 0 || shopIndex >= player.shop.length) return;
     const unit = player.shop[shopIndex];
@@ -1319,8 +1319,19 @@ export class MatchInstance {
     player.gold -= BALANCE.buyCost;
     const instance = cloneUnitFromDef(unit);
     this.match.unitBuys[unit.id] = (this.match.unitBuys[unit.id] ?? 0) + 1;
-    if (benchSlot >= 0) player.bench[benchSlot] = instance;
-    else player.board[boardSlot] = instance;
+
+    let placed = false;
+    if (place) {
+      const arr = place.zone === "bench" ? player.bench : player.board;
+      if (place.index >= 0 && place.index < arr.length && arr[place.index] === null) {
+        arr[place.index] = instance;
+        placed = true;
+      }
+    }
+    if (!placed) {
+      if (benchSlot >= 0) player.bench[benchSlot] = instance;
+      else player.board[boardSlot] = instance;
+    }
     player.shop[shopIndex] = null;
     this.mergeDuplicates(player, unit.id);
   }

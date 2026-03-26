@@ -201,7 +201,7 @@ export class GameManager {
 
     switch (intent.type) {
       case "BUY_UNIT":
-        this.buyUnit(player, intent.shopIndex);
+        this.buyUnit(player, intent.shopIndex, intent.place);
         actionLabel = `${player.name} bought from shop slot ${intent.shopIndex + 1}.`;
         break;
       case "REROLL_SHOP":
@@ -491,7 +491,7 @@ export class GameManager {
     player.shop = [...player.shop, ...extra];
   }
 
-  private buyUnit(player: PlayerInternal, shopIndex: number): void {
+  private buyUnit(player: PlayerInternal, shopIndex: number, place?: { zone: "bench" | "board"; index: number }): void {
     const match = this.match;
     if (!match || match.phase === "COMBAT" || player.eliminated) return;
     if (shopIndex < 0 || shopIndex >= player.shop.length) return;
@@ -505,10 +505,21 @@ export class GameManager {
 
     player.gold -= BALANCE.buyCost;
     const instance = cloneUnitFromDef(unit);
-    if (benchSlot >= 0) {
-      player.bench[benchSlot] = instance;
-    } else {
-      player.board[boardSlot] = instance;
+
+    let placed = false;
+    if (place) {
+      const arr = place.zone === "bench" ? player.bench : player.board;
+      if (place.index >= 0 && place.index < arr.length && arr[place.index] === null) {
+        arr[place.index] = instance;
+        placed = true;
+      }
+    }
+    if (!placed) {
+      if (benchSlot >= 0) {
+        player.bench[benchSlot] = instance;
+      } else {
+        player.board[boardSlot] = instance;
+      }
     }
     player.shop[shopIndex] = null;
     this.mergeDuplicates(player, unit.id);

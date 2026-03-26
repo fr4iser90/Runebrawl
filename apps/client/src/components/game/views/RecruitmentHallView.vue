@@ -64,6 +64,8 @@ function backplateStyle(url: string | null): Record<string, string> | undefined 
 const emit = defineEmits<{
   (e: "selectHero", heroId: string): void;
   (e: "buy", shopIndex: number): void;
+  (e: "shopDragStart", shopIndex: number): void;
+  (e: "shopDragEnd"): void;
   (e: "addBotToLobby"): void;
   (e: "forceStartLobby"): void;
   (e: "readyLobbyToggle"): void;
@@ -193,6 +195,16 @@ onBeforeUnmount(() => {
   }
   window.removeEventListener("keydown", onKeydown);
 });
+
+function onShopDragStart(shopIndex: number, event: DragEvent): void {
+  if (!props.isBuyPhase || !props.me.shop[shopIndex]) {
+    event.preventDefault();
+    return;
+  }
+  event.dataTransfer?.setData("text/plain", `shop:${shopIndex}`);
+  event.dataTransfer!.effectAllowed = "copy";
+  emit("shopDragStart", shopIndex);
+}
 </script>
 
 <template>
@@ -298,7 +310,8 @@ onBeforeUnmount(() => {
         </div>
         <div class="unit-name" v-else>{{ t("game.soldOut") }}</div>
         <button
-          class="cta-primary"
+          class="cta-primary cta-shop-buy"
+          draggable="false"
           :class="{ 'cta-next': props.tutorialStepKey === 'buy' && idx === firstBuyableShopIndex }"
           :disabled="!props.isBuyPhase || !card"
           @click="emit('buy', idx)"
