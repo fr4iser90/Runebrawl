@@ -187,6 +187,43 @@
   padding: 1px 5px;
 }
 
+.meta-chip.stat-chip {
+  min-width: 24px;
+  justify-content: center;
+  gap: 0;
+  font-weight: 700;
+  position: relative;
+  padding-left: 12px;
+}
+
+.meta-chip.stat-chip::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translateY(-50%) rotate(45deg);
+  border-radius: 1px;
+  background: #9db5ef;
+}
+
+.meta-chip.stat-chip--atk::before {
+  background: #e5a785;
+}
+
+.meta-chip.stat-chip--hp::before {
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: #a7dfa9;
+}
+
+.meta-chip.stat-chip--spd::before {
+  transform: translateY(-50%) rotate(0deg);
+  border-radius: 50% 0 50% 50%;
+  background: #a7d3f0;
+}
+
 .tavern.tavern-bottom-only .unit-meta-line {
   margin-top: 4px;
   font-size: 10px;

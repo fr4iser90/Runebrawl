@@ -80,6 +80,35 @@
   overflow: hidden;
 }
 
+.slot-card-chrome {
+  height: 100%;
+}
+
+.slot-card-content {
+  height: 100%;
+  padding: 6px 8px 8px;
+  gap: 4px;
+}
+
+.slot-card-content > .portrait-slot--svg-frame.portrait-slot-mini {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  margin-bottom: 0;
+}
+
+.slot-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.slot-card-stat-badges {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
 .bench-slot {
   background: #1e2540;
   min-height: 0;
@@ -133,6 +162,47 @@
 .slot-badge.tag {
   border-color: rgba(191, 160, 94, 0.72);
   color: #f0ddb4;
+}
+
+.slot-badge.stat {
+  border-color: rgba(90, 118, 185, 0.72);
+  color: #dce7ff;
+}
+
+.slot-badge.stat-chip {
+  min-width: 20px;
+  justify-content: center;
+  font-weight: 700;
+  padding-left: 10px;
+  position: relative;
+}
+
+.slot-badge.stat-chip::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  transform: translateY(-50%) rotate(45deg);
+  border-radius: 1px;
+  background: #9db5ef;
+}
+
+.slot-badge.stat-chip--atk::before {
+  background: #e5a785;
+}
+
+.slot-badge.stat-chip--hp::before {
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: #a7dfa9;
+}
+
+.slot-badge.stat-chip--spd::before {
+  transform: translateY(-50%) rotate(0deg);
+  border-radius: 50% 0 50% 50%;
+  background: #a7d3f0;
 }
 
 .slot-sell-icon {

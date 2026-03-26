@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, ref } from "vue";
 import type { SynergyKey, UnitInstance } from "@runebrawl/shared";
 import { useI18n } from "../../i18n/useI18n";
 import { benchDensityClass as densityClassForBench } from "./layoutDensity";
+import PortraitFrameSvg from "../shared/PortraitFrameSvg.vue";
+import { unitCardFromInstance } from "./cards/unitCardVm";
 
 interface MeView {
   board: (UnitInstance | null)[];
@@ -41,6 +43,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const benchDensityClass = computed(() => densityClassForBench(props.me.bench.length));
+const boardCards = computed(() => props.me.board.map((unit) => (unit ? unitCardFromInstance(unit, "board", { canSell: props.isBuyPhase, canDrag: true }) : null)));
+const benchCards = computed(() => props.me.bench.map((unit) => (unit ? unitCardFromInstance(unit, "bench", { canSell: props.isBuyPhase, canDrag: true }) : null)));
 const hoveredUnit = ref<UnitInstance | null>(null);
 const hoverCursor = ref<{ x: number; y: number } | null>(null);
 let hoverTimer: number | null = null;
@@ -64,6 +68,12 @@ const boardPreviewStyle = computed<Record<string, string> | undefined>(() => {
 
 function shortSynergyLabel(synergy: SynergyKey): string {
   return props.synergyLabel(synergy).slice(0, 3).toUpperCase();
+}
+
+function frameTierClass(unit: UnitInstance): "tier-low" | "tier-mid" | "tier-high" {
+  if (unit.level <= 2) return "tier-low";
+  if (unit.level <= 4) return "tier-mid";
+  return "tier-high";
 }
 
 function onSlotHover(unit: UnitInstance | null, event?: Event): void {
@@ -103,21 +113,21 @@ onBeforeUnmount(() => {
       </header>
       <div class="slot-row board-row">
         <div
-          v-for="(unit, idx) in props.me.board"
+          v-for="(card, idx) in boardCards"
           :key="`board-${idx}`"
           class="slot"
           draggable="true"
           @dragstart="emit('dragstart', 'board', idx)"
           @dragover.prevent
           @drop="emit('drop', 'board', idx)"
-          @mouseenter="onSlotHover(unit, $event)"
-          @mousemove="onSlotHover(unit, $event)"
-          @focusin="onSlotHover(unit, $event)"
+          @mouseenter="onSlotHover(props.me.board[idx], $event)"
+          @mousemove="onSlotHover(props.me.board[idx], $event)"
+          @focusin="onSlotHover(props.me.board[idx], $event)"
           @mouseleave="onSlotLeave"
         >
-          <div class="slot-title">{{ t("game.boardSlot", { index: idx + 1 }) }}</div>
+          <div v-if="!card" class="slot-title">{{ t("game.boardSlot", { index: idx + 1 }) }}</div>
           <button
-            v-if="unit && props.isBuyPhase"
+            v-if="card && props.isBuyPhase"
             class="slot-sell-icon"
             :title="t('game.sell1')"
             :aria-label="t('game.sell1')"
@@ -126,15 +136,27 @@ onBeforeUnmount(() => {
             <img class="chip-icon" :src="props.statGoldIcon" alt="" />
             +1
           </button>
-          <div v-if="unit" class="portrait-slot portrait-slot-mini" :style="backplateStyle(props.unitBackplatePath(unit.unitId))">
-            <img class="portrait-image" :src="props.unitPortraitPath(unit.unitId)" :alt="unit.name" loading="lazy" />
+          <div v-if="card" class="unit-card-chrome slot-card-chrome">
+            <div class="unit-card-chrome__content slot-card-content">
+              <div class="portrait-slot portrait-slot-mini portrait-slot--svg-frame" :style="backplateStyle(props.unitBackplatePath(card.portraitUnitId))">
+                <img class="portrait-image" :src="props.unitPortraitPath(card.portraitUnitId)" :alt="card.name" loading="lazy" />
+              </div>
+              <div class="slot-card-footer">
+                <div class="slot-card-stat-badges">
+                  <span class="slot-badge stat-chip stat-chip--atk" :aria-label="`Attack ${card.stats.atk}`">{{ card.stats.atk }}</span>
+                  <span class="slot-badge stat-chip stat-chip--hp" :aria-label="`Health ${card.stats.hp}`">{{ card.stats.hp }}</span>
+                  <span class="slot-badge stat-chip stat-chip--spd" :aria-label="`Speed ${card.stats.speed ?? 0}`">{{ card.stats.speed ?? 0 }}</span>
+                  <span class="slot-badge" :title="`${props.abilityLabel(card.ability)}: ${props.abilityDescription(card.ability)}`">
+                    <img class="chip-icon" :src="props.abilityIconPath(card.ability)" alt="" />
+                  </span>
+                </div>
+              </div>
+            </div>
+            <PortraitFrameSvg frame-id="ornate" :tier-class="frameTierClass(props.me.board[idx] as UnitInstance)" scope="unitShopCard" />
           </div>
-          <div class="slot-unit">{{ props.unitQuickMeta(unit) }}</div>
-          <div v-if="unit" class="slot-badge-row">
-            <span class="slot-badge" :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`">
-              <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
-            </span>
-            <span v-for="tag in (unit.tags ?? []).slice(0, 2)" :key="`board-tag-${idx}-${tag}`" class="slot-badge tag">
+          <div class="slot-unit" v-else>{{ props.unitQuickMeta(props.me.board[idx]) }}</div>
+          <div v-if="card && (card.tags.length ?? 0) > 0" class="slot-badge-row">
+            <span v-for="tag in card.tags.slice(0, 2)" :key="`board-tag-${idx}-${tag}`" class="slot-badge tag">
               {{ shortSynergyLabel(tag) }}
             </span>
           </div>
@@ -148,21 +170,21 @@ onBeforeUnmount(() => {
       </header>
       <div class="slot-row bench-row">
         <div
-          v-for="(unit, idx) in props.me.bench"
+          v-for="(card, idx) in benchCards"
           :key="`bench-${idx}`"
           class="slot bench-slot"
           draggable="true"
           @dragstart="emit('dragstart', 'bench', idx)"
           @dragover.prevent
           @drop="emit('drop', 'bench', idx)"
-          @mouseenter="onSlotHover(unit, $event)"
-          @mousemove="onSlotHover(unit, $event)"
-          @focusin="onSlotHover(unit, $event)"
+          @mouseenter="onSlotHover(props.me.bench[idx], $event)"
+          @mousemove="onSlotHover(props.me.bench[idx], $event)"
+          @focusin="onSlotHover(props.me.bench[idx], $event)"
           @mouseleave="onSlotLeave"
         >
-          <div class="slot-title">{{ t("game.benchSlot", { index: idx + 1 }) }}</div>
+          <div v-if="!card" class="slot-title">{{ t("game.benchSlot", { index: idx + 1 }) }}</div>
           <button
-            v-if="unit && props.isBuyPhase"
+            v-if="card && props.isBuyPhase"
             class="slot-sell-icon"
             :title="t('game.sell1')"
             :aria-label="t('game.sell1')"
@@ -171,15 +193,27 @@ onBeforeUnmount(() => {
             <img class="chip-icon" :src="props.statGoldIcon" alt="" />
             +1
           </button>
-          <div v-if="unit" class="portrait-slot portrait-slot-mini" :style="backplateStyle(props.unitBackplatePath(unit.unitId))">
-            <img class="portrait-image" :src="props.unitPortraitPath(unit.unitId)" :alt="unit.name" loading="lazy" />
+          <div v-if="card" class="unit-card-chrome slot-card-chrome">
+            <div class="unit-card-chrome__content slot-card-content">
+              <div class="portrait-slot portrait-slot-mini portrait-slot--svg-frame" :style="backplateStyle(props.unitBackplatePath(card.portraitUnitId))">
+                <img class="portrait-image" :src="props.unitPortraitPath(card.portraitUnitId)" :alt="card.name" loading="lazy" />
+              </div>
+              <div class="slot-card-footer">
+                <div class="slot-card-stat-badges">
+                  <span class="slot-badge stat-chip stat-chip--atk" :aria-label="`Attack ${card.stats.atk}`">{{ card.stats.atk }}</span>
+                  <span class="slot-badge stat-chip stat-chip--hp" :aria-label="`Health ${card.stats.hp}`">{{ card.stats.hp }}</span>
+                  <span class="slot-badge stat-chip stat-chip--spd" :aria-label="`Speed ${card.stats.speed ?? 0}`">{{ card.stats.speed ?? 0 }}</span>
+                  <span class="slot-badge" :title="`${props.abilityLabel(card.ability)}: ${props.abilityDescription(card.ability)}`">
+                    <img class="chip-icon" :src="props.abilityIconPath(card.ability)" alt="" />
+                  </span>
+                </div>
+              </div>
+            </div>
+            <PortraitFrameSvg frame-id="ornate" :tier-class="frameTierClass(props.me.bench[idx] as UnitInstance)" scope="unitShopCard" />
           </div>
-          <div class="slot-unit">{{ props.unitQuickMeta(unit) }}</div>
-          <div v-if="unit" class="slot-badge-row">
-            <span class="slot-badge" :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`">
-              <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
-            </span>
-            <span v-for="tag in (unit.tags ?? []).slice(0, 2)" :key="`bench-tag-${idx}-${tag}`" class="slot-badge tag">
+          <div class="slot-unit" v-else>{{ props.unitQuickMeta(props.me.bench[idx]) }}</div>
+          <div v-if="card && (card.tags.length ?? 0) > 0" class="slot-badge-row">
+            <span v-for="tag in card.tags.slice(0, 2)" :key="`bench-tag-${idx}-${tag}`" class="slot-badge tag">
               {{ shortSynergyLabel(tag) }}
             </span>
           </div>

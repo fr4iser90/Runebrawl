@@ -4,6 +4,7 @@ import type { AbilityKey, HeroDefinition, MatchPublicState, SynergyKey, UnitDefi
 import { useI18n } from "../../../i18n/useI18n";
 import PortraitFrameSvg from "../../shared/PortraitFrameSvg.vue";
 import { shopDensityClass } from "../layoutDensity";
+import { unitCardFromDefinition } from "../cards/unitCardVm";
 
 interface PlayerView {
   gold: number;
@@ -19,17 +20,6 @@ interface PlayerView {
   heroOptions: HeroDefinition[];
   shop: (UnitDefinition | null)[];
   lockedShop: boolean;
-}
-
-interface HoverPreviewUnit {
-  id: string;
-  name: string;
-  role: UnitDefinition["role"];
-  tier: number;
-  attack: number;
-  hp: number;
-  speed: number;
-  ability: AbilityKey;
 }
 
 const props = defineProps<{
@@ -105,21 +95,14 @@ const hoveredShopUnitId = ref<string | null>(null);
 const previewCursor = ref<{ x: number; y: number } | null>(null);
 let hoverPreviewTimer: number | null = null;
 
-const hoveredShopUnit = computed<HoverPreviewUnit | null>(() => {
+const shopCards = computed(() =>
+  props.me.shop.map((unit) => (unit ? unitCardFromDefinition(unit, "shop", { cost: 3, canBuy: props.isBuyPhase }) : null))
+);
+
+const hoveredShopUnit = computed(() => {
   const activeId = hoveredShopUnitId.value;
   if (!activeId) return null;
-  const unit = props.me.shop.find((u): u is UnitDefinition => !!u && u.id === activeId) ?? null;
-  if (!unit) return null;
-  return {
-    id: unit.id,
-    name: unit.name,
-    role: unit.role,
-    tier: unit.tier,
-    attack: unit.attack,
-    hp: unit.hp,
-    speed: unit.speed,
-    ability: unit.ability
-  };
+  return shopCards.value.find((u) => !!u && u.id === activeId) ?? null;
 });
 const shopPreviewStyle = computed<Record<string, string> | undefined>(() => {
   if (!props.bottomOnly || !previewCursor.value || typeof window === "undefined") return undefined;
@@ -141,14 +124,14 @@ const shopPreviewStyle = computed<Record<string, string> | undefined>(() => {
   };
 });
 
-function onShopCardHover(unit: UnitDefinition | null, event?: Event): void {
-  if (!unit) return;
+function onShopCardHover(unitId: string | null, event?: Event): void {
+  if (!unitId) return;
   if (event instanceof MouseEvent) {
     previewCursor.value = { x: event.clientX, y: event.clientY };
   }
   if (hoverPreviewTimer !== null) window.clearTimeout(hoverPreviewTimer);
   hoverPreviewTimer = window.setTimeout(() => {
-    hoveredShopUnitId.value = unit.id;
+    hoveredShopUnitId.value = unitId;
     hoverPreviewTimer = null;
   }, 140);
 }
@@ -263,57 +246,60 @@ onBeforeUnmount(() => {
     </div>
     <div v-if="!props.isHeroSelection" class="shop-row">
       <div
-        v-for="(unit, idx) in props.me.shop"
+        v-for="(card, idx) in shopCards"
         :key="idx"
         class="shop-card"
-        :class="[props.unitTierClass(unit), { 'anim-buy-pop': props.animatingShopIndex === idx }]"
-        @mouseenter="onShopCardHover(unit, $event)"
-        @mousemove="onShopCardHover(unit, $event)"
-        @focusin="onShopCardHover(unit, $event)"
+        :class="[props.unitTierClass(card ? (props.me.shop[idx] as UnitDefinition) : null), { 'anim-buy-pop': props.animatingShopIndex === idx }]"
+        @mouseenter="onShopCardHover(card?.id ?? null, $event)"
+        @mousemove="onShopCardHover(card?.id ?? null, $event)"
+        @focusin="onShopCardHover(card?.id ?? null, $event)"
         @mouseleave="onShopCardLeave"
       >
-        <div v-if="unit" class="unit-card-chrome">
+        <div v-if="card" class="unit-card-chrome">
           <div class="unit-card-chrome__content">
-            <div class="portrait-slot portrait-slot-unit portrait-slot--svg-frame" :style="backplateStyle(props.unitBackplatePath(unit.id))">
-              <img class="portrait-image portrait-image-contain" :src="props.unitPortraitPath(unit.id)" :alt="unit.name" loading="lazy" />
+            <div class="portrait-slot portrait-slot-unit portrait-slot--svg-frame" :style="backplateStyle(props.unitBackplatePath(card.portraitUnitId))">
+              <img class="portrait-image portrait-image-contain" :src="props.unitPortraitPath(card.portraitUnitId)" :alt="card.name" loading="lazy" />
             </div>
             <div class="unit-name">
-              <img class="unit-icon" :src="props.roleIconPath(unit.role)" alt="" />
-              <span>{{ unit.name }}</span>
+              <img class="unit-icon" :src="props.roleIconPath(card.role)" alt="" />
+              <span>{{ card.name }}</span>
             </div>
             <div class="unit-meta">
-              <span class="meta-chip">T{{ unit.tier }}</span>
+              <span class="meta-chip">T{{ card.tier }}</span>
               <span class="meta-chip">
-                <img class="chip-icon" :src="props.roleIconPath(unit.role)" alt="" />
-                {{ unit.role }}
+                <img class="chip-icon" :src="props.roleIconPath(card.role)" alt="" />
+                {{ card.role }}
               </span>
+              <span class="meta-chip stat-chip stat-chip--atk" :aria-label="`Attack ${card.stats.atk}`">{{ card.stats.atk }}</span>
+              <span class="meta-chip stat-chip stat-chip--hp" :aria-label="`Health ${card.stats.hp}`">{{ card.stats.hp }}</span>
+              <span class="meta-chip stat-chip stat-chip--spd" :aria-label="`Speed ${card.stats.speed ?? 0}`">{{ card.stats.speed ?? 0 }}</span>
               <span
                 v-if="!props.bottomOnly"
                 class="meta-chip"
-                :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`"
+                :title="`${props.abilityLabel(card.ability)}: ${props.abilityDescription(card.ability)}`"
               >
-                <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
-                {{ props.abilityLabel(unit.ability) }}
+                <img class="chip-icon" :src="props.abilityIconPath(card.ability)" alt="" />
+                {{ props.abilityLabel(card.ability) }}
               </span>
               <span
                 v-if="!props.bottomOnly"
-                v-for="tag in unit.tags ?? []"
-                :key="`shop-tag-${unit.id}-${tag}`"
+                v-for="tag in card.tags"
+                :key="`shop-tag-${card.id}-${tag}`"
                 class="meta-chip tag-chip"
                 :title="`${props.synergyLabel(tag)}: ${props.synergyDescription(tag)}`"
               >
                 {{ props.synergyLabel(tag) }}
               </span>
-              <div v-if="!props.bottomOnly" class="unit-meta-line">{{ t("game.unitMeta", { attack: unit.attack, hp: unit.hp, speed: unit.speed }) }}</div>
+              <div v-if="!props.bottomOnly" class="unit-meta-line">{{ t("game.unitMeta", { attack: card.stats.atk, hp: card.stats.hp, speed: card.stats.speed ?? 0 }) }}</div>
             </div>
           </div>
-          <PortraitFrameSvg frame-id="ornate" :tier-class="frameTierClass(unit)" scope="unitShopCard" />
+          <PortraitFrameSvg frame-id="ornate" :tier-class="frameTierClass(props.me.shop[idx] as UnitDefinition)" scope="unitShopCard" />
         </div>
         <div class="unit-name" v-else>{{ t("game.soldOut") }}</div>
         <button
           class="cta-primary"
           :class="{ 'cta-next': props.tutorialStepKey === 'buy' && idx === firstBuyableShopIndex }"
-          :disabled="!props.isBuyPhase || !unit"
+          :disabled="!props.isBuyPhase || !card"
           @click="emit('buy', idx)"
         >
           {{ t("game.buy3") }}
@@ -322,10 +308,10 @@ onBeforeUnmount(() => {
     </div>
     <aside v-if="props.bottomOnly && hoveredShopUnit" class="shop-hover-preview" :style="shopPreviewStyle">
       <div class="shop-hover-preview-title">{{ hoveredShopUnit.name }}</div>
-      <div class="shop-hover-preview-portrait" :style="backplateStyle(props.unitBackplatePath(hoveredShopUnit.id))">
+      <div class="shop-hover-preview-portrait" :style="backplateStyle(props.unitBackplatePath(hoveredShopUnit.portraitUnitId))">
         <img
           class="portrait-image portrait-image-contain"
-          :src="props.unitPortraitPath(hoveredShopUnit.id)"
+          :src="props.unitPortraitPath(hoveredShopUnit.portraitUnitId)"
           :alt="hoveredShopUnit.name"
           loading="lazy"
         />
@@ -337,7 +323,7 @@ onBeforeUnmount(() => {
           {{ hoveredShopUnit.role }}
         </span>
       </div>
-      <div class="shop-hover-preview-stats">{{ t("game.unitMeta", { attack: hoveredShopUnit.attack, hp: hoveredShopUnit.hp, speed: hoveredShopUnit.speed }) }}</div>
+      <div class="shop-hover-preview-stats">{{ t("game.unitMeta", { attack: hoveredShopUnit.stats.atk, hp: hoveredShopUnit.stats.hp, speed: hoveredShopUnit.stats.speed ?? 0 }) }}</div>
       <div class="shop-hover-preview-ability">
         <img class="chip-icon" :src="props.abilityIconPath(hoveredShopUnit.ability)" alt="" />
         <span>{{ props.abilityLabel(hoveredShopUnit.ability) }}</span>
