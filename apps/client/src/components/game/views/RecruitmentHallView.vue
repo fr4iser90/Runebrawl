@@ -102,14 +102,13 @@ const upgradeButtonText = computed(() => {
 });
 
 const hoveredShopUnitId = ref<string | null>(null);
-const lockedShopUnitId = ref<string | null>(null);
+const previewCursor = ref<{ x: number; y: number } | null>(null);
+let hoverPreviewTimer: number | null = null;
 
 const hoveredShopUnit = computed<HoverPreviewUnit | null>(() => {
-  const activeId = lockedShopUnitId.value ?? hoveredShopUnitId.value;
-  const explicit = activeId
-    ? props.me.shop.find((u): u is UnitDefinition => !!u && u.id === activeId) ?? null
-    : null;
-  const unit = explicit ?? (props.me.shop.find((u): u is UnitDefinition => !!u) ?? null);
+  const activeId = hoveredShopUnitId.value;
+  if (!activeId) return null;
+  const unit = props.me.shop.find((u): u is UnitDefinition => !!u && u.id === activeId) ?? null;
   if (!unit) return null;
   return {
     id: unit.id,
@@ -122,28 +121,45 @@ const hoveredShopUnit = computed<HoverPreviewUnit | null>(() => {
     ability: unit.ability
   };
 });
-const isPreviewLocked = computed(() => !!lockedShopUnitId.value && lockedShopUnitId.value === hoveredShopUnit.value?.id);
+const shopPreviewStyle = computed<Record<string, string> | undefined>(() => {
+  if (!props.bottomOnly || !previewCursor.value || typeof window === "undefined") return undefined;
+  const panelWidth = 260;
+  const panelHeight = 320;
+  const offset = 16;
+  const pad = 8;
+  const placeRight = previewCursor.value.x + offset + panelWidth <= window.innerWidth - pad;
+  const placeBelow = previewCursor.value.y + offset + panelHeight <= window.innerHeight - pad;
 
-function onShopCardHover(unit: UnitDefinition | null): void {
-  if (!unit || lockedShopUnitId.value) return;
-  hoveredShopUnitId.value = unit.id;
+  const desiredLeft = placeRight ? previewCursor.value.x + offset : previewCursor.value.x - panelWidth - offset;
+  const desiredTop = placeBelow ? previewCursor.value.y + offset : previewCursor.value.y - panelHeight - offset;
+
+  const left = Math.min(window.innerWidth - panelWidth - pad, Math.max(pad, desiredLeft));
+  const top = Math.min(window.innerHeight - panelHeight - pad, Math.max(pad, desiredTop));
+  return {
+    left: `${left}px`,
+    top: `${top}px`
+  };
+});
+
+function onShopCardHover(unit: UnitDefinition | null, event?: Event): void {
+  if (!unit) return;
+  if (event instanceof MouseEvent) {
+    previewCursor.value = { x: event.clientX, y: event.clientY };
+  }
+  if (hoverPreviewTimer !== null) window.clearTimeout(hoverPreviewTimer);
+  hoverPreviewTimer = window.setTimeout(() => {
+    hoveredShopUnitId.value = unit.id;
+    hoverPreviewTimer = null;
+  }, 140);
 }
 
 function onShopCardLeave(): void {
-  if (lockedShopUnitId.value) return;
+  if (hoverPreviewTimer !== null) {
+    window.clearTimeout(hoverPreviewTimer);
+    hoverPreviewTimer = null;
+  }
   hoveredShopUnitId.value = null;
-}
-
-function onShopCardInspect(unit: UnitDefinition | null, event: MouseEvent): void {
-  if (!props.bottomOnly || !unit) return;
-  const target = event.target as HTMLElement | null;
-  if (target?.closest("button")) return;
-  lockedShopUnitId.value = lockedShopUnitId.value === unit.id ? null : unit.id;
-  hoveredShopUnitId.value = unit.id;
-}
-
-function clearLockedPreview(): void {
-  lockedShopUnitId.value = null;
+  previewCursor.value = null;
 }
 
 function frameTierClass(unit: UnitDefinition): "tier-low" | "tier-mid" | "tier-high" {
@@ -187,6 +203,10 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  if (hoverPreviewTimer !== null) {
+    window.clearTimeout(hoverPreviewTimer);
+    hoverPreviewTimer = null;
+  }
   window.removeEventListener("keydown", onKeydown);
 });
 </script>
@@ -247,10 +267,10 @@ onBeforeUnmount(() => {
         :key="idx"
         class="shop-card"
         :class="[props.unitTierClass(unit), { 'anim-buy-pop': props.animatingShopIndex === idx }]"
-        @mouseenter="onShopCardHover(unit)"
-        @focusin="onShopCardHover(unit)"
+        @mouseenter="onShopCardHover(unit, $event)"
+        @mousemove="onShopCardHover(unit, $event)"
+        @focusin="onShopCardHover(unit, $event)"
         @mouseleave="onShopCardLeave"
-        @click="onShopCardInspect(unit, $event)"
       >
         <div v-if="unit" class="unit-card-chrome">
           <div class="unit-card-chrome__content">
@@ -300,8 +320,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </div>
-    <aside v-if="props.bottomOnly && hoveredShopUnit" class="shop-hover-preview">
-      <button v-if="isPreviewLocked" class="shop-hover-preview-close" @click="clearLockedPreview">x</button>
+    <aside v-if="props.bottomOnly && hoveredShopUnit" class="shop-hover-preview" :style="shopPreviewStyle">
       <div class="shop-hover-preview-title">{{ hoveredShopUnit.name }}</div>
       <div class="shop-hover-preview-portrait" :style="backplateStyle(props.unitBackplatePath(hoveredShopUnit.id))">
         <img

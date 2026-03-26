@@ -217,9 +217,7 @@
 }
 
 .shop-hover-preview {
-  position: absolute;
-  right: 10px;
-  top: 10px;
+  position: fixed;
   width: clamp(180px, 19vw, 260px);
   z-index: 30;
   pointer-events: auto;

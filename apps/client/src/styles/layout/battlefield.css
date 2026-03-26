@@ -76,6 +76,8 @@
   min-height: 0;
   padding: 8px;
   background: #202844;
+  position: relative;
+  overflow: hidden;
 }
 
 .bench-slot {
@@ -97,6 +99,116 @@
 .board .portrait-slot-mini .portrait-image {
   object-fit: contain;
   object-position: center center;
+}
+
+.board .portrait-slot-mini {
+  border: 1px solid rgba(210, 171, 96, 0.62);
+  border-radius: 8px;
+  background: rgba(21, 28, 49, 0.82);
+}
+
+.slot-badge-row {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  display: inline-flex;
+  gap: 3px;
+  z-index: 3;
+}
+
+.slot-badge {
+  min-height: 16px;
+  min-width: 16px;
+  padding: 1px 3px;
+  border-radius: 999px;
+  border: 1px solid rgba(126, 149, 201, 0.7);
+  background: rgba(18, 29, 53, 0.9);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.slot-badge.tag {
+  border-color: rgba(191, 160, 94, 0.72);
+  color: #f0ddb4;
+}
+
+.slot-sell-icon {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  z-index: 4;
+  min-height: 18px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(193, 157, 92, 0.84);
+  background: rgba(58, 42, 19, 0.84);
+  color: #f2dfb4;
+  font-size: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 120ms ease, transform 120ms ease, filter 120ms ease;
+}
+
+.slot:hover .slot-sell-icon,
+.slot:focus-within .slot-sell-icon {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.slot-sell-icon:hover {
+  filter: brightness(1.08);
+}
+
+.board-hover-preview {
+  position: fixed;
+  width: clamp(180px, 18vw, 260px);
+  z-index: 36;
+  pointer-events: none;
+  border: 1px solid rgba(212, 168, 90, 0.55);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(15, 22, 39, 0.96), rgba(12, 18, 33, 0.96));
+  box-shadow: 0 10px 24px rgba(5, 8, 16, 0.45);
+  padding: 8px;
+}
+
+.board-hover-preview-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.board-hover-preview-portrait {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid rgba(125, 148, 204, 0.45);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(20, 28, 49, 0.75);
+}
+
+.board-hover-preview-meta {
+  margin-top: 6px;
+}
+
+.board-hover-preview-ability {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.board-hover-preview-tags {
+  margin-top: 6px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
 .board-zone .slot {
@@ -238,6 +350,12 @@
 
   .bench-zone .slot button {
     display: none;
+  }
+
+  .slot-sell-icon {
+    min-height: 16px;
+    font-size: 8px;
+    padding: 1px 4px;
   }
 
   .bench-zone .slot {

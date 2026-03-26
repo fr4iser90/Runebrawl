@@ -1577,6 +1577,7 @@ onMounted(() => {
                     :me="me"
                     :is-buy-phase="isBuyPhase"
                     :tutorial-step-key="tutorialStepKey"
+                    :stat-gold-icon="statGoldIcon"
                     :unit-portrait-path="unitPortraitPath"
                     :unit-backplate-path="unitPortraitBackplatePath"
                     :unit-quick-meta="unitQuickMeta"

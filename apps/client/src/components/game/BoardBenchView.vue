@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import type { SynergyKey, UnitInstance } from "@runebrawl/shared";
 import { useI18n } from "../../i18n/useI18n";
 import { benchDensityClass as densityClassForBench } from "./layoutDensity";
@@ -13,6 +13,7 @@ const props = defineProps<{
   me: MeView;
   isBuyPhase: boolean;
   tutorialStepKey: "hero" | "buy" | "move" | "ready" | "watch" | null;
+  statGoldIcon: string;
   unitPortraitPath: (unitId: string) => string;
   unitBackplatePath: (unitId: string) => string | null;
   unitQuickMeta: (unit: UnitInstance | null) => string;
@@ -40,6 +41,58 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const benchDensityClass = computed(() => densityClassForBench(props.me.bench.length));
+const hoveredUnit = ref<UnitInstance | null>(null);
+const hoverCursor = ref<{ x: number; y: number } | null>(null);
+let hoverTimer: number | null = null;
+
+const boardPreviewStyle = computed<Record<string, string> | undefined>(() => {
+  if (!hoverCursor.value || typeof window === "undefined") return undefined;
+  const panelWidth = 260;
+  const panelHeight = 320;
+  const offset = 14;
+  const pad = 8;
+  const placeRight = hoverCursor.value.x + offset + panelWidth <= window.innerWidth - pad;
+  const placeBelow = hoverCursor.value.y + offset + panelHeight <= window.innerHeight - pad;
+
+  const desiredLeft = placeRight ? hoverCursor.value.x + offset : hoverCursor.value.x - panelWidth - offset;
+  const desiredTop = placeBelow ? hoverCursor.value.y + offset : hoverCursor.value.y - panelHeight - offset;
+
+  const left = Math.min(window.innerWidth - panelWidth - pad, Math.max(pad, desiredLeft));
+  const top = Math.min(window.innerHeight - panelHeight - pad, Math.max(pad, desiredTop));
+  return { left: `${left}px`, top: `${top}px` };
+});
+
+function shortSynergyLabel(synergy: SynergyKey): string {
+  return props.synergyLabel(synergy).slice(0, 3).toUpperCase();
+}
+
+function onSlotHover(unit: UnitInstance | null, event?: Event): void {
+  if (!unit) return;
+  if (event instanceof MouseEvent) {
+    hoverCursor.value = { x: event.clientX, y: event.clientY };
+  }
+  if (hoverTimer !== null) window.clearTimeout(hoverTimer);
+  hoverTimer = window.setTimeout(() => {
+    hoveredUnit.value = unit;
+    hoverTimer = null;
+  }, 140);
+}
+
+function onSlotLeave(): void {
+  if (hoverTimer !== null) {
+    window.clearTimeout(hoverTimer);
+    hoverTimer = null;
+  }
+  hoveredUnit.value = null;
+  hoverCursor.value = null;
+}
+
+onBeforeUnmount(() => {
+  if (hoverTimer !== null) {
+    window.clearTimeout(hoverTimer);
+    hoverTimer = null;
+  }
+});
 </script>
 
 <template>
@@ -57,24 +110,34 @@ const benchDensityClass = computed(() => densityClassForBench(props.me.bench.len
           @dragstart="emit('dragstart', 'board', idx)"
           @dragover.prevent
           @drop="emit('drop', 'board', idx)"
+          @mouseenter="onSlotHover(unit, $event)"
+          @mousemove="onSlotHover(unit, $event)"
+          @focusin="onSlotHover(unit, $event)"
+          @mouseleave="onSlotLeave"
         >
           <div class="slot-title">{{ t("game.boardSlot", { index: idx + 1 }) }}</div>
+          <button
+            v-if="unit && props.isBuyPhase"
+            class="slot-sell-icon"
+            :title="t('game.sell1')"
+            :aria-label="t('game.sell1')"
+            @click="emit('sell', 'board', idx)"
+          >
+            <img class="chip-icon" :src="props.statGoldIcon" alt="" />
+            +1
+          </button>
           <div v-if="unit" class="portrait-slot portrait-slot-mini" :style="backplateStyle(props.unitBackplatePath(unit.unitId))">
             <img class="portrait-image" :src="props.unitPortraitPath(unit.unitId)" :alt="unit.name" loading="lazy" />
           </div>
           <div class="slot-unit">{{ props.unitQuickMeta(unit) }}</div>
-          <div
-            v-if="unit"
-            class="slot-mini-meta"
-            :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`"
-          >
-            <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
-            {{ props.abilityLabel(unit.ability) }}
+          <div v-if="unit" class="slot-badge-row">
+            <span class="slot-badge" :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`">
+              <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
+            </span>
+            <span v-for="tag in (unit.tags ?? []).slice(0, 2)" :key="`board-tag-${idx}-${tag}`" class="slot-badge tag">
+              {{ shortSynergyLabel(tag) }}
+            </span>
           </div>
-          <div v-if="unit && (unit.tags?.length ?? 0) > 0" class="slot-mini-meta">
-            {{ (unit.tags ?? []).map((s) => props.synergyLabel(s)).join(" • ") }}
-          </div>
-          <button v-if="unit && props.isBuyPhase" @click="emit('sell', 'board', idx)">{{ t("game.sell1") }}</button>
         </div>
       </div>
     </section>
@@ -92,26 +155,52 @@ const benchDensityClass = computed(() => densityClassForBench(props.me.bench.len
           @dragstart="emit('dragstart', 'bench', idx)"
           @dragover.prevent
           @drop="emit('drop', 'bench', idx)"
+          @mouseenter="onSlotHover(unit, $event)"
+          @mousemove="onSlotHover(unit, $event)"
+          @focusin="onSlotHover(unit, $event)"
+          @mouseleave="onSlotLeave"
         >
           <div class="slot-title">{{ t("game.benchSlot", { index: idx + 1 }) }}</div>
+          <button
+            v-if="unit && props.isBuyPhase"
+            class="slot-sell-icon"
+            :title="t('game.sell1')"
+            :aria-label="t('game.sell1')"
+            @click="emit('sell', 'bench', idx)"
+          >
+            <img class="chip-icon" :src="props.statGoldIcon" alt="" />
+            +1
+          </button>
           <div v-if="unit" class="portrait-slot portrait-slot-mini" :style="backplateStyle(props.unitBackplatePath(unit.unitId))">
             <img class="portrait-image" :src="props.unitPortraitPath(unit.unitId)" :alt="unit.name" loading="lazy" />
           </div>
           <div class="slot-unit">{{ props.unitQuickMeta(unit) }}</div>
-          <div
-            v-if="unit"
-            class="slot-mini-meta"
-            :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`"
-          >
-            <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
-            {{ props.abilityLabel(unit.ability) }}
+          <div v-if="unit" class="slot-badge-row">
+            <span class="slot-badge" :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`">
+              <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
+            </span>
+            <span v-for="tag in (unit.tags ?? []).slice(0, 2)" :key="`bench-tag-${idx}-${tag}`" class="slot-badge tag">
+              {{ shortSynergyLabel(tag) }}
+            </span>
           </div>
-          <div v-if="unit && (unit.tags?.length ?? 0) > 0" class="slot-mini-meta">
-            {{ (unit.tags ?? []).map((s) => props.synergyLabel(s)).join(" • ") }}
-          </div>
-          <button v-if="unit && props.isBuyPhase" @click="emit('sell', 'bench', idx)">{{ t("game.sell1") }}</button>
         </div>
       </div>
     </section>
+    <aside v-if="hoveredUnit" class="board-hover-preview" :style="boardPreviewStyle">
+      <div class="board-hover-preview-title">{{ hoveredUnit.name }}</div>
+      <div class="board-hover-preview-portrait" :style="backplateStyle(props.unitBackplatePath(hoveredUnit.unitId))">
+        <img class="portrait-image portrait-image-contain" :src="props.unitPortraitPath(hoveredUnit.unitId)" :alt="hoveredUnit.name" loading="lazy" />
+      </div>
+      <div class="board-hover-preview-meta">
+        <span class="meta-chip">{{ props.unitQuickMeta(hoveredUnit) }}</span>
+      </div>
+      <div class="board-hover-preview-ability">
+        <img class="chip-icon" :src="props.abilityIconPath(hoveredUnit.ability)" alt="" />
+        <span>{{ props.abilityLabel(hoveredUnit.ability) }}</span>
+      </div>
+      <div v-if="(hoveredUnit.tags?.length ?? 0) > 0" class="board-hover-preview-tags">
+        <span v-for="tag in hoveredUnit.tags ?? []" :key="`hover-tag-${tag}`" class="meta-chip tag-chip">{{ props.synergyLabel(tag) }}</span>
+      </div>
+    </aside>
   </section>
 </template>
