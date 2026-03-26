@@ -7,6 +7,8 @@
   border-radius: 12px;
   padding: 12px;
   background: #1a2033;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .hall-header {
@@ -44,10 +46,14 @@
 .tavern.tavern-bottom-only .shop-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
   gap: 8px;
   align-items: start;
   overflow: hidden;
   padding-bottom: 0;
+  margin-bottom: 0;
+  min-height: 0;
+  height: 100%;
 }
 
 .tavern.tavern-bottom-only {
@@ -55,16 +61,21 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .tavern.tavern-bottom-only .shop-card {
   min-width: 0;
   max-width: none;
-  min-height: clamp(152px, 21vh, 210px);
-  max-height: clamp(172px, 24vh, 238px);
-  height: auto;
+  min-height: 0;
+  max-height: none;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   align-self: start;
   padding: 6px;
+  overflow: hidden;
 }
 
 .tavern.tavern-bottom-only.tavern-density-roomy .shop-row {
@@ -72,8 +83,8 @@
 }
 
 .tavern.tavern-bottom-only.tavern-density-roomy .shop-card {
-  min-height: clamp(164px, 23vh, 220px);
-  max-height: clamp(186px, 26vh, 244px);
+  min-height: 0;
+  max-height: none;
 }
 
 .tavern.tavern-bottom-only.tavern-density-dense .shop-row {
@@ -82,14 +93,14 @@
 }
 
 .tavern.tavern-bottom-only.tavern-density-dense .shop-card {
-  min-height: clamp(138px, 19vh, 178px);
-  max-height: clamp(156px, 21vh, 196px);
+  min-height: 0;
+  max-height: none;
   padding: 5px;
 }
 
 .tavern.tavern-bottom-only.tavern-density-dense .portrait-slot-unit {
-  min-height: 64px;
-  max-height: 96px;
+  min-height: 0;
+  max-height: 55%;
 }
 
 .tavern.tavern-bottom-only.tavern-density-dense .unit-name {
@@ -109,9 +120,9 @@
 }
 
 .tavern.tavern-bottom-only.tavern-density-stacked .shop-card {
-  flex: 0 0 clamp(122px, 12vw, 164px);
-  min-height: clamp(132px, 18.5vh, 170px);
-  max-height: clamp(150px, 21vh, 188px);
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
   margin-left: -56px;
   transition: transform 140ms ease, filter 140ms ease;
 }
@@ -127,8 +138,8 @@
 }
 
 .tavern.tavern-bottom-only.tavern-density-stacked .portrait-slot-unit {
-  min-height: 62px;
-  max-height: 88px;
+  min-height: 0;
+  max-height: 55%;
 }
 
 .tavern.tavern-bottom-only.tavern-density-stacked .unit-name {
@@ -142,13 +153,18 @@
 .tavern.tavern-bottom-only .unit-card-chrome__content {
   padding: 6px 7px 7px;
   gap: 4px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .tavern.tavern-bottom-only .portrait-slot-unit {
   aspect-ratio: 4 / 3;
-  height: auto;
-  min-height: 84px;
-  max-height: 128px;
+  height: 58%;
+  flex: 0 0 58%;
+  min-height: 0;
+  max-height: none;
   margin-bottom: 4px;
 }
 
@@ -180,6 +196,7 @@
   min-height: 28px;
   padding: 4px 6px;
   font-size: 12px;
+  margin-top: auto;
 }
 
 .tavern.tavern-bottom-only .unit-card-chrome__content {
@@ -190,6 +207,13 @@
   margin-top: 2px;
   padding-top: 6px;
   border-top: 1px solid rgba(90, 112, 168, 0.28);
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tavern.tavern-bottom-only .shop-row {
+  flex: 1 1 auto;
 }
 
 .shop-hover-preview {
@@ -252,6 +276,19 @@
   font-size: 11px;
 }
 
+/* Keep bottom shop inside its zone in tavern/positioning phases. */
+.phase-tavern .tavern.tavern-bottom-only .shop-card,
+.phase-positioning .tavern.tavern-bottom-only .shop-card {
+  min-height: 0;
+  max-height: none;
+}
+
+.phase-tavern .tavern.tavern-bottom-only .portrait-slot-unit,
+.phase-positioning .tavern.tavern-bottom-only .portrait-slot-unit {
+  min-height: 0;
+  max-height: 55%;
+}
+
 @media (max-height: 900px) {
   .tavern.tavern-bottom-only {
     gap: 6px;
@@ -262,8 +299,8 @@
   }
 
   .tavern.tavern-bottom-only .shop-card {
-    min-height: clamp(142px, 20vh, 190px);
-    max-height: clamp(158px, 22vh, 208px);
+    min-height: 0;
+    max-height: none;
   }
 
   .tavern.tavern-bottom-only.tavern-density-roomy .shop-row {
@@ -275,10 +312,10 @@
   }
 
   .tavern.tavern-bottom-only.tavern-density-stacked .shop-card {
-    flex-basis: clamp(112px, 11vw, 146px);
+    flex-basis: auto;
     margin-left: -62px;
-    min-height: clamp(124px, 17.5vh, 158px);
-    max-height: clamp(138px, 19.5vh, 172px);
+    min-height: 0;
+    max-height: none;
   }
 
   .shop-hover-preview {
@@ -293,22 +330,24 @@
   }
 
   .tavern.tavern-bottom-only .shop-card {
-    min-height: clamp(132px, 18.5vh, 172px);
-    max-height: clamp(146px, 20vh, 186px);
-    padding: 5px;
+    min-height: 0;
+    max-height: none;
+    padding: 4px;
   }
 
   .tavern.tavern-bottom-only .portrait-slot-unit {
-    min-height: 76px;
-    max-height: 110px;
+    min-height: 0;
+    max-height: 55%;
   }
 
   .tavern.tavern-bottom-only .unit-name {
     font-size: 11px;
+    line-height: 1.05;
   }
 
   .tavern.tavern-bottom-only .unit-meta {
     font-size: 10px;
+    line-height: 1.05;
   }
 
   .tavern.tavern-bottom-only.tavern-density-roomy .shop-row {
@@ -320,14 +359,53 @@
   }
 
   .tavern.tavern-bottom-only.tavern-density-stacked .shop-card {
-    flex-basis: clamp(100px, 10vw, 132px);
+    flex-basis: auto;
     margin-left: -68px;
-    min-height: clamp(114px, 16.5vh, 144px);
-    max-height: clamp(128px, 18vh, 160px);
+    min-height: 0;
+    max-height: none;
   }
 
   .shop-hover-preview {
     display: none;
+  }
+}
+
+@media (max-height: 700px) {
+  .tavern.tavern-bottom-only .shop-row {
+    gap: 4px;
+  }
+
+  .tavern.tavern-bottom-only .shop-card {
+    padding: 3px;
+  }
+
+  .tavern.tavern-bottom-only .unit-card-chrome__content {
+    padding: 4px 5px 5px;
+    gap: 3px;
+  }
+
+  .tavern.tavern-bottom-only .portrait-slot-unit {
+    height: 52%;
+    flex-basis: 52%;
+    margin-bottom: 2px;
+  }
+
+  .tavern.tavern-bottom-only .unit-name,
+  .tavern.tavern-bottom-only .unit-meta,
+  .tavern.tavern-bottom-only .unit-meta-line {
+    font-size: 9px;
+    line-height: 1.02;
+  }
+
+  .tavern.tavern-bottom-only .meta-chip {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+
+  .tavern.tavern-bottom-only .shop-card > .cta-primary {
+    min-height: 20px;
+    font-size: 10px;
+    padding: 2px 4px;
   }
 }
 

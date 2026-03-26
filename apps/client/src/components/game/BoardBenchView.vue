@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type { SynergyKey, UnitInstance } from "@runebrawl/shared";
 import { useI18n } from "../../i18n/useI18n";
+import { benchDensityClass as densityClassForBench } from "./layoutDensity";
 
 interface MeView {
   board: (UnitInstance | null)[];
@@ -37,70 +39,79 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const benchDensityClass = computed(() => densityClassForBench(props.me.bench.length));
 </script>
 
 <template>
   <section class="board" :class="{ 'tutorial-move-highlight': props.tutorialStepKey === 'move' }">
-    <h2>{{ t("game.battlefield") }}</h2>
-    <div class="slot-row">
-      <div
-        v-for="(unit, idx) in props.me.board"
-        :key="`board-${idx}`"
-        class="slot"
-        draggable="true"
-        @dragstart="emit('dragstart', 'board', idx)"
-        @dragover.prevent
-        @drop="emit('drop', 'board', idx)"
-      >
-        <div class="slot-title">{{ t("game.boardSlot", { index: idx + 1 }) }}</div>
-        <div v-if="unit" class="portrait-slot portrait-slot-mini" :style="backplateStyle(props.unitBackplatePath(unit.unitId))">
-          <img class="portrait-image" :src="props.unitPortraitPath(unit.unitId)" :alt="unit.name" loading="lazy" />
-        </div>
-        <div class="slot-unit">{{ props.unitQuickMeta(unit) }}</div>
+    <section class="board-zone">
+      <header class="zone-header">
+        <h2>{{ t("game.battlefield") }}</h2>
+      </header>
+      <div class="slot-row board-row">
         <div
-          v-if="unit"
-          class="slot-mini-meta"
-          :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`"
+          v-for="(unit, idx) in props.me.board"
+          :key="`board-${idx}`"
+          class="slot"
+          draggable="true"
+          @dragstart="emit('dragstart', 'board', idx)"
+          @dragover.prevent
+          @drop="emit('drop', 'board', idx)"
         >
-          <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
-          {{ props.abilityLabel(unit.ability) }}
+          <div class="slot-title">{{ t("game.boardSlot", { index: idx + 1 }) }}</div>
+          <div v-if="unit" class="portrait-slot portrait-slot-mini" :style="backplateStyle(props.unitBackplatePath(unit.unitId))">
+            <img class="portrait-image" :src="props.unitPortraitPath(unit.unitId)" :alt="unit.name" loading="lazy" />
+          </div>
+          <div class="slot-unit">{{ props.unitQuickMeta(unit) }}</div>
+          <div
+            v-if="unit"
+            class="slot-mini-meta"
+            :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`"
+          >
+            <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
+            {{ props.abilityLabel(unit.ability) }}
+          </div>
+          <div v-if="unit && (unit.tags?.length ?? 0) > 0" class="slot-mini-meta">
+            {{ (unit.tags ?? []).map((s) => props.synergyLabel(s)).join(" • ") }}
+          </div>
+          <button v-if="unit && props.isBuyPhase" @click="emit('sell', 'board', idx)">{{ t("game.sell1") }}</button>
         </div>
-        <div v-if="unit && (unit.tags?.length ?? 0) > 0" class="slot-mini-meta">
-          {{ (unit.tags ?? []).map((s) => props.synergyLabel(s)).join(" • ") }}
-        </div>
-        <button v-if="unit && props.isBuyPhase" @click="emit('sell', 'board', idx)">{{ t("game.sell1") }}</button>
       </div>
-    </div>
+    </section>
 
-    <h2>{{ t("game.bench") }}</h2>
-    <div class="slot-row">
-      <div
-        v-for="(unit, idx) in props.me.bench"
-        :key="`bench-${idx}`"
-        class="slot bench-slot"
-        draggable="true"
-        @dragstart="emit('dragstart', 'bench', idx)"
-        @dragover.prevent
-        @drop="emit('drop', 'bench', idx)"
-      >
-        <div class="slot-title">{{ t("game.benchSlot", { index: idx + 1 }) }}</div>
-        <div v-if="unit" class="portrait-slot portrait-slot-mini" :style="backplateStyle(props.unitBackplatePath(unit.unitId))">
-          <img class="portrait-image" :src="props.unitPortraitPath(unit.unitId)" :alt="unit.name" loading="lazy" />
-        </div>
-        <div class="slot-unit">{{ props.unitQuickMeta(unit) }}</div>
+    <section class="bench-zone" :class="benchDensityClass">
+      <header class="zone-header">
+        <h2>{{ t("game.bench") }}</h2>
+      </header>
+      <div class="slot-row bench-row">
         <div
-          v-if="unit"
-          class="slot-mini-meta"
-          :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`"
+          v-for="(unit, idx) in props.me.bench"
+          :key="`bench-${idx}`"
+          class="slot bench-slot"
+          draggable="true"
+          @dragstart="emit('dragstart', 'bench', idx)"
+          @dragover.prevent
+          @drop="emit('drop', 'bench', idx)"
         >
-          <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
-          {{ props.abilityLabel(unit.ability) }}
+          <div class="slot-title">{{ t("game.benchSlot", { index: idx + 1 }) }}</div>
+          <div v-if="unit" class="portrait-slot portrait-slot-mini" :style="backplateStyle(props.unitBackplatePath(unit.unitId))">
+            <img class="portrait-image" :src="props.unitPortraitPath(unit.unitId)" :alt="unit.name" loading="lazy" />
+          </div>
+          <div class="slot-unit">{{ props.unitQuickMeta(unit) }}</div>
+          <div
+            v-if="unit"
+            class="slot-mini-meta"
+            :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`"
+          >
+            <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
+            {{ props.abilityLabel(unit.ability) }}
+          </div>
+          <div v-if="unit && (unit.tags?.length ?? 0) > 0" class="slot-mini-meta">
+            {{ (unit.tags ?? []).map((s) => props.synergyLabel(s)).join(" • ") }}
+          </div>
+          <button v-if="unit && props.isBuyPhase" @click="emit('sell', 'bench', idx)">{{ t("game.sell1") }}</button>
         </div>
-        <div v-if="unit && (unit.tags?.length ?? 0) > 0" class="slot-mini-meta">
-          {{ (unit.tags ?? []).map((s) => props.synergyLabel(s)).join(" • ") }}
-        </div>
-        <button v-if="unit && props.isBuyPhase" @click="emit('sell', 'bench', idx)">{{ t("game.sell1") }}</button>
       </div>
-    </div>
+    </section>
   </section>
 </template>

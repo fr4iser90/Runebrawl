@@ -4,8 +4,9 @@
 
 .game-shell {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--rb-shell-top) var(--rb-shell-main) var(--rb-shell-bottom);
+  gap: 0;
   height: 100%;
   min-height: 0;
 }
@@ -13,6 +14,8 @@
 .game-shell-top,
 .game-shell-main,
 .game-shell-bottom {
+  grid-column: 1;
+  box-sizing: border-box;
   border: 1px solid var(--scene-panel-border);
   border-radius: 12px;
   background: #1a2033;
@@ -28,8 +31,8 @@
 
 .game-shell-main {
   display: grid;
-  grid-template-columns: minmax(0, 2.1fr) minmax(280px, 1fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   padding: 10px;
   min-height: 0;
   overflow: hidden;
@@ -44,18 +47,14 @@
   min-width: 0;
 }
 
+.game-shell-right {
+  min-height: 0;
+}
+
 .game-shell-center > .board,
 .game-shell-center > .combat-screen {
   height: 100%;
   margin: 0;
-}
-
-.perspective-mirrored .game-shell-center {
-  order: 2;
-}
-
-.perspective-mirrored .game-shell-right {
-  order: 1;
 }
 
 .game-shell-right > .sidebar {
@@ -67,6 +66,8 @@
 
 .game-shell-bottom {
   padding: 10px;
+  display: flex;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -97,6 +98,69 @@
   border-radius: 10px;
   background: rgba(26, 36, 61, 0.9);
   min-width: 0;
+}
+
+.hero-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border: 1px solid rgba(104, 126, 180, 0.6);
+  border-radius: 10px;
+  background: rgba(26, 36, 61, 0.9);
+  min-width: 0;
+  max-width: min(48vw, 560px);
+}
+
+.hero-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.hero-ability-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.hero-ability-pill {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(108, 135, 196, 0.7);
+  background: rgba(30, 44, 77, 0.85);
+  font-size: 10px;
+  color: #dbe6ff;
+  white-space: nowrap;
+  cursor: pointer;
+  text-align: left;
+}
+
+.hero-ability-pill--passive {
+  border-color: rgba(129, 163, 214, 0.75);
+}
+
+.hero-ability-pill--active {
+  border-color: rgba(212, 173, 99, 0.8);
+  background: rgba(48, 36, 20, 0.84);
+}
+
+.hero-ability-pill--disabled {
+  opacity: 0.6;
+  filter: grayscale(0.2);
+  cursor: default;
+}
+
+.hero-ability-key {
+  font-weight: 700;
+  color: #f0debb;
 }
 
 .hero-hud-portrait {
@@ -163,6 +227,9 @@
   background: transparent;
   padding: 0;
   box-shadow: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
 }
 
 .game-shell-combat-controls {
@@ -184,18 +251,47 @@
 }
 
 .game-shell--shop {
-  grid-template-rows: auto minmax(0, 1fr) minmax(150px, 34vh);
+  grid-template-columns: minmax(0, var(--rb-main-center)) minmax(0, var(--rb-main-rail));
+  grid-template-rows: var(--rb-shell-top) var(--rb-shell-bottom) var(--rb-shell-main);
+}
+
+.game-shell--shop .game-shell-bottom {
+  grid-row: 2;
+}
+
+.game-shell--shop .game-shell-main {
+  grid-row: 3;
+  grid-column: 1;
+}
+
+.game-shell--shop .game-shell-top,
+.game-shell--shop .game-shell-bottom {
+  grid-column: 1;
+}
+
+.game-shell--shop .game-shell-right {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  padding: 10px 10px 10px 6px;
+}
+
+.game-shell--combat {
+  grid-template-columns: minmax(0, var(--rb-main-center)) minmax(0, var(--rb-main-rail));
+}
+
+.game-shell--combat .game-shell-top,
+.game-shell--combat .game-shell-main,
+.game-shell--combat .game-shell-bottom {
+  grid-column: 1;
+}
+
+.game-shell--combat .game-shell-right {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  padding: 10px 10px 10px 6px;
 }
 
 @media (max-height: 900px) {
-  .game-shell {
-    gap: 8px;
-  }
-
-  .game-shell--shop {
-    grid-template-rows: auto minmax(0, 1fr) minmax(120px, 30vh);
-  }
-
   .game-shell-top,
   .game-shell-main,
   .game-shell-bottom {
@@ -215,6 +311,21 @@
     max-width: 130px;
   }
 
+  .hero-container {
+    gap: 6px;
+    max-width: min(52vw, 460px);
+  }
+
+  .hero-ability-section {
+    min-width: 120px;
+    gap: 3px;
+  }
+
+  .hero-ability-pill {
+    font-size: 9px;
+    padding: 1px 6px;
+  }
+
   .game-shell--shop .game-shell-top .stat-pill {
     font-size: 11px;
     padding: 2px 6px;
@@ -232,30 +343,47 @@
     font-size: 12px;
   }
 
-  .game-shell-main {
-    grid-template-columns: minmax(0, 2.35fr) minmax(240px, 0.85fr);
-    gap: 8px;
-  }
+  .game-shell-main { gap: 8px; }
+  .game-shell--shop .game-shell-right { padding: 8px 8px 8px 4px; }
+  .game-shell--combat .game-shell-right { padding: 8px 8px 8px 4px; }
 }
 
 @media (max-height: 820px) {
   .game-shell--shop {
-    grid-template-rows: minmax(0, 1fr) minmax(110px, 28vh);
+    grid-template-rows: var(--rb-shell-bottom) var(--rb-shell-main);
   }
 
   .game-shell--shop .game-shell-top {
     display: none;
   }
 
-  .game-shell-main {
-    grid-template-columns: minmax(0, 2.55fr) minmax(220px, 0.75fr);
-    gap: 6px;
+  .game-shell--shop .game-shell-bottom {
+    grid-row: 1;
   }
+
+  .game-shell--shop .game-shell-main {
+    grid-row: 2;
+  }
+  .game-shell--shop .game-shell-right {
+    grid-row: 1 / 3;
+  }
+  .game-shell--combat .game-shell-right {
+    grid-row: 1 / 4;
+  }
+  .game-shell-main { gap: 6px; }
 }
 
 @media (max-width: 1200px) {
-  .game-shell-main {
+  .game-shell--shop,
+  .game-shell--combat {
     grid-template-columns: 1fr;
+  }
+
+  .game-shell--shop .game-shell-right,
+  .game-shell--combat .game-shell-right {
+    grid-column: 1;
+    grid-row: auto;
+    padding: 0;
   }
 
   .game-shell-right > .sidebar {

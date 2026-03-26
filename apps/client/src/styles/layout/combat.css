@@ -21,15 +21,30 @@
   gap: 12px;
 }
 
-.perspective-vertical .combat-arena {
+.perspective-bottom_top .combat-arena {
   display: flex;
   flex-direction: column-reverse;
 }
 
-.perspective-mirrored .combat-arena {
+.perspective-right_left .combat-arena {
   display: flex;
   flex-direction: row-reverse;
   gap: 12px;
+}
+
+.perspective-corner .combat-arena {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.perspective-corner .combat-side:first-child {
+  align-self: end;
+}
+
+.perspective-corner .combat-side:last-child {
+  align-self: start;
 }
 
 .combat-info-bar {

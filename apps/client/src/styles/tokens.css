@@ -16,4 +16,16 @@
   --rb-danger: #ff7b7b;
   --rb-radius: 10px;
   --rb-shadow-card: 0 6px 18px rgba(8, 12, 24, 0.25);
+
+  /* Shared layout budgets in percentages (single source of truth). */
+  --rb-shell-top: 12%;
+  --rb-shell-main: 64%;
+  --rb-shell-bottom: 24%;
+
+  --rb-main-center: 76%;
+  --rb-main-rail: 24%;
+
+  --rb-shop-zone: 35%;
+  --rb-board-zone: 66%;
+  --rb-bench-zone: 34%;
 }

@@ -73,9 +73,14 @@ const animationSpeed = ref<"slow" | "normal" | "fast">(
   (localStorage.getItem("runebrawl.ui.animationSpeed") as "slow" | "normal" | "fast" | null) ?? "normal"
 );
 const reducedMotion = ref(localStorage.getItem("runebrawl.ui.reducedMotion") === "1");
-const perspectiveMode = ref<"vertical" | "horizontal" | "mirrored">(
-  (localStorage.getItem("runebrawl.ui.perspectiveMode") as "vertical" | "horizontal" | "mirrored" | null) ?? "vertical"
-);
+type PerspectiveMode = "bottom_top" | "left_right" | "right_left" | "corner";
+function normalizePerspectiveMode(raw: string | null): PerspectiveMode {
+  if (raw === "left_right" || raw === "horizontal") return "left_right";
+  if (raw === "right_left" || raw === "mirrored") return "right_left";
+  if (raw === "corner" || raw === "corner_to_corner") return "corner";
+  return "bottom_top";
+}
+const perspectiveMode = ref<PerspectiveMode>(normalizePerspectiveMode(localStorage.getItem("runebrawl.ui.perspectiveMode")));
 const tutorialDismissed = ref(localStorage.getItem("runebrawl.tutorial.dismissed") === "1");
 let clock: number | null = null;
 let combatPlaybackTimer: number | null = null;
@@ -218,10 +223,30 @@ const heroAbilityLabel = computed(() => {
   return key.toLowerCase().replaceAll("_", " ");
 });
 const heroAbilityDescription = computed(() => me.value?.hero?.description ?? t("game.noAbility"));
+const heroPassiveText = computed(() => (me.value?.hero?.powerType === "PASSIVE" ? heroAbilityLabel.value : "None"));
+const heroActiveText = computed(() =>
+  me.value?.hero?.powerType === "ACTIVE" ? `${heroAbilityLabel.value} (${me.value.hero.powerCost}g)` : "None"
+);
+const canUseTopHeroPower = computed(
+  () =>
+    !!me.value?.hero &&
+    me.value.hero.powerType === "ACTIVE" &&
+    isBuyPhase.value &&
+    !me.value.heroPowerUsedThisTurn &&
+    me.value.gold >= me.value.hero.powerCost
+);
+const topHeroPowerTitle = computed(() => {
+  if (!me.value?.hero || me.value.hero.powerType !== "ACTIVE") return "No active hero power";
+  if (!isBuyPhase.value) return "Only usable during tavern/positioning";
+  if (me.value.heroPowerUsedThisTurn) return "Already used this turn";
+  if (me.value.gold < me.value.hero.powerCost) return `Need ${me.value.hero.powerCost} gold`;
+  return heroAbilityDescription.value;
+});
 const perspectiveLabel = computed(() => {
-  if (perspectiveMode.value === "horizontal") return "Horizontal";
-  if (perspectiveMode.value === "mirrored") return "Mirrored";
-  return "Vertical";
+  if (perspectiveMode.value === "left_right") return "LEFT_RIGHT";
+  if (perspectiveMode.value === "right_left") return "RIGHT_LEFT";
+  if (perspectiveMode.value === "corner") return "CORNER";
+  return "BOTTOM_TOP";
 });
 
 const isBuyPhase = computed(() => state.value?.phase === "TAVERN" || state.value?.phase === "POSITIONING");
@@ -747,11 +772,13 @@ function dismissTutorial(): void {
 
 function cyclePerspectiveMode(): void {
   perspectiveMode.value =
-    perspectiveMode.value === "vertical"
-      ? "horizontal"
-      : perspectiveMode.value === "horizontal"
-        ? "mirrored"
-        : "vertical";
+    perspectiveMode.value === "bottom_top"
+      ? "left_right"
+      : perspectiveMode.value === "left_right"
+        ? "right_left"
+        : perspectiveMode.value === "right_left"
+          ? "corner"
+          : "bottom_top";
 }
 
 function leaveMatchNow(): void {
@@ -1477,19 +1504,37 @@ onMounted(() => {
             >
               <header class="game-shell-top">
                 <div class="game-shell-top-left">
-                  <div class="hero-hud">
-                    <div class="hero-hud-portrait">
-                      <img v-if="heroPortraitUrl" :src="heroPortraitUrl" :alt="me.hero?.name ?? 'Hero'" loading="lazy" />
-                      <span v-else>?</span>
-                    </div>
-                    <div class="hero-hud-meta">
-                      <div class="hero-hud-name">{{ me.hero?.name ?? t("game.noHero") }}</div>
-                      <div class="hero-hud-ability" :title="heroAbilityDescription">
-                        <span class="hero-hud-ability-icon" aria-hidden="true">◎</span>
-                        <span>{{ heroAbilityLabel }}</span>
+                  <section class="hero-container">
+                    <div class="hero-identity">
+                      <div class="hero-hud-portrait">
+                        <img v-if="heroPortraitUrl" :src="heroPortraitUrl" :alt="me.hero?.name ?? 'Hero'" loading="lazy" />
+                        <span v-else>?</span>
+                      </div>
+                      <div class="hero-hud-meta">
+                        <div class="hero-hud-name">{{ me.hero?.name ?? t("game.noHero") }}</div>
+                        <div class="hero-hud-ability" :title="heroAbilityDescription">
+                          <span class="hero-hud-ability-icon" aria-hidden="true">◎</span>
+                          <span>{{ heroAbilityLabel }}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                    <div class="hero-ability-section">
+                      <div class="hero-ability-pill hero-ability-pill--passive" :title="heroAbilityDescription">
+                        <span class="hero-ability-key">Passive</span>
+                        <span>{{ heroPassiveText }}</span>
+                      </div>
+                      <button
+                        class="hero-ability-pill hero-ability-pill--active"
+                        :class="{ 'hero-ability-pill--disabled': !canUseTopHeroPower }"
+                        :title="topHeroPowerTitle"
+                        :disabled="!canUseTopHeroPower"
+                        @click="useHeroPower"
+                      >
+                        <span class="hero-ability-key">Active</span>
+                        <span>{{ heroActiveText }}</span>
+                      </button>
+                    </div>
+                  </section>
                   <div class="stats">
                     <span class="stat-pill"><img class="chip-icon" :src="statGoldIcon" alt="" />{{ t("game.gold") }}: {{ me.gold }}</span>
                     <span class="stat-pill"><img class="chip-icon" :src="statHealthIcon" alt="" />{{ t("game.health") }}: {{ me.health }}</span>
@@ -1545,21 +1590,6 @@ onMounted(() => {
                   />
                 </section>
 
-                <aside class="game-shell-right">
-                  <PlayersSidebar
-                    :state="state"
-                    :is-lobby="isLobby"
-                    :is-creator="isCreator"
-                    :me-player-id="me.playerId"
-                    :enriched-combat-log="enrichedCombatLog"
-                    :player-type-icon-path="playerTypeIconPath"
-                    :display-player-name="displayPlayerName"
-                    :player-type-badge-class="playerTypeBadgeClass"
-                    :player-type-label="playerTypeLabel"
-                    :stat-health-icon="statHealthIcon"
-                    @kick-player="kickPlayer"
-                  />
-                </aside>
               </main>
 
               <footer class="game-shell-bottom">
@@ -1611,6 +1641,22 @@ onMounted(() => {
                   @ready="ready"
                 />
               </footer>
+
+              <aside class="game-shell-right">
+                <PlayersSidebar
+                  :state="state"
+                  :is-lobby="isLobby"
+                  :is-creator="isCreator"
+                  :me-player-id="me.playerId"
+                  :enriched-combat-log="enrichedCombatLog"
+                  :player-type-icon-path="playerTypeIconPath"
+                  :display-player-name="displayPlayerName"
+                  :player-type-badge-class="playerTypeBadgeClass"
+                  :player-type-label="playerTypeLabel"
+                  :stat-health-icon="statHealthIcon"
+                  @kick-player="kickPlayer"
+                />
+              </aside>
             </div>
           </div>
         </Transition>

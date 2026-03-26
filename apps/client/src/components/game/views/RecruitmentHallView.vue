@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type { AbilityKey, HeroDefinition, MatchPublicState, SynergyKey, UnitDefinition } from "@runebrawl/shared";
 import { useI18n } from "../../../i18n/useI18n";
 import PortraitFrameSvg from "../../shared/PortraitFrameSvg.vue";
+import { shopDensityClass } from "../layoutDensity";
 
 interface PlayerView {
   gold: number;
@@ -89,13 +90,7 @@ const highlightReady = computed(
   () => props.isBuyPhase && !props.isHeroSelection && !props.me.ready && props.tutorialStepKey === "ready"
 );
 const firstBuyableShopIndex = computed(() => props.me.shop.findIndex((unit) => !!unit));
-const bottomShopDensityClass = computed(() => {
-  const slots = props.me.shop.length;
-  if (slots >= 11) return "tavern-density-stacked";
-  if (slots >= 5) return "tavern-density-dense";
-  if (slots <= 3) return "tavern-density-roomy";
-  return "tavern-density-balanced";
-});
+const bottomShopDensityClass = computed(() => shopDensityClass(props.me.shop.length));
 const upgradeButtonText = computed(() => {
   const cost = props.me.tavernUpgradeCost ?? 0;
   const discount = props.me.tavernUpgradeDiscount ?? 0;

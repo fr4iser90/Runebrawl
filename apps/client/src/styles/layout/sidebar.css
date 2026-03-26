@@ -5,16 +5,16 @@
 .sidebar {
   border: 1px solid var(--scene-panel-border);
   border-radius: 12px;
-  padding: 12px;
+  padding: 8px;
   background: #1a2033;
 }
 
 .player-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   list-style: none;
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   padding: 0;
 }
 
@@ -22,8 +22,9 @@
   border: 1px solid #384972;
   border-radius: 8px;
   background: #1d2742;
-  padding: 7px 8px;
-  line-height: 1.35;
+  padding: 5px 6px;
+  line-height: 1.2;
+  font-size: 11px;
   overflow-wrap: anywhere;
 }
 
@@ -33,13 +34,13 @@
 }
 
 .log {
-  height: 300px;
+  height: 220px;
   overflow: auto;
   border: 1px solid #374267;
   border-radius: 8px;
-  padding: 8px;
+  padding: 6px;
   background: #171d31;
-  font-size: 13px;
+  font-size: 11px;
   overflow-x: hidden;
 }
 
