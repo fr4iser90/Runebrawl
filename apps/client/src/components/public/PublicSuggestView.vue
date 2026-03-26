@@ -558,7 +558,10 @@ function resetWizard(): void {
 </script>
 
 <template>
-  <div class="public-suggest app">
+  <div class="public-suggest app suggest-stage">
+    <div class="suggest-stage__backdrop" aria-hidden="true" />
+    <div class="suggest-stage__vignette" aria-hidden="true" />
+    <div class="suggest-stage__inner">
     <template v-if="phase === 'success' && submittedId">
       <section class="suggest-hero">
         <h2>{{ t("suggest.successTitle") }}</h2>
@@ -776,6 +779,7 @@ function resetWizard(): void {
         <button type="button" :disabled="stepIndex >= stepSequence.length - 1" @click="goNext">{{ t("suggest.next") }}</button>
       </nav>
     </template>
+    </div>
   </div>
 </template>
 

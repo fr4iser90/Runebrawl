@@ -90,28 +90,34 @@ function playerSummary(lobby: LobbySummary): string {
   <template v-if="!props.connected">
     <section class="menu-screen menu-stage">
       <div class="menu-shell">
+        <div class="menu-brand">
+          <span class="menu-brand-wordmark">Runebrawl</span>
+        </div>
         <header class="menu-header">
           <div class="menu-header-brand">
             <h2>{{ t("game.menu.title") }}</h2>
             <span v-if="showDevFlowBadge" class="menu-mode-badge" aria-hidden="true">FLOW V2</span>
           </div>
-          <div class="menu-header-actions">
-            <a href="/login" class="menu-auth-link">{{ t("game.menu.logIn") }}</a>
-            <a href="/register" class="menu-auth-link">{{ t("game.menu.register") }}</a>
-            <button type="button" class="menu-btn-icon" :aria-label="t('game.settings.open')" @click="emit('openSettings')">
-              <svg class="menu-icon-gear" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
-                />
-                <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
-              </svg>
-              <span class="menu-btn-icon-text">{{ t("game.settings.open") }}</span>
-            </button>
+          <div class="menu-header-actions-stack">
+            <div class="menu-header-actions">
+              <a href="/login" class="menu-auth-link">{{ t("game.menu.logIn") }}</a>
+              <a href="/register" class="menu-auth-link">{{ t("game.menu.register") }}</a>
+              <button type="button" class="menu-btn-icon" :aria-label="t('game.settings.open')" @click="emit('openSettings')">
+                <svg class="menu-icon-gear" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+                  />
+                  <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+                </svg>
+                <span class="menu-btn-icon-text">{{ t("game.settings.open") }}</span>
+              </button>
+            </div>
+            <a href="/suggest" class="menu-suggest-link">{{ t("nav.suggest") }}</a>
           </div>
         </header>
 

@@ -6,6 +6,7 @@
   --rb-scene-bg-combat: url("./assets/optimized/backgrounds/combat-bg.svg");
   --rb-scene-bg-finished: url("./assets/optimized/backgrounds/finished-bg.svg");
   --rb-menu-bg: url("./assets/optimized/backgrounds/runes_menu.webp");
+  --rb-menu-bg-suggest: url("./assets/optimized/backgrounds/runes_menu2.webp");
 
   --rb-bg: #121624;
   --rb-surface-1: #1a2033;
@@ -31,6 +32,39 @@
 body {
   margin: 0;
   overflow: hidden;
+}
+
+/* Stack mini-bar + main content without exceeding one viewport (public routes + game). */
+.app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.app-root > .public-app-bar {
+  flex-shrink: 0;
+}
+
+.app-root > .admin-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.app-root > .app {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+.app-root > .public-suggest.app.suggest-stage {
+  display: flex;
+  flex-direction: column;
 }
 
 .app {
@@ -274,6 +308,83 @@ body {
   background: #2a3354;
 }
 
+/* Thin bar on /suggest, /review, /login, /register (not on / or /admin). */
+.public-app-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(18, 24, 40, 0.95);
+  font-size: 13px;
+}
+
+.public-app-bar-back {
+  color: #b8c8f0;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.public-app-bar-back:hover {
+  color: #e8eeff;
+  text-decoration: underline;
+}
+
+.public-app-bar-brand {
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+  color: rgba(230, 236, 255, 0.9);
+}
+
+.public-app-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  margin-left: auto;
+}
+
+.public-app-bar-link {
+  color: #c5d4f8;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.public-app-bar-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.public-app-bar-lang select {
+  font: inherit;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #3a4368;
+  background: #1a2033;
+  color: inherit;
+}
+
+@media (max-width: 560px) {
+  .public-app-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .public-app-bar-brand {
+    order: -1;
+    text-align: center;
+  }
+
+  .public-app-bar-actions {
+    margin-left: 0;
+    justify-content: center;
+  }
+}
+
 .join-card {
   display: flex;
   gap: 8px;
@@ -451,8 +562,45 @@ body {
   gap: 0.875rem;
 }
 
+.menu-brand {
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+.menu-brand-wordmark {
+  display: inline-block;
+  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(232, 238, 255, 0.92);
+  text-shadow: 0 0 24px rgba(120, 150, 220, 0.25);
+}
+
 .menu-shell .menu-header {
   margin-bottom: 4px;
+}
+
+.menu-header-actions-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.menu-suggest-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(180, 200, 245, 0.85);
+  text-decoration: none;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.menu-suggest-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  text-decoration: underline;
 }
 
 .menu-lead {
@@ -1223,6 +1371,15 @@ textarea:focus-visible {
   .menu-header-actions {
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+
+  .menu-header-actions-stack {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .menu-suggest-link {
+    text-align: right;
   }
 
   .menu-btn-icon {

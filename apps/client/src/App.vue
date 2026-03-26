@@ -22,27 +22,32 @@ const isGameRoute = computed(
     !isLoginRoute.value &&
     !isRegisterRoute.value
 );
+
+/** Slim chrome only on public pages (game menu has its own branding + links). */
+const showPublicMiniBar = computed(
+  () => isSuggestRoute.value || isReviewRoute.value || isLoginRoute.value || isRegisterRoute.value
+);
+
 const { locale, setLocale, t } = useI18n();
 </script>
 
 <template>
-  <div>
-    <header v-if="!isGameRoute" class="header top-nav">
-      <h1>Runebrawl</h1>
-      <div class="actions">
-        <a href="/" class="nav-link">{{ t("nav.game") }}</a>
-        <a href="/suggest" class="nav-link">{{ t("nav.suggest") }}</a>
-        <a href="/review" class="nav-link">{{ t("nav.review") }}</a>
-        <a href="/admin" class="nav-link">{{ t("nav.admin") }}</a>
-        <label>
-          {{ t("nav.language") }}
+  <div class="app-root">
+    <div v-if="showPublicMiniBar" class="public-app-bar">
+      <a href="/" class="public-app-bar-back">{{ t("nav.backToGame") }}</a>
+      <span class="public-app-bar-brand">Runebrawl</span>
+      <div class="public-app-bar-actions">
+        <a href="/suggest" class="public-app-bar-link">{{ t("nav.suggest") }}</a>
+        <a href="/review" class="public-app-bar-link">{{ t("nav.review") }}</a>
+        <a href="/admin" class="public-app-bar-link">{{ t("nav.admin") }}</a>
+        <label class="public-app-bar-lang">
           <select :value="locale" @change="setLocale(($event.target as HTMLSelectElement).value as 'en' | 'de')">
             <option value="en">{{ t("nav.lang.en") }}</option>
             <option value="de">{{ t("nav.lang.de") }}</option>
           </select>
         </label>
       </div>
-    </header>
+    </div>
     <AdminPanel v-if="isAdminRoute" />
     <PublicSuggestView v-else-if="isSuggestRoute" />
     <PublicReviewView v-else-if="isReviewRoute" />

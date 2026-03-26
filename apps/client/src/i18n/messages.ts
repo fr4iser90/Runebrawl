@@ -3,6 +3,7 @@ export type Locale = "en" | "de";
 export const messages: Record<Locale, Record<string, string>> = {
   en: {
     "nav.game": "Game",
+    "nav.backToGame": "Back to game",
     "nav.review": "Review",
     "nav.suggest": "Suggest",
     "nav.admin": "Admin",
@@ -584,6 +585,7 @@ export const messages: Record<Locale, Record<string, string>> = {
   },
   de: {
     "nav.game": "Spiel",
+    "nav.backToGame": "Zum Spiel",
     "nav.review": "Review",
     "nav.suggest": "Vorschlagen",
     "nav.admin": "Admin",
