@@ -37,6 +37,10 @@
   margin-bottom: 12px;
 }
 
+.hero-row {
+  grid-template-columns: repeat(3, minmax(170px, 1fr));
+}
+
 .tavern.tavern-bottom-only .shop-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
@@ -47,6 +51,7 @@
 }
 
 .tavern.tavern-bottom-only {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -95,16 +100,55 @@
   font-size: 10px;
 }
 
+.tavern.tavern-bottom-only.tavern-density-stacked .shop-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  overflow: hidden;
+  padding: 0 2px;
+}
+
+.tavern.tavern-bottom-only.tavern-density-stacked .shop-card {
+  flex: 0 0 clamp(122px, 12vw, 164px);
+  min-height: clamp(132px, 18.5vh, 170px);
+  max-height: clamp(150px, 21vh, 188px);
+  margin-left: -56px;
+  transition: transform 140ms ease, filter 140ms ease;
+}
+
+.tavern.tavern-bottom-only.tavern-density-stacked .shop-card:first-child {
+  margin-left: 0;
+}
+
+.tavern.tavern-bottom-only.tavern-density-stacked .shop-card:hover {
+  transform: translateY(-6px) scale(1.04);
+  z-index: 20;
+  filter: brightness(1.06);
+}
+
+.tavern.tavern-bottom-only.tavern-density-stacked .portrait-slot-unit {
+  min-height: 62px;
+  max-height: 88px;
+}
+
+.tavern.tavern-bottom-only.tavern-density-stacked .unit-name {
+  font-size: 11px;
+}
+
+.tavern.tavern-bottom-only.tavern-density-stacked .unit-meta {
+  font-size: 10px;
+}
+
 .tavern.tavern-bottom-only .unit-card-chrome__content {
   padding: 6px 7px 7px;
   gap: 4px;
 }
 
 .tavern.tavern-bottom-only .portrait-slot-unit {
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 4 / 3;
   height: auto;
-  min-height: 72px;
-  max-height: 112px;
+  min-height: 84px;
+  max-height: 128px;
   margin-bottom: 4px;
 }
 
@@ -119,7 +163,7 @@
 
 .tavern.tavern-bottom-only .unit-meta {
   font-size: 11px;
-  margin: 2px 0 4px;
+  margin: 2px 0 2px;
 }
 
 .tavern.tavern-bottom-only .meta-chip {
@@ -138,10 +182,74 @@
   font-size: 12px;
 }
 
+.tavern.tavern-bottom-only .unit-card-chrome__content {
+  justify-content: flex-start;
+}
+
 .tavern.tavern-bottom-only .actions.hall-actions {
   margin-top: 2px;
   padding-top: 6px;
   border-top: 1px solid rgba(90, 112, 168, 0.28);
+}
+
+.shop-hover-preview {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: clamp(180px, 19vw, 260px);
+  z-index: 30;
+  pointer-events: auto;
+  border: 1px solid rgba(212, 168, 90, 0.55);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(15, 22, 39, 0.96), rgba(12, 18, 33, 0.96));
+  box-shadow: 0 10px 24px rgba(5, 8, 16, 0.45);
+  padding: 8px;
+}
+
+.shop-hover-preview-close {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  min-height: 22px;
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.shop-hover-preview-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.shop-hover-preview-portrait {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid rgba(125, 148, 204, 0.45);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(20, 28, 49, 0.75);
+}
+
+.shop-hover-preview-meta {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.shop-hover-preview-stats {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--rb-text-muted);
+}
+
+.shop-hover-preview-ability {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
 }
 
 @media (max-height: 900px) {
@@ -165,6 +273,18 @@
   .tavern.tavern-bottom-only.tavern-density-dense .shop-row {
     grid-template-columns: repeat(5, minmax(102px, 1fr));
   }
+
+  .tavern.tavern-bottom-only.tavern-density-stacked .shop-card {
+    flex-basis: clamp(112px, 11vw, 146px);
+    margin-left: -62px;
+    min-height: clamp(124px, 17.5vh, 158px);
+    max-height: clamp(138px, 19.5vh, 172px);
+  }
+
+  .shop-hover-preview {
+    width: clamp(160px, 17vw, 220px);
+    padding: 7px;
+  }
 }
 
 @media (max-height: 820px) {
@@ -179,8 +299,8 @@
   }
 
   .tavern.tavern-bottom-only .portrait-slot-unit {
-    min-height: 60px;
-    max-height: 88px;
+    min-height: 76px;
+    max-height: 110px;
   }
 
   .tavern.tavern-bottom-only .unit-name {
@@ -197,5 +317,70 @@
 
   .tavern.tavern-bottom-only.tavern-density-dense .shop-row {
     grid-template-columns: repeat(5, minmax(94px, 1fr));
+  }
+
+  .tavern.tavern-bottom-only.tavern-density-stacked .shop-card {
+    flex-basis: clamp(100px, 10vw, 132px);
+    margin-left: -68px;
+    min-height: clamp(114px, 16.5vh, 144px);
+    max-height: clamp(128px, 18vh, 160px);
+  }
+
+  .shop-hover-preview {
+    display: none;
+  }
+}
+
+@media (max-width: 980px) {
+  .hero-row,
+  .shop-row {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+
+  .hall-header {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 700px) {
+  .tavern {
+    padding: 10px;
+  }
+
+  .hero-row,
+  .shop-row {
+    grid-template-columns: 1fr;
+  }
+
+  .hall-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--scene-panel-border);
+    border-radius: 10px;
+    background: rgba(18, 27, 48, 0.94);
+    box-shadow: 0 -8px 16px rgba(8, 12, 24, 0.35);
+    backdrop-filter: blur(3px);
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .tavern {
+    padding: 8px;
+  }
+
+  .hall-actions {
+    bottom: 0;
+    padding: 8px;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 380px) {
+  .hall-actions {
+    padding: 8px;
+    gap: 6px;
   }
 }

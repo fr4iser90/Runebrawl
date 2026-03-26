@@ -31,3 +31,29 @@
 .lobby-grid > * {
   min-width: 0;
 }
+
+.lobby-header h2 {
+  margin: 2px 0 0;
+}
+
+@media (max-width: 980px) {
+  .lobby-header {
+    flex-direction: column;
+  }
+
+  .lobby-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .lobby-screen {
+    padding: 10px;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .lobby-screen {
+    padding: 8px;
+  }
+}

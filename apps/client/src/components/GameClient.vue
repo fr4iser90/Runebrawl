@@ -73,6 +73,9 @@ const animationSpeed = ref<"slow" | "normal" | "fast">(
   (localStorage.getItem("runebrawl.ui.animationSpeed") as "slow" | "normal" | "fast" | null) ?? "normal"
 );
 const reducedMotion = ref(localStorage.getItem("runebrawl.ui.reducedMotion") === "1");
+const perspectiveMode = ref<"vertical" | "horizontal" | "mirrored">(
+  (localStorage.getItem("runebrawl.ui.perspectiveMode") as "vertical" | "horizontal" | "mirrored" | null) ?? "vertical"
+);
 const tutorialDismissed = ref(localStorage.getItem("runebrawl.tutorial.dismissed") === "1");
 let clock: number | null = null;
 let combatPlaybackTimer: number | null = null;
@@ -204,6 +207,21 @@ function saveProfileNow(): void {
 const me = computed(() => {
   if (!state.value?.yourPlayerId) return null;
   return state.value.players.find((p) => p.playerId === state.value?.yourPlayerId) ?? null;
+});
+const heroPortraitUrl = computed(() => {
+  if (!me.value?.hero?.id) return "";
+  return heroPortraitPath(me.value.hero.id);
+});
+const heroAbilityLabel = computed(() => {
+  const key = me.value?.hero?.powerKey;
+  if (!key) return t("game.heroPower");
+  return key.toLowerCase().replaceAll("_", " ");
+});
+const heroAbilityDescription = computed(() => me.value?.hero?.description ?? t("game.noAbility"));
+const perspectiveLabel = computed(() => {
+  if (perspectiveMode.value === "horizontal") return "Horizontal";
+  if (perspectiveMode.value === "mirrored") return "Mirrored";
+  return "Vertical";
 });
 
 const isBuyPhase = computed(() => state.value?.phase === "TAVERN" || state.value?.phase === "POSITIONING");
@@ -452,20 +470,54 @@ function mockUnit(seed: number, name: string, role: UnitRole, ability: AbilityKe
   };
 }
 
-function buildMockState(phase: GamePhase): MatchPublicState {
+function clampMockCount(value: string | null, fallback: number): number {
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.min(100, parsed));
+}
+
+function fillMockSlots(size: number, factory: (idx: number) => UnitInstance): (UnitInstance | null)[] {
+  return Array.from({ length: size }, (_, idx) => factory(idx));
+}
+
+function buildMockState(
+  phase: GamePhase,
+  counts: { shopSlots: number; benchSlots: number; boardSlots: number } = { shopSlots: 3, benchSlots: 6, boardSlots: 6 }
+): MatchPublicState {
   const now = Date.now();
   const meId = "mock-me";
   const enemyId = "mock-enemy";
-  const meBoard: (UnitInstance | null)[] = [
-    mockUnit(1, "Stoneguard", "Tank", "TAUNT"),
-    mockUnit(2, "Flame Archer", "Ranged", "BLOODLUST"),
-    null
+  const meBoard = fillMockSlots(counts.boardSlots, (idx) =>
+    mockUnit(100 + idx, idx % 2 === 0 ? "Stoneguard" : "Flame Archer", idx % 2 === 0 ? "Tank" : "Ranged", idx % 2 === 0 ? "TAUNT" : "BLOODLUST")
+  );
+  const enemyBoard = fillMockSlots(counts.boardSlots, (idx) =>
+    mockUnit(200 + idx, idx % 2 === 0 ? "Bone Medic" : "Iron Ravager", idx % 2 === 0 ? "Support" : "Melee", idx % 2 === 0 ? "NONE" : "DEATH_BURST")
+  );
+  const mockUnitCatalog: UnitDefinition[] = [
+    { id: "stone_guard", name: "Stone Guard", role: "Tank", tier: 1, attack: 2, hp: 8, speed: 2, ability: "TAUNT", shopWeight: 1 },
+    { id: "alley_blade", name: "Alley Blade", role: "Melee", tier: 1, attack: 4, hp: 5, speed: 4, ability: "NONE", shopWeight: 1 },
+    { id: "ember_archer", name: "Ember Archer", role: "Ranged", tier: 1, attack: 3, hp: 4, speed: 5, ability: "NONE", shopWeight: 1 },
+    { id: "wild_shaman", name: "Wild Shaman", role: "Support", tier: 2, attack: 2, hp: 6, speed: 3, ability: "BLOODLUST", shopWeight: 1 },
+    { id: "grave_imp", name: "Grave Imp", role: "Melee", tier: 2, attack: 5, hp: 5, speed: 4, ability: "DEATH_BURST", shopWeight: 1 },
+    { id: "soul_reaver", name: "Soul Reaver", role: "Melee", tier: 2, attack: 4, hp: 6, speed: 4, ability: "LIFESTEAL", shopWeight: 1 },
+    { id: "iron_bulwark", name: "Iron Bulwark", role: "Tank", tier: 3, attack: 4, hp: 11, speed: 2, ability: "TAUNT", shopWeight: 1 },
+    { id: "sky_sniper", name: "Sky Sniper", role: "Ranged", tier: 3, attack: 6, hp: 5, speed: 6, ability: "NONE", shopWeight: 1 },
+    { id: "war_drummer", name: "War Drummer", role: "Support", tier: 4, attack: 4, hp: 8, speed: 3, ability: "BLOODLUST", shopWeight: 1 }
   ];
-  const enemyBoard: (UnitInstance | null)[] = [
-    mockUnit(3, "Bone Medic", "Support", "NONE"),
-    mockUnit(4, "Iron Ravager", "Melee", "DEATH_BURST"),
-    null
-  ];
+  const mockShop: (UnitDefinition | null)[] = Array.from({ length: counts.shopSlots }, (_, idx) => {
+    const source = mockUnitCatalog[idx % mockUnitCatalog.length];
+    const tier = Math.min(6, source.tier + Math.floor(idx / mockUnitCatalog.length) % 3);
+    return {
+      ...source,
+      id: source.id,
+      name: `${source.name} ${idx + 1}`,
+      tier,
+      attack: source.attack + (idx % 2),
+      hp: source.hp + (idx % 3),
+      shopWeight: 1
+    };
+  });
 
   const combatEvents: CombatReplayEvent[] =
     phase === "COMBAT" || phase === "ROUND_END"
@@ -533,8 +585,8 @@ function buildMockState(phase: GamePhase): MatchPublicState {
         heroSelected: true,
         heroPowerUsedThisTurn: false,
         heroOptions: [],
-        shop: [],
-        bench: [mockUnit(5, "Scout", "Melee", "NONE"), null, null],
+        shop: mockShop,
+        bench: fillMockSlots(counts.benchSlots, (idx) => mockUnit(300 + idx, `Scout ${idx + 1}`, "Melee", "NONE")),
         board: meBoard
       },
       {
@@ -557,8 +609,8 @@ function buildMockState(phase: GamePhase): MatchPublicState {
         heroSelected: true,
         heroPowerUsedThisTurn: false,
         heroOptions: [],
-        shop: [],
-        bench: [null, null, null],
+        shop: Array.from({ length: counts.shopSlots }, () => null),
+        bench: Array.from({ length: counts.benchSlots }, () => null),
         board: enemyBoard
       }
     ]
@@ -691,6 +743,15 @@ function backToMenu(): void {
 function dismissTutorial(): void {
   tutorialDismissed.value = true;
   localStorage.setItem("runebrawl.tutorial.dismissed", "1");
+}
+
+function cyclePerspectiveMode(): void {
+  perspectiveMode.value =
+    perspectiveMode.value === "vertical"
+      ? "horizontal"
+      : perspectiveMode.value === "horizontal"
+        ? "mirrored"
+        : "vertical";
 }
 
 function leaveMatchNow(): void {
@@ -1231,6 +1292,10 @@ watch(reducedMotion, (next) => {
   localStorage.setItem("runebrawl.ui.reducedMotion", next ? "1" : "0");
 });
 
+watch(perspectiveMode, (next) => {
+  localStorage.setItem("runebrawl.ui.perspectiveMode", next);
+});
+
 watch(name, (next) => {
   localStorage.setItem("runebrawl.playerName", next);
   profileSyncState.value = "idle";
@@ -1268,9 +1333,12 @@ onMounted(() => {
   if (import.meta.env.DEV && params.get("rb_mock") === "1") {
     const requestedPhase = params.get("rb_phase")?.toUpperCase() as GamePhase | undefined;
     const phase: GamePhase = requestedPhase && ["LOBBY", "HERO_SELECTION", "TAVERN", "POSITIONING", "COMBAT", "ROUND_END", "FINISHED"].includes(requestedPhase) ? requestedPhase : "LOBBY";
+    const shopSlots = clampMockCount(params.get("rb_shop"), 3);
+    const benchSlots = clampMockCount(params.get("rb_bench"), 6);
+    const boardSlots = clampMockCount(params.get("rb_board"), 6);
     devMockPhase.value = phase;
     connected.value = true;
-    state.value = buildMockState(phase);
+    state.value = buildMockState(phase, { shopSlots, benchSlots, boardSlots });
   }
 
   clock = window.setInterval(() => {
@@ -1402,17 +1470,37 @@ onMounted(() => {
               @back-to-menu="backToMenu"
             />
 
-            <div v-else class="game-shell" :class="[isCombatView ? 'game-shell--combat' : 'game-shell--shop', `phase-${state.phase.toLowerCase()}`]">
+            <div
+              v-else
+              class="game-shell"
+              :class="[isCombatView ? 'game-shell--combat' : 'game-shell--shop', `phase-${state.phase.toLowerCase()}`, `perspective-${perspectiveMode}`]"
+            >
               <header class="game-shell-top">
-                <div class="stats">
-                  <span class="stat-pill"><img class="chip-icon" :src="statGoldIcon" alt="" />{{ t("game.gold") }}: {{ me.gold }}</span>
-                  <span class="stat-pill"><img class="chip-icon" :src="statHealthIcon" alt="" />{{ t("game.health") }}: {{ me.health }}</span>
-                  <span class="stat-pill">{{ t("game.tier") }}: {{ me.tavernTier }}</span>
-                  <span class="stat-pill">{{ t("game.xp") }}: {{ me.xp }}</span>
-                  <span class="stat-pill">{{ phaseLabel(state.phase) }}</span>
-                  <span class="stat-pill">{{ secondsLeft }}s</span>
+                <div class="game-shell-top-left">
+                  <div class="hero-hud">
+                    <div class="hero-hud-portrait">
+                      <img v-if="heroPortraitUrl" :src="heroPortraitUrl" :alt="me.hero?.name ?? 'Hero'" loading="lazy" />
+                      <span v-else>?</span>
+                    </div>
+                    <div class="hero-hud-meta">
+                      <div class="hero-hud-name">{{ me.hero?.name ?? t("game.noHero") }}</div>
+                      <div class="hero-hud-ability" :title="heroAbilityDescription">
+                        <span class="hero-hud-ability-icon" aria-hidden="true">◎</span>
+                        <span>{{ heroAbilityLabel }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="stats">
+                    <span class="stat-pill"><img class="chip-icon" :src="statGoldIcon" alt="" />{{ t("game.gold") }}: {{ me.gold }}</span>
+                    <span class="stat-pill"><img class="chip-icon" :src="statHealthIcon" alt="" />{{ t("game.health") }}: {{ me.health }}</span>
+                    <span class="stat-pill">{{ t("game.tier") }}: {{ me.tavernTier }}</span>
+                    <span class="stat-pill">{{ t("game.xp") }}: {{ me.xp }}</span>
+                    <span class="stat-pill">{{ phaseLabel(state.phase) }}</span>
+                    <span class="stat-pill">{{ secondsLeft }}s</span>
+                  </div>
                 </div>
                 <div class="game-shell-top-actions">
+                  <button class="danger-ghost" @click="cyclePerspectiveMode">View: {{ perspectiveLabel }}</button>
                   <button class="danger-ghost" @click="confirmLeaveMatch">{{ t("game.leaveMatchNow") }}</button>
                 </div>
               </header>

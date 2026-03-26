@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type { AbilityKey, HeroDefinition, MatchPublicState, SynergyKey, UnitDefinition } from "@runebrawl/shared";
 import { useI18n } from "../../../i18n/useI18n";
 import PortraitFrameSvg from "../../shared/PortraitFrameSvg.vue";
@@ -18,6 +18,17 @@ interface PlayerView {
   heroOptions: HeroDefinition[];
   shop: (UnitDefinition | null)[];
   lockedShop: boolean;
+}
+
+interface HoverPreviewUnit {
+  id: string;
+  name: string;
+  role: UnitDefinition["role"];
+  tier: number;
+  attack: number;
+  hp: number;
+  speed: number;
+  ability: AbilityKey;
 }
 
 const props = defineProps<{
@@ -80,6 +91,7 @@ const highlightReady = computed(
 const firstBuyableShopIndex = computed(() => props.me.shop.findIndex((unit) => !!unit));
 const bottomShopDensityClass = computed(() => {
   const slots = props.me.shop.length;
+  if (slots >= 11) return "tavern-density-stacked";
   if (slots >= 5) return "tavern-density-dense";
   if (slots <= 3) return "tavern-density-roomy";
   return "tavern-density-balanced";
@@ -93,6 +105,51 @@ const upgradeButtonText = computed(() => {
   }
   return t("game.upgradeTavernCost", { cost });
 });
+
+const hoveredShopUnitId = ref<string | null>(null);
+const lockedShopUnitId = ref<string | null>(null);
+
+const hoveredShopUnit = computed<HoverPreviewUnit | null>(() => {
+  const activeId = lockedShopUnitId.value ?? hoveredShopUnitId.value;
+  const explicit = activeId
+    ? props.me.shop.find((u): u is UnitDefinition => !!u && u.id === activeId) ?? null
+    : null;
+  const unit = explicit ?? (props.me.shop.find((u): u is UnitDefinition => !!u) ?? null);
+  if (!unit) return null;
+  return {
+    id: unit.id,
+    name: unit.name,
+    role: unit.role,
+    tier: unit.tier,
+    attack: unit.attack,
+    hp: unit.hp,
+    speed: unit.speed,
+    ability: unit.ability
+  };
+});
+const isPreviewLocked = computed(() => !!lockedShopUnitId.value && lockedShopUnitId.value === hoveredShopUnit.value?.id);
+
+function onShopCardHover(unit: UnitDefinition | null): void {
+  if (!unit || lockedShopUnitId.value) return;
+  hoveredShopUnitId.value = unit.id;
+}
+
+function onShopCardLeave(): void {
+  if (lockedShopUnitId.value) return;
+  hoveredShopUnitId.value = null;
+}
+
+function onShopCardInspect(unit: UnitDefinition | null, event: MouseEvent): void {
+  if (!props.bottomOnly || !unit) return;
+  const target = event.target as HTMLElement | null;
+  if (target?.closest("button")) return;
+  lockedShopUnitId.value = lockedShopUnitId.value === unit.id ? null : unit.id;
+  hoveredShopUnitId.value = unit.id;
+}
+
+function clearLockedPreview(): void {
+  lockedShopUnitId.value = null;
+}
 
 function frameTierClass(unit: UnitDefinition): "tier-low" | "tier-mid" | "tier-high" {
   const tierClass = props.unitTierClass(unit);
@@ -195,6 +252,10 @@ onBeforeUnmount(() => {
         :key="idx"
         class="shop-card"
         :class="[props.unitTierClass(unit), { 'anim-buy-pop': props.animatingShopIndex === idx }]"
+        @mouseenter="onShopCardHover(unit)"
+        @focusin="onShopCardHover(unit)"
+        @mouseleave="onShopCardLeave"
+        @click="onShopCardInspect(unit, $event)"
       >
         <div v-if="unit" class="unit-card-chrome">
           <div class="unit-card-chrome__content">
@@ -211,11 +272,16 @@ onBeforeUnmount(() => {
                 <img class="chip-icon" :src="props.roleIconPath(unit.role)" alt="" />
                 {{ unit.role }}
               </span>
-              <span class="meta-chip" :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`">
+              <span
+                v-if="!props.bottomOnly"
+                class="meta-chip"
+                :title="`${props.abilityLabel(unit.ability)}: ${props.abilityDescription(unit.ability)}`"
+              >
                 <img class="chip-icon" :src="props.abilityIconPath(unit.ability)" alt="" />
                 {{ props.abilityLabel(unit.ability) }}
               </span>
               <span
+                v-if="!props.bottomOnly"
                 v-for="tag in unit.tags ?? []"
                 :key="`shop-tag-${unit.id}-${tag}`"
                 class="meta-chip tag-chip"
@@ -223,7 +289,7 @@ onBeforeUnmount(() => {
               >
                 {{ props.synergyLabel(tag) }}
               </span>
-              <div class="unit-meta-line">{{ t("game.unitMeta", { attack: unit.attack, hp: unit.hp, speed: unit.speed }) }}</div>
+              <div v-if="!props.bottomOnly" class="unit-meta-line">{{ t("game.unitMeta", { attack: unit.attack, hp: unit.hp, speed: unit.speed }) }}</div>
             </div>
           </div>
           <PortraitFrameSvg frame-id="ornate" :tier-class="frameTierClass(unit)" scope="unitShopCard" />
@@ -239,6 +305,30 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </div>
+    <aside v-if="props.bottomOnly && hoveredShopUnit" class="shop-hover-preview">
+      <button v-if="isPreviewLocked" class="shop-hover-preview-close" @click="clearLockedPreview">x</button>
+      <div class="shop-hover-preview-title">{{ hoveredShopUnit.name }}</div>
+      <div class="shop-hover-preview-portrait" :style="backplateStyle(props.unitBackplatePath(hoveredShopUnit.id))">
+        <img
+          class="portrait-image portrait-image-contain"
+          :src="props.unitPortraitPath(hoveredShopUnit.id)"
+          :alt="hoveredShopUnit.name"
+          loading="lazy"
+        />
+      </div>
+      <div class="shop-hover-preview-meta">
+        <span class="meta-chip">T{{ hoveredShopUnit.tier }}</span>
+        <span class="meta-chip">
+          <img class="chip-icon" :src="props.roleIconPath(hoveredShopUnit.role)" alt="" />
+          {{ hoveredShopUnit.role }}
+        </span>
+      </div>
+      <div class="shop-hover-preview-stats">{{ t("game.unitMeta", { attack: hoveredShopUnit.attack, hp: hoveredShopUnit.hp, speed: hoveredShopUnit.speed }) }}</div>
+      <div class="shop-hover-preview-ability">
+        <img class="chip-icon" :src="props.abilityIconPath(hoveredShopUnit.ability)" alt="" />
+        <span>{{ props.abilityLabel(hoveredShopUnit.ability) }}</span>
+      </div>
+    </aside>
     <div v-if="props.me.hero && !props.bottomOnly" class="slot-title">
       {{ t("game.heroLine", { name: props.me.hero.name, description: props.me.hero.description }) }}
     </div>

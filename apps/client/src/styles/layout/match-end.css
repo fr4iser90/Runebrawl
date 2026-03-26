@@ -37,3 +37,26 @@
   background: rgba(31, 43, 72, 0.86);
   padding: 8px 10px;
 }
+
+.match-end-header h2 {
+  margin: 0;
+}
+
+@media (max-width: 980px) {
+  .match-end-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 700px) {
+  .match-end-screen {
+    padding: 10px;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .match-end-screen {
+    padding: 8px;
+  }
+}

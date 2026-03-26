@@ -27,6 +27,11 @@
   overflow-wrap: anywhere;
 }
 
+.sidebar ul {
+  margin: 0 0 12px;
+  padding-left: 18px;
+}
+
 .log {
   height: 300px;
   overflow: auto;
@@ -36,6 +41,27 @@
   background: #171d31;
   font-size: 13px;
   overflow-x: hidden;
+}
+
+.log-entry {
+  margin-bottom: 6px;
+}
+
+.log-hint {
+  font-size: 11px;
+  opacity: 0.75;
+  color: #b9c4eb;
+}
+
+@media (max-width: 700px) {
+  .sidebar {
+    padding: 10px;
+  }
+
+  .log {
+    height: 180px;
+    font-size: 12px;
+  }
 }
 
 @media (max-height: 900px) {
@@ -68,6 +94,20 @@
 
   .log {
     height: 160px;
+    font-size: 11px;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .log {
+    height: 132px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 380px) {
+  .log {
+    height: 150px;
     font-size: 11px;
   }
 }

@@ -5,6 +5,7 @@ import "./styles/base.css";
 import "./styles/utilities.css";
 import "./styles.css";
 import "./styles/layout/shell.css";
+import "./styles/layout/battlefield.css";
 import "./styles/layout/lobby.css";
 import "./styles/layout/hero-selection.css";
 import "./styles/layout/recruitment-hall.css";
