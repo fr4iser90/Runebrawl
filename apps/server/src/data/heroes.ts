@@ -1,5 +1,5 @@
 import type { HeroDefinition } from "@runebrawl/shared";
-import heroes from "./heroes.json" with { type: "json" };
+import { HERO_DEFINITIONS } from "./heroes/index.js";
 import { SeededRng } from "../engine/rng.js";
 
 function normalizeHero(hero: HeroDefinition): HeroDefinition {
@@ -21,7 +21,7 @@ function pickWeightedIndex(pool: HeroDefinition[], rng: SeededRng): number {
   return Math.max(0, pool.length - 1);
 }
 
-export let HERO_POOL: HeroDefinition[] = (heroes as HeroDefinition[]).map(normalizeHero);
+export let HERO_POOL: HeroDefinition[] = HERO_DEFINITIONS.map(normalizeHero);
 
 export function findHeroById(heroId: string): HeroDefinition | null {
   return HERO_POOL.find((h) => h.id === heroId) ?? null;

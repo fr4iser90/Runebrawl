@@ -17,5 +17,6 @@ import "./styles/components/cards.css";
 import "./styles/components/buttons.css";
 import "./styles/components/pills.css";
 import "./styles/components/portrait-frames.css";
+import "./styles/admin/admin-panel.css";
 
 createApp(App).mount("#app");

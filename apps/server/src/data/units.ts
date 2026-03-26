@@ -1,5 +1,5 @@
 import type { UnitDefinition } from "@runebrawl/shared";
-import units from "./units.json" with { type: "json" };
+import { UNIT_DEFINITIONS } from "./units/index.js";
 
 function normalizeUnit(unit: UnitDefinition): UnitDefinition {
   return {
@@ -8,7 +8,7 @@ function normalizeUnit(unit: UnitDefinition): UnitDefinition {
   };
 }
 
-export let UNIT_POOL: UnitDefinition[] = (units as UnitDefinition[]).map(normalizeUnit);
+export let UNIT_POOL: UnitDefinition[] = UNIT_DEFINITIONS.map(normalizeUnit);
 
 export function unitsForTier(tier: number): UnitDefinition[] {
   return UNIT_POOL.filter((u) => u.tier <= tier);
