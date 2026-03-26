@@ -248,10 +248,15 @@ export class MatchInstance {
   }
 
   getSummary(): LobbySummary {
+    const active = this.match.players.filter((p) => !p.eliminated);
+    const humanCount = active.filter((p) => !p.isBot).length;
+    const botCount = active.filter((p) => p.isBot).length;
     return {
       matchId: this.match.matchId,
       phase: this.match.phase,
-      currentPlayers: this.match.players.filter((p) => !p.eliminated).length,
+      currentPlayers: active.length,
+      humanCount,
+      botCount,
       maxPlayers: this.match.maxPlayers,
       isPrivate: this.match.isPrivate,
       region: this.match.region,

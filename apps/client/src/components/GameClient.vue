@@ -71,11 +71,11 @@ const storedMatchId = ref<string | null>(localStorage.getItem("runebrawl.matchId
 const storedAccountId = ref<string | null>(localStorage.getItem("runebrawl.accountId"));
 const joinMode = ref<"quick" | "createPrivate" | "joinPrivate">("quick");
 const inviteCodeInput = ref("");
+/** Used only when connecting (create private / solo practice); not shown in menu. */
 const privateMaxPlayers = ref(4);
-const region = ref("EU");
-const mmr = ref(1000);
+const DEFAULT_REGION = "EU";
+const DEFAULT_MMR = 1000;
 const openLobbies = ref<LobbySummary[]>([]);
-const selectedOpenLobby = ref("");
 const soloPracticeDifficulty = ref<BotDifficulty | null>(null);
 const profileSyncState = ref<"idle" | "saving" | "saved" | "error">("idle");
 const animatingShopIndex = ref<number | null>(null);
@@ -683,8 +683,8 @@ async function connect(): Promise<void> {
           name: name.value.trim(),
           accountId: sessionAccountId,
           maxPlayers,
-          region: region.value,
-          mmr: mmr.value
+          region: DEFAULT_REGION,
+          mmr: DEFAULT_MMR
         });
       } else if (joinMode.value === "joinPrivate") {
         if (!inviteCodeInput.value.trim()) {
@@ -699,7 +699,13 @@ async function connect(): Promise<void> {
           inviteCode: inviteCodeInput.value.trim().toUpperCase()
         });
       } else {
-        send({ type: "QUICK_MATCH", name: name.value.trim(), accountId: sessionAccountId, region: region.value, mmr: mmr.value });
+        send({
+          type: "QUICK_MATCH",
+          name: name.value.trim(),
+          accountId: sessionAccountId,
+          region: DEFAULT_REGION,
+          mmr: DEFAULT_MMR
+        });
       }
     }
   };
@@ -913,9 +919,9 @@ async function joinOpenLobby(matchId: string): Promise<void> {
   };
 }
 
-function joinSelectedOpenLobby(): void {
-  if (!selectedOpenLobby.value) return;
-  void joinOpenLobby(selectedOpenLobby.value);
+function joinLobbyFromMenu(matchId: string): void {
+  if (!matchId.trim()) return;
+  void joinOpenLobby(matchId.trim());
 }
 
 function startQuickFromMenu(): void {
@@ -927,6 +933,7 @@ function startQuickFromMenu(): void {
 function startCreatePrivateFromMenu(): void {
   joinMode.value = "createPrivate";
   soloPracticeDifficulty.value = null;
+  privateMaxPlayers.value = 4;
   void connect();
 }
 
@@ -1514,20 +1521,12 @@ onMounted(() => {
       :connected="connected"
       :name="name"
       :profile-sync-state="profileSyncState"
-      :region="region"
-      :mmr="mmr"
       :invite-code-input="inviteCodeInput"
-      :private-max-players="privateMaxPlayers"
       :open-lobbies="openLobbies"
-      :selected-open-lobby="selectedOpenLobby"
       :stored-player-id="storedPlayerId"
       :stored-match-id="storedMatchId"
       @update:name="name = $event"
-      @update:region="region = $event"
-      @update:mmr="mmr = $event"
       @update:invite-code-input="inviteCodeInput = $event"
-      @update:private-max-players="privateMaxPlayers = $event"
-      @update:selected-open-lobby="selectedOpenLobby = $event"
       @save-profile="saveProfileNow"
       @start-quick="startQuickFromMenu"
       @start-create-private="startCreatePrivateFromMenu"
@@ -1536,7 +1535,7 @@ onMounted(() => {
       @reconnect="reconnectFromMenu"
       @open-settings="openSettingsFromMenu"
       @refresh-lobbies="loadOpenLobbies"
-      @join-selected-open-lobby="joinSelectedOpenLobby"
+      @join-lobby="joinLobbyFromMenu"
     />
 
     <p v-if="error" class="error">{{ error }}</p>

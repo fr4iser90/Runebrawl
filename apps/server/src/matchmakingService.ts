@@ -157,7 +157,7 @@ export class MatchmakingService {
     const result: LobbySummary[] = [];
     for (const match of this.matches.values()) {
       const s = match.getSummary();
-      if (s.phase === "LOBBY" && !s.isPrivate && s.currentPlayers < s.maxPlayers) {
+      if (s.phase === "LOBBY" && s.currentPlayers < s.maxPlayers) {
         result.push(s);
       }
     }

@@ -142,7 +142,12 @@ export interface CombatReplayEvent {
 export interface LobbySummary {
   matchId: string;
   phase: GamePhase;
+  /** Total non-eliminated seats filled (humans + bots). */
   currentPlayers: number;
+  /** Humans in lobby (non-bot). */
+  humanCount: number;
+  /** Bot players in lobby. */
+  botCount: number;
   maxPlayers: number;
   isPrivate: boolean;
   region: string;

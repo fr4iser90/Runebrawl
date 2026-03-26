@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, ref } from "vue";
 import type { LobbySummary } from "@runebrawl/shared";
 import { useI18n } from "../../i18n/useI18n";
 
@@ -6,23 +7,15 @@ const props = defineProps<{
   connected: boolean;
   name: string;
   profileSyncState: "idle" | "saving" | "saved" | "error";
-  region: string;
-  mmr: number;
   inviteCodeInput: string;
-  privateMaxPlayers: number;
   openLobbies: LobbySummary[];
-  selectedOpenLobby: string;
   storedPlayerId: string | null;
   storedMatchId: string | null;
 }>();
 
 const emit = defineEmits<{
   (e: "update:name", value: string): void;
-  (e: "update:region", value: string): void;
-  (e: "update:mmr", value: number): void;
   (e: "update:inviteCodeInput", value: string): void;
-  (e: "update:privateMaxPlayers", value: number): void;
-  (e: "update:selectedOpenLobby", value: string): void;
   (e: "saveProfile"): void;
   (e: "startQuick"): void;
   (e: "startCreatePrivate"): void;
@@ -31,16 +24,65 @@ const emit = defineEmits<{
   (e: "reconnect"): void;
   (e: "openSettings"): void;
   (e: "refreshLobbies"): void;
-  (e: "joinSelectedOpenLobby"): void;
+  (e: "joinLobby", matchId: string): void;
 }>();
 
 const { t } = useI18n();
 
 const showDevFlowBadge = import.meta.env.DEV;
 
-function asNumber(value: string): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+type LobbySortKey = "region" | "mmrBucket" | "fill" | "visibility";
+
+const sortKey = ref<LobbySortKey>("region");
+const sortDir = ref<1 | -1>(1);
+
+function toggleSort(key: LobbySortKey): void {
+  if (sortKey.value === key) {
+    sortDir.value = (sortDir.value === 1 ? -1 : 1) as 1 | -1;
+  } else {
+    sortKey.value = key;
+    sortDir.value = 1;
+  }
+}
+
+function sortLabel(key: LobbySortKey): string {
+  const base =
+    key === "region"
+      ? t("game.menu.lobbyCol.region")
+      : key === "mmrBucket"
+        ? t("game.menu.lobbyCol.mmr")
+        : key === "fill"
+          ? t("game.menu.lobbyCol.fill")
+          : t("game.menu.lobbyCol.visibility");
+  if (sortKey.value !== key) return base;
+  return `${base} ${sortDir.value === 1 ? "▲" : "▼"}`;
+}
+
+function fillRatio(lobby: LobbySummary): number {
+  if (lobby.maxPlayers <= 0) return 0;
+  return lobby.currentPlayers / lobby.maxPlayers;
+}
+
+const sortedOpenLobbies = computed(() => {
+  const rows = [...props.openLobbies];
+  const dir = sortDir.value;
+  const key = sortKey.value;
+  rows.sort((a, b) => {
+    let cmp = 0;
+    if (key === "region") cmp = a.region.localeCompare(b.region);
+    else if (key === "mmrBucket") cmp = a.mmrBucket.localeCompare(b.mmrBucket);
+    else if (key === "fill") cmp = fillRatio(a) - fillRatio(b);
+    else cmp = Number(a.isPrivate) - Number(b.isPrivate);
+    if (cmp === 0) cmp = a.matchId.localeCompare(b.matchId);
+    return cmp * dir;
+  });
+  return rows;
+});
+
+function playerSummary(lobby: LobbySummary): string {
+  const h = lobby.humanCount ?? lobby.currentPlayers;
+  const b = lobby.botCount ?? 0;
+  return t("game.menu.lobbyPlayersFormat", { humans: h, bots: b });
 }
 </script>
 
@@ -107,120 +149,147 @@ function asNumber(value: string): number {
         </div>
 
         <div class="menu-primary-grid">
-        <article class="menu-card menu-card-solo">
-          <h3>{{ t("game.menu.soloTitle") }}</h3>
-          <p class="slot-title">{{ t("game.menu.soloSubtitle") }}</p>
-          <div class="actions menu-action-list">
-            <button type="button" class="cta-primary menu-btn-easy" @click="emit('startSolo', 'EASY')">
-              {{ t("game.menu.soloEasy") }}
-            </button>
-            <button type="button" class="cta-primary menu-btn-normal" @click="emit('startSolo', 'NORMAL')">
-              {{ t("game.menu.soloNormal") }}
-            </button>
-            <button type="button" class="cta-primary menu-btn-hard" @click="emit('startSolo', 'HARD')">
-              {{ t("game.menu.soloHard") }}
-            </button>
-          </div>
-        </article>
-
-        <article class="menu-card menu-card-multi">
-          <h3>{{ t("game.menu.multiplayerTitle") }}</h3>
-          <p class="slot-title">{{ t("game.menu.multiplayerSubtitle") }}</p>
-          <div class="actions menu-action-list">
-            <button type="button" class="cta-primary" @click="emit('startQuick')">{{ t("game.join.quick") }}</button>
-            <button type="button" class="menu-btn-secondary" @click="emit('startCreatePrivate')">
-              {{ t("game.join.createPrivate") }}
-            </button>
-            <button
-              v-if="props.storedPlayerId && props.storedMatchId"
-              type="button"
-              class="menu-btn-secondary"
-              @click="emit('reconnect')"
-            >
-              {{ t("game.join.reconnect") }}
-            </button>
-          </div>
-          <div class="menu-multi-join">
-            <p class="menu-multi-join-title">{{ t("game.menu.joinWithCodeTitle") }}</p>
-            <p class="menu-multi-join-hint">{{ t("game.menu.joinWithCodeHint") }}</p>
-            <div class="menu-multi-join-row">
-              <input
-                class="menu-multi-invite-input"
-                :value="props.inviteCodeInput"
-                :placeholder="t('game.join.inviteCode')"
-                autocomplete="off"
-                spellcheck="false"
-                @input="emit('update:inviteCodeInput', ($event.target as HTMLInputElement).value)"
-              />
-              <button type="button" class="menu-btn-secondary menu-multi-join-btn" @click="emit('startJoinPrivate')">
-                {{ t("game.join.joinPrivate") }}
+          <article class="menu-card menu-card-solo">
+            <h3>{{ t("game.menu.soloTitle") }}</h3>
+            <p class="slot-title">{{ t("game.menu.soloSubtitle") }}</p>
+            <div class="actions menu-action-list">
+              <button type="button" class="cta-primary menu-btn-easy" @click="emit('startSolo', 'EASY')">
+                {{ t("game.menu.soloEasy") }}
+              </button>
+              <button type="button" class="cta-primary menu-btn-normal" @click="emit('startSolo', 'NORMAL')">
+                {{ t("game.menu.soloNormal") }}
+              </button>
+              <button type="button" class="cta-primary menu-btn-hard" @click="emit('startSolo', 'HARD')">
+                {{ t("game.menu.soloHard") }}
               </button>
             </div>
-          </div>
-        </article>
+          </article>
+
+          <article class="menu-card menu-card-multi">
+            <h3>{{ t("game.menu.multiplayerTitle") }}</h3>
+            <p class="slot-title">{{ t("game.menu.multiplayerSubtitle") }}</p>
+            <div class="actions menu-action-list">
+              <button type="button" class="cta-primary" @click="emit('startQuick')">{{ t("game.join.quick") }}</button>
+              <button type="button" class="menu-btn-secondary" @click="emit('startCreatePrivate')">
+                {{ t("game.join.createPrivate") }}
+              </button>
+              <button
+                v-if="props.storedPlayerId && props.storedMatchId"
+                type="button"
+                class="menu-btn-secondary"
+                @click="emit('reconnect')"
+              >
+                {{ t("game.join.reconnect") }}
+              </button>
+            </div>
+            <div class="menu-multi-join">
+              <p class="menu-multi-join-title">{{ t("game.menu.joinWithCodeTitle") }}</p>
+              <p class="menu-multi-join-hint">{{ t("game.menu.joinWithCodeHint") }}</p>
+              <div class="menu-multi-join-row">
+                <input
+                  class="menu-multi-invite-input"
+                  :value="props.inviteCodeInput"
+                  :placeholder="t('game.join.inviteCode')"
+                  autocomplete="off"
+                  spellcheck="false"
+                  @input="emit('update:inviteCodeInput', ($event.target as HTMLInputElement).value)"
+                />
+                <button type="button" class="menu-btn-secondary menu-multi-join-btn" @click="emit('startJoinPrivate')">
+                  {{ t("game.join.joinPrivate") }}
+                </button>
+              </div>
+            </div>
+          </article>
         </div>
 
-        <details class="menu-advanced">
-          <summary>{{ t("game.menu.advanced") }}</summary>
-          <div class="menu-advanced-body">
-            <p class="menu-advanced-lead">{{ t("game.menu.advancedLead") }}</p>
-            <div class="menu-advanced-grid">
-              <label class="menu-field">
-                <span class="menu-field-label">{{ t("game.join.labelRegion") }}</span>
-                <span class="menu-field-hint">{{ t("game.join.hint.region") }}</span>
-                <input
-                  class="menu-field-input"
-                  :value="props.region"
-                  :placeholder="t('game.join.regionPlaceholder')"
-                  @input="emit('update:region', ($event.target as HTMLInputElement).value)"
-                />
-              </label>
-              <label class="menu-field">
-                <span class="menu-field-label">{{ t("game.join.labelMmr") }}</span>
-                <span class="menu-field-hint">{{ t("game.join.hint.mmr") }}</span>
-                <input
-                  class="menu-field-input"
-                  :value="props.mmr"
-                  type="number"
-                  min="1"
-                  :placeholder="t('game.join.mmr')"
-                  @input="emit('update:mmr', asNumber(($event.target as HTMLInputElement).value))"
-                />
-              </label>
-              <label class="menu-field menu-field-span">
-                <span class="menu-field-label">{{ t("game.join.labelMaxPlayers") }}</span>
-                <span class="menu-field-hint">{{ t("game.join.hint.maxPlayers") }}</span>
-                <input
-                  class="menu-field-input"
-                  :value="props.privateMaxPlayers"
-                  type="number"
-                  min="2"
-                  max="8"
-                  :placeholder="t('game.join.maxPlayers')"
-                  @input="emit('update:privateMaxPlayers', asNumber(($event.target as HTMLInputElement).value))"
-                />
-              </label>
-            </div>
-            <div class="menu-advanced-actions actions">
-              <button type="button" class="menu-btn-secondary" @click="emit('refreshLobbies')">
+        <details class="menu-lobby-list">
+          <summary>{{ t("game.menu.lobbyListTitle") }}</summary>
+          <div class="menu-lobby-list-body">
+            <p class="menu-lobby-list-lead">{{ t("game.menu.lobbyListLead") }}</p>
+            <div class="menu-lobby-toolbar">
+              <button type="button" class="menu-btn-secondary menu-lobby-refresh" @click="emit('refreshLobbies')">
                 {{ t("game.join.refreshLobbies") }}
               </button>
             </div>
+
+            <div v-if="sortedOpenLobbies.length === 0" class="menu-lobby-empty">
+              {{ t("game.menu.lobbyListEmpty") }}
+            </div>
+
+            <div v-else class="menu-lobby-table-wrap">
+              <table class="menu-lobby-table">
+                <thead>
+                  <tr>
+                    <th scope="col" class="menu-lobby-th-sort">
+                      <button type="button" class="menu-lobby-sort-btn" @click="toggleSort('visibility')">
+                        {{ sortLabel("visibility") }}
+                      </button>
+                    </th>
+                    <th scope="col" class="menu-lobby-th-sort">
+                      <button type="button" class="menu-lobby-sort-btn" @click="toggleSort('region')">
+                        {{ sortLabel("region") }}
+                      </button>
+                    </th>
+                    <th scope="col" class="menu-lobby-th-sort">
+                      <button type="button" class="menu-lobby-sort-btn" @click="toggleSort('mmrBucket')">
+                        {{ sortLabel("mmrBucket") }}
+                      </button>
+                    </th>
+                    <th scope="col">{{ t("game.menu.lobbyCol.players") }}</th>
+                    <th scope="col" class="menu-lobby-th-sort">
+                      <button type="button" class="menu-lobby-sort-btn" @click="toggleSort('fill')">
+                        {{ sortLabel("fill") }}
+                      </button>
+                    </th>
+                    <th scope="col">{{ t("game.menu.lobbyCol.join") }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="lobby in sortedOpenLobbies" :key="lobby.matchId">
+                    <td class="menu-lobby-cell-ico">
+                      <span
+                        v-if="lobby.isPrivate"
+                        class="menu-lobby-private"
+                        :title="t('game.menu.lobbyPrivateTitle')"
+                        aria-hidden="true"
+                      >
+                        <svg class="menu-lobby-key-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                          <path
+                            fill="currentColor"
+                            d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
+                          />
+                        </svg>
+                      </span>
+                      <span v-else class="menu-lobby-public" :title="t('game.menu.lobbyPublicTitle')" aria-hidden="true">
+                        <svg class="menu-lobby-key-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                          <path
+                            fill="currentColor"
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
+                          />
+                        </svg>
+                      </span>
+                    </td>
+                    <td>{{ lobby.region }}</td>
+                    <td>{{ lobby.mmrBucket }}</td>
+                    <td class="menu-lobby-cell-mono">{{ playerSummary(lobby) }}</td>
+                    <td>{{ lobby.currentPlayers }} / {{ lobby.maxPlayers }}</td>
+                    <td>
+                      <button
+                        v-if="!lobby.isPrivate"
+                        type="button"
+                        class="menu-btn-secondary menu-lobby-join-btn"
+                        @click="emit('joinLobby', lobby.matchId)"
+                      >
+                        {{ t("game.menu.lobbyJoin") }}
+                      </button>
+                      <span v-else class="menu-lobby-invite-only">{{ t("game.menu.lobbyInviteOnly") }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </details>
-
-        <div v-if="props.openLobbies.length > 0" class="join-card menu-open-lobbies">
-        <select
-          :value="props.selectedOpenLobby"
-          @change="emit('update:selectedOpenLobby', ($event.target as HTMLSelectElement).value)"
-        >
-          <option value="">{{ t("game.join.openLobbyPlaceholder") }}</option>
-          <option v-for="lobby in props.openLobbies" :key="lobby.matchId" :value="lobby.matchId">
-            {{ lobby.matchId }} | {{ lobby.currentPlayers }}/{{ lobby.maxPlayers }} | {{ lobby.region }} | {{ lobby.mmrBucket }}
-          </option>
-        </select>
-        <button type="button" @click="emit('joinSelectedOpenLobby')">{{ t("game.join.selectedLobby") }}</button>
-        </div>
       </div>
     </section>
   </template>
