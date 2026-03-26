@@ -11,7 +11,7 @@ This guide defines exact portrait specs for consistent unit/hero art production.
 - **Optional Thumbnail Export:** `128 x 160`
 - **File Format:** `.webp` (primary), `.png` (fallback)
 - **WebP Quality:** `85-90`
-- **Background:** transparent or clean dark gradient (no text overlay)
+- **Background:** transparent or clean dark gradient (no text overlay). Optional: standardized **generic backplates** (§13) if you want a consistent shop look without painting a unique environment per card.
 
 ## 2) Safe Area / Composition Rules
 
@@ -599,7 +599,168 @@ Output: 16:9 landscape.
 Scene: floating void platform arena, fractured stone islands, cosmic nebula depth, arcane beams, high contrast purple-cyan magical battlefield.
 ```
 
-## 13) Runtime Theme Mapping (Ready-to-Implement)
+## 13) Generic portrait backplates (optional, units + heroes)
+
+Use these when you want **consistent readability** in the portrait slot (less empty transparency, stronger silhouette separation) **without** commissioning a unique scene per unit/hero. They are **not** required: transparent + card chrome (§1) remains the default pipeline.
+
+### When to use
+
+- **Yes:** Shop/admin grid should feel cohesive; characters vary wildly in palette; you want a fast second art pass (paste plate under `BG__*` layers, §10).
+- **Skip:** You prefer every portrait to tell its own story; you rely on heavy rim-light only; you want the smallest possible art scope.
+
+### Rules (all backplates)
+
+- Same **4:5** canvas and export sizes as portraits (§1).
+- **No characters, faces, hands, weapons** in the backplate layer (only environment/abstract mood).
+- **No text, runes, logos, readable symbols** (abstract magic shimmer is OK if it cannot be read as letters).
+- Keep **center-center slightly darker or softer** than edges so the bust reads first (vignette or radial falloff).
+- **Lower contrast and detail** than the character paint so the figure stays the hero.
+- **Where to put files (repo):** generic plates live **next to** portraits, not under `backgrounds/` (those are full-scene 16:9).
+
+  - Units: `apps/client/src/assets/portraits/backplates/units/portrait_bg_unit_<key>.webp`
+  - Heroes: `apps/client/src/assets/portraits/backplates/heroes/portrait_bg_hero_<key>.webp`
+
+- Naming (source or flattened exports), if you ship them as separate files for tooling:
+
+  - Units: `portrait_bg_unit_<key>.webp`
+  - Heroes: `portrait_bg_hero_<key>.webp`
+
+### Set to produce (recommended scope)
+
+**Units — pick 4–5** (role-neutral; tint is subtle so Tank/Melee/Ranged/Support all work):
+
+| Key | Role |
+| --- | --- |
+| `neutral_void` | Cool neutral “UI slot” (default if you only make one) |
+| `warm_smoke` | Warm gray-brown haze, slight battlefield grit |
+| `arcane_mist` | Soft blue-violet atmospheric mist, tiny specular dots (not glyphs) |
+| `nature_depth` | Out-of-focus forest/teal depth, bokeh blobs |
+| `stone_crypt` | Desaturated bluish stone / cavern blur, low saturation |
+
+**Heroes — pick 2–3** (slightly richer than units; still no busy storytelling):
+
+| Key | Role |
+| --- | --- |
+| `command_aegis` | Subtle radial “importance” glow, steel-cool rim, very restrained gold hint |
+| `arcane_summit` | Deep blue → black vertical gradient, soft crystal/violet highlights |
+| `storm_crown` | Soft storm-cloud drama, cool gray-blue vignette (no lightning bolts that look like shapes/symbols) |
+
+### Global prompt prefix (portrait backplate only)
+
+Use this instead of “Background: transparent only” in the global portrait prefix (§8) when generating a **standalone plate** (no character). Keep the STRICT no-text block.
+
+```text
+Abstract fantasy portrait backdrop plate only, vertical 4:5, no characters, no people, no creatures, no faces, no limbs, no weapons, no armor pieces.
+Style: stylized semi-flat fantasy game illustration, soft focus environment or abstract atmosphere, NOT photorealistic.
+Composition: strongest detail and contrast near edges and lower third; keep upper-center calmer and slightly darker for a future character bust overlay.
+Lighting: gentle, controlled; avoid harsh hotspots in the center.
+STRICT: no text, no letters, no runes, no readable symbols, no logos, no watermark, no card frame, no UI.
+Output composition: vertical 4:5, full bleed edge to edge.
+```
+
+### Copy-paste prompts (one file per key)
+
+#### Units — `portrait_bg_unit_neutral_void.webp`
+
+```text
+Abstract fantasy portrait backdrop plate only, vertical 4:5, no characters, no people, no creatures, no faces, no limbs, no weapons, no armor pieces.
+Style: stylized semi-flat fantasy game illustration, soft focus environment or abstract atmosphere, NOT photorealistic.
+Composition: strongest detail and contrast near edges and lower third; keep upper-center calmer and slightly darker for a future character bust overlay.
+Lighting: gentle, controlled; avoid harsh hotspots in the center.
+STRICT: no text, no letters, no runes, no readable symbols, no logos, no watermark, no card frame, no UI.
+Output composition: vertical 4:5, full bleed edge to edge.
+Scene: neutral arcane void studio backdrop, soft blue-gray to deep indigo radial gradient, subtle film grain, faint vignette, extremely clean and game-UI friendly.
+```
+
+#### Units — `portrait_bg_unit_warm_smoke.webp`
+
+```text
+Abstract fantasy portrait backdrop plate only, vertical 4:5, no characters, no people, no creatures, no faces, no limbs, no weapons, no armor pieces.
+Style: stylized semi-flat fantasy game illustration, soft focus environment or abstract atmosphere, NOT photorealistic.
+Composition: strongest detail and contrast near edges and lower third; keep upper-center calmer and slightly darker for a future character bust overlay.
+Lighting: gentle, controlled; avoid harsh hotspots in the center.
+STRICT: no text, no letters, no runes, no readable symbols, no logos, no watermark, no card frame, no UI.
+Output composition: vertical 4:5, full bleed edge to edge.
+Scene: warm muted battlefield haze, soft brown-gray atmosphere, drifting smoke bands without recognizable shapes, low contrast, gritty but subtle.
+```
+
+#### Units — `portrait_bg_unit_arcane_mist.webp`
+
+```text
+Abstract fantasy portrait backdrop plate only, vertical 4:5, no characters, no people, no creatures, no faces, no limbs, no weapons, no armor pieces.
+Style: stylized semi-flat fantasy game illustration, soft focus environment or abstract atmosphere, NOT photorealistic.
+Composition: strongest detail and contrast near edges and lower third; keep upper-center calmer and slightly darker for a future character bust overlay.
+Lighting: gentle, controlled; avoid harsh hotspots in the center.
+STRICT: no text, no letters, no runes, no readable symbols, no logos, no watermark, no card frame, no UI.
+Output composition: vertical 4:5, full bleed edge to edge.
+Scene: soft blue-violet magical mist, airy depth, a few tiny sparkle speculars only (no patterns, no circles that look like sigils), smooth gradients.
+```
+
+#### Units — `portrait_bg_unit_nature_depth.webp`
+
+```text
+Abstract fantasy portrait backdrop plate only, vertical 4:5, no characters, no people, no creatures, no faces, no limbs, no weapons, no armor pieces.
+Style: stylized semi-flat fantasy game illustration, soft focus environment or abstract atmosphere, NOT photorealistic.
+Composition: strongest detail and contrast near edges and lower third; keep upper-center calmer and slightly darker for a future character bust overlay.
+Lighting: gentle, controlled; avoid harsh hotspots in the center.
+STRICT: no text, no letters, no runes, no readable symbols, no logos, no watermark, no card frame, no UI.
+Output composition: vertical 4:5, full bleed edge to edge.
+Scene: out-of-focus forest depth, teal-green bokeh blobs, soft leaf-light shards (abstract only), darkened upper center, calm organic mood.
+```
+
+#### Units — `portrait_bg_unit_stone_crypt.webp`
+
+```text
+Abstract fantasy portrait backdrop plate only, vertical 4:5, no characters, no people, no creatures, no faces, no limbs, no weapons, no armor pieces.
+Style: stylized semi-flat fantasy game illustration, soft focus environment or abstract atmosphere, NOT photorealistic.
+Composition: strongest detail and contrast near edges and lower third; keep upper-center calmer and slightly darker for a future character bust overlay.
+Lighting: gentle, controlled; avoid harsh hotspots in the center.
+STRICT: no text, no letters, no runes, no readable symbols, no logos, no watermark, no card frame, no UI.
+Output composition: vertical 4:5, full bleed edge to edge.
+Scene: blurred stone crypt / cavern wall impression, cool desaturated blue-gray, subtle cracks and planes (no carved symbols), moody and quiet.
+```
+
+#### Heroes — `portrait_bg_hero_command_aegis.webp`
+
+```text
+Abstract fantasy portrait backdrop plate only, vertical 4:5, no characters, no people, no creatures, no faces, no limbs, no weapons, no armor pieces.
+Style: stylized semi-flat fantasy game illustration, soft focus environment or abstract atmosphere, NOT photorealistic.
+Composition: strongest detail and contrast near edges and lower third; keep upper-center calmer and slightly darker for a future character bust overlay.
+Lighting: gentle, controlled; avoid harsh hotspots in the center.
+STRICT: no text, no letters, no runes, no readable symbols, no logos, no watermark, no card frame, no UI.
+Output composition: vertical 4:5, full bleed edge to edge.
+Scene: heroic command aura backdrop, restrained steel-cool light with a whisper of warm gold at the bottom edge only, soft radial prestige glow, premium but not busy.
+```
+
+#### Heroes — `portrait_bg_hero_arcane_summit.webp`
+
+```text
+Abstract fantasy portrait backdrop plate only, vertical 4:5, no characters, no people, no creatures, no faces, no limbs, no weapons, no armor pieces.
+Style: stylized semi-flat fantasy game illustration, soft focus environment or abstract atmosphere, NOT photorealistic.
+Composition: strongest detail and contrast near edges and lower third; keep upper-center calmer and slightly darker for a future character bust overlay.
+Lighting: gentle, controlled; avoid harsh hotspots in the center.
+STRICT: no text, no letters, no runes, no readable symbols, no logos, no watermark, no card frame, no UI.
+Output composition: vertical 4:5, full bleed edge to edge.
+Scene: high arcane summit atmosphere, deep blue to near-black vertical gradient, soft violet crystal light leaks along sides (abstract shards, no rune grids).
+```
+
+#### Heroes — `portrait_bg_hero_storm_crown.webp`
+
+```text
+Abstract fantasy portrait backdrop plate only, vertical 4:5, no characters, no people, no creatures, no faces, no limbs, no weapons, no armor pieces.
+Style: stylized semi-flat fantasy game illustration, soft focus environment or abstract atmosphere, NOT photorealistic.
+Composition: strongest detail and contrast near edges and lower third; keep upper-center calmer and slightly darker for a future character bust overlay.
+Lighting: gentle, controlled; avoid harsh hotspots in the center.
+STRICT: no text, no letters, no runes, no readable symbols, no logos, no watermark, no card frame, no UI.
+Output composition: vertical 4:5, full bleed edge to edge.
+Scene: dramatic but soft storm sky mood, cool gray-blue volumetric clouds, strong edge vignette, no lightning bolts that resemble symbols or figures.
+```
+
+### Pipeline note
+
+Generate plates once, then in GIMP/Aseprite (§10) place them under the character in `BG__gradient` / `BG__shape`, keep the bust on top, export the **same** `256x320` `.webp` portrait path (§3). If the game later supports runtime background swapping, keep plates as separate files using the names above.
+
+## 14) Runtime Theme Mapping (Ready-to-Implement)
 
 This mapping aligns art asset names with the current client phase CSS hooks.
 

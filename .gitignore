@@ -11,4 +11,5 @@ apps/server/node_modules
 packages/shared/node_modules
 apps/client/playwright-report
 apps/client/test-results
+apps/client/src/assets/raw
 docker-compose.traefik.yml
