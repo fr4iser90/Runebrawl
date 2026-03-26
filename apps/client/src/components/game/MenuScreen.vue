@@ -140,49 +140,73 @@ function asNumber(value: string): number {
               {{ t("game.join.reconnect") }}
             </button>
           </div>
+          <div class="menu-multi-join">
+            <p class="menu-multi-join-title">{{ t("game.menu.joinWithCodeTitle") }}</p>
+            <p class="menu-multi-join-hint">{{ t("game.menu.joinWithCodeHint") }}</p>
+            <div class="menu-multi-join-row">
+              <input
+                class="menu-multi-invite-input"
+                :value="props.inviteCodeInput"
+                :placeholder="t('game.join.inviteCode')"
+                autocomplete="off"
+                spellcheck="false"
+                @input="emit('update:inviteCodeInput', ($event.target as HTMLInputElement).value)"
+              />
+              <button type="button" class="menu-btn-secondary menu-multi-join-btn" @click="emit('startJoinPrivate')">
+                {{ t("game.join.joinPrivate") }}
+              </button>
+            </div>
+          </div>
         </article>
         </div>
 
         <details class="menu-advanced">
-        <summary>{{ t("game.menu.advanced") }}</summary>
-        <div class="menu-advanced-grid">
-          <input
-            :value="props.region"
-            :placeholder="t('game.join.regionPlaceholder')"
-            @input="emit('update:region', ($event.target as HTMLInputElement).value)"
-          />
-          <input
-            :value="props.mmr"
-            type="number"
-            min="1"
-            :placeholder="t('game.join.mmr')"
-            @input="emit('update:mmr', asNumber(($event.target as HTMLInputElement).value))"
-          />
-          <input
-            :value="props.inviteCodeInput"
-            :placeholder="t('game.join.inviteCode')"
-            @input="emit('update:inviteCodeInput', ($event.target as HTMLInputElement).value)"
-          />
-          <input
-            :value="props.privateMaxPlayers"
-            type="number"
-            min="2"
-            max="8"
-            :placeholder="t('game.join.maxPlayers')"
-            @input="emit('update:privateMaxPlayers', asNumber(($event.target as HTMLInputElement).value))"
-          />
-          <div class="actions">
-            <button type="button" @click="emit('startJoinPrivate')">{{ t("game.join.joinPrivate") }}</button>
-            <button
-              v-if="props.storedPlayerId && props.storedMatchId"
-              type="button"
-              @click="emit('reconnect')"
-            >
-              {{ t("game.join.reconnect") }}
-            </button>
-            <button type="button" @click="emit('refreshLobbies')">{{ t("game.join.refreshLobbies") }}</button>
+          <summary>{{ t("game.menu.advanced") }}</summary>
+          <div class="menu-advanced-body">
+            <p class="menu-advanced-lead">{{ t("game.menu.advancedLead") }}</p>
+            <div class="menu-advanced-grid">
+              <label class="menu-field">
+                <span class="menu-field-label">{{ t("game.join.labelRegion") }}</span>
+                <span class="menu-field-hint">{{ t("game.join.hint.region") }}</span>
+                <input
+                  class="menu-field-input"
+                  :value="props.region"
+                  :placeholder="t('game.join.regionPlaceholder')"
+                  @input="emit('update:region', ($event.target as HTMLInputElement).value)"
+                />
+              </label>
+              <label class="menu-field">
+                <span class="menu-field-label">{{ t("game.join.labelMmr") }}</span>
+                <span class="menu-field-hint">{{ t("game.join.hint.mmr") }}</span>
+                <input
+                  class="menu-field-input"
+                  :value="props.mmr"
+                  type="number"
+                  min="1"
+                  :placeholder="t('game.join.mmr')"
+                  @input="emit('update:mmr', asNumber(($event.target as HTMLInputElement).value))"
+                />
+              </label>
+              <label class="menu-field menu-field-span">
+                <span class="menu-field-label">{{ t("game.join.labelMaxPlayers") }}</span>
+                <span class="menu-field-hint">{{ t("game.join.hint.maxPlayers") }}</span>
+                <input
+                  class="menu-field-input"
+                  :value="props.privateMaxPlayers"
+                  type="number"
+                  min="2"
+                  max="8"
+                  :placeholder="t('game.join.maxPlayers')"
+                  @input="emit('update:privateMaxPlayers', asNumber(($event.target as HTMLInputElement).value))"
+                />
+              </label>
+            </div>
+            <div class="menu-advanced-actions actions">
+              <button type="button" class="menu-btn-secondary" @click="emit('refreshLobbies')">
+                {{ t("game.join.refreshLobbies") }}
+              </button>
+            </div>
           </div>
-        </div>
         </details>
 
         <div v-if="props.openLobbies.length > 0" class="join-card menu-open-lobbies">
