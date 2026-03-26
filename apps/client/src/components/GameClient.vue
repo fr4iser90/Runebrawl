@@ -37,15 +37,16 @@ import {
 } from "../assets/optimized/portraits/loader";
 import { useI18n } from "../i18n/useI18n";
 import MenuScreen from "./game/MenuScreen.vue";
-import RecruitmentHallView from "./game/RecruitmentHallView.vue";
-import HeroSelectionView from "./game/HeroSelectionView.vue";
-import LobbyView from "./game/LobbyView.vue";
-import SettingsModal from "./game/SettingsModal.vue";
+import RecruitmentHallView from "./game/views/RecruitmentHallView.vue";
+import HeroSelectionView from "./game/views/HeroSelectionView.vue";
+import LobbyView from "./game/views/LobbyView.vue";
+import SettingsModal from "./game/modals/SettingsModal.vue";
 import BoardBenchView from "./game/BoardBenchView.vue";
-import CombatView from "./game/CombatView.vue";
-import RoundResultOverlay from "./game/RoundResultOverlay.vue";
-import MatchEndView from "./game/MatchEndView.vue";
-import PlayersSidebar from "./game/PlayersSidebar.vue";
+import CombatView from "./game/views/CombatView.vue";
+import RoundResultOverlay from "./game/overlays/RoundResultOverlay.vue";
+import MatchEndView from "./game/views/MatchEndView.vue";
+import PlayersSidebar from "./game/sidebar/PlayersSidebar.vue";
+import TutorialOverlay from "./game/overlays/TutorialOverlay.vue";
 import { applySceneTheme, getGameContentManifest } from "../content/gameContent";
 
 const name = ref(localStorage.getItem("runebrawl.playerName") ?? "");
@@ -700,6 +701,11 @@ function leaveMatchNow(): void {
   }, 80);
 }
 
+function confirmLeaveMatch(): void {
+  if (!window.confirm(t("game.leaveConfirmRisk"))) return;
+  leaveMatchNow();
+}
+
 async function playAgain(): Promise<void> {
   const fallbackName = name.value.trim() || me.value?.name || "";
   name.value = fallbackName;
@@ -1344,13 +1350,13 @@ onMounted(() => {
       <div class="scene-ornament scene-ornament-top" aria-hidden="true"></div>
       <div class="scene-ornament scene-ornament-bottom" aria-hidden="true"></div>
       <div class="scene-content">
-        <div v-if="showTutorialOverlay" class="tutorial-overlay" role="status" aria-live="polite">
-          <div class="tutorial-card">
-            <div class="tutorial-title">{{ t("game.tutorial.title") }}</div>
-            <p class="tutorial-text">{{ tutorialText }}</p>
-            <button class="tutorial-dismiss" @click="dismissTutorial">{{ t("game.tutorial.dismiss") }}</button>
-          </div>
-        </div>
+        <TutorialOverlay
+          :visible="showTutorialOverlay"
+          :title="t('game.tutorial.title')"
+          :text="tutorialText"
+          :dismiss-label="t('game.tutorial.dismiss')"
+          @dismiss="dismissTutorial"
+        />
         <div v-if="!isFinished && meEliminated" class="actions">
           <button @click="leaveMatchNow">{{ t("game.leaveMatchNow") }}</button>
         </div>
@@ -1396,45 +1402,93 @@ onMounted(() => {
               @back-to-menu="backToMenu"
             />
 
-            <div v-else class="layout" :class="[isCombatView ? 'layout-combat' : '', `phase-${state.phase.toLowerCase()}`]">
-              <template v-if="isCombatView">
-                <CombatView
-                  :me="me"
-                  :my-combat-opponent="myCombatOpponent"
-                  :my-duel-meta="myDuelMeta"
-                  :has-no-duel-this-round="hasNoDuelThisRound"
-                  :active-target-line="activeTargetLine"
-                  :active-combat-line="activeCombatLine"
-                  :replay-my-board="replayMyBoard"
-                  :replay-enemy-board="replayEnemyBoard"
-                  :recent-damage-by-slot="recentDamageBySlot"
-                  :unit-portrait-path="unitPortraitPath"
-                  :unit-backplate-path="unitPortraitBackplatePath"
-                  :unit-label-replay="unitLabelReplay"
-                  :unit-hp-percent="unitHpPercent"
-                  :unit-pulse-class="unitPulseClass"
-                  :slot-animation-class="slotAnimationClass"
-                  :slot-hit-class="slotHitClass"
-                  :slot-key="slotKey"
-                />
-                <PlayersSidebar
-                  :state="state"
-                  :is-lobby="isLobby"
-                  :is-creator="isCreator"
-                  :me-player-id="me.playerId"
-                  :enriched-combat-log="enrichedCombatLog"
-                  :player-type-icon-path="playerTypeIconPath"
-                  :display-player-name="displayPlayerName"
-                  :player-type-badge-class="playerTypeBadgeClass"
-                  :player-type-label="playerTypeLabel"
-                  :stat-health-icon="statHealthIcon"
-                  @kick-player="kickPlayer"
-                />
-              </template>
-              <template v-else>
+            <div v-else class="game-shell" :class="[isCombatView ? 'game-shell--combat' : 'game-shell--shop', `phase-${state.phase.toLowerCase()}`]">
+              <header class="game-shell-top">
+                <div class="stats">
+                  <span class="stat-pill"><img class="chip-icon" :src="statGoldIcon" alt="" />{{ t("game.gold") }}: {{ me.gold }}</span>
+                  <span class="stat-pill"><img class="chip-icon" :src="statHealthIcon" alt="" />{{ t("game.health") }}: {{ me.health }}</span>
+                  <span class="stat-pill">{{ t("game.tier") }}: {{ me.tavernTier }}</span>
+                  <span class="stat-pill">{{ t("game.xp") }}: {{ me.xp }}</span>
+                  <span class="stat-pill">{{ phaseLabel(state.phase) }}</span>
+                  <span class="stat-pill">{{ secondsLeft }}s</span>
+                </div>
+                <div class="game-shell-top-actions">
+                  <button class="danger-ghost" @click="confirmLeaveMatch">{{ t("game.leaveMatchNow") }}</button>
+                </div>
+              </header>
+
+              <main class="game-shell-main">
+                <section class="game-shell-center">
+                  <CombatView
+                    v-if="isCombatView"
+                    :me="me"
+                    :my-combat-opponent="myCombatOpponent"
+                    :my-duel-meta="myDuelMeta"
+                    :has-no-duel-this-round="hasNoDuelThisRound"
+                    :active-target-line="activeTargetLine"
+                    :active-combat-line="activeCombatLine"
+                    :replay-my-board="replayMyBoard"
+                    :replay-enemy-board="replayEnemyBoard"
+                    :recent-damage-by-slot="recentDamageBySlot"
+                    :unit-portrait-path="unitPortraitPath"
+                    :unit-backplate-path="unitPortraitBackplatePath"
+                    :unit-label-replay="unitLabelReplay"
+                    :unit-hp-percent="unitHpPercent"
+                    :unit-pulse-class="unitPulseClass"
+                    :slot-animation-class="slotAnimationClass"
+                    :slot-hit-class="slotHitClass"
+                    :slot-key="slotKey"
+                  />
+                  <BoardBenchView
+                    v-else
+                    :me="me"
+                    :is-buy-phase="isBuyPhase"
+                    :tutorial-step-key="tutorialStepKey"
+                    :unit-portrait-path="unitPortraitPath"
+                    :unit-backplate-path="unitPortraitBackplatePath"
+                    :unit-quick-meta="unitQuickMeta"
+                    :ability-label="abilityLabel"
+                    :ability-description="abilityDescription"
+                    :ability-icon-path="abilityIconPath"
+                    :synergy-label="synergyLabel"
+                    @sell="sell"
+                    @dragstart="onDragStart"
+                    @drop="onDrop"
+                  />
+                </section>
+
+                <aside class="game-shell-right">
+                  <PlayersSidebar
+                    :state="state"
+                    :is-lobby="isLobby"
+                    :is-creator="isCreator"
+                    :me-player-id="me.playerId"
+                    :enriched-combat-log="enrichedCombatLog"
+                    :player-type-icon-path="playerTypeIconPath"
+                    :display-player-name="displayPlayerName"
+                    :player-type-badge-class="playerTypeBadgeClass"
+                    :player-type-label="playerTypeLabel"
+                    :stat-health-icon="statHealthIcon"
+                    @kick-player="kickPlayer"
+                  />
+                </aside>
+              </main>
+
+              <footer class="game-shell-bottom">
+                <div v-if="isCombatView" class="game-shell-combat-controls">
+                  <span class="slot-title">{{ t("game.replay") }}</span>
+                  <button @click="animationSpeed = 'slow'">0.75x</button>
+                  <button @click="animationSpeed = 'normal'">1x</button>
+                  <button @click="animationSpeed = 'fast'">1.25x</button>
+                  <button @click="reducedMotion = !reducedMotion">
+                    {{ reducedMotion ? "Unpause FX" : "Pause FX" }}
+                  </button>
+                </div>
                 <RecruitmentHallView
+                  v-else
                   :state="state"
                   :me="me"
+                  :bottom-only="true"
                   :is-lobby="isLobby"
                   :is-hero-selection="isHeroSelection"
                   :is-private-lobby="isPrivateLobby"
@@ -1468,37 +1522,7 @@ onMounted(() => {
                   @lock-toggle="lockToggle"
                   @ready="ready"
                 />
-
-                <BoardBenchView
-                  :me="me"
-                  :is-buy-phase="isBuyPhase"
-                  :tutorial-step-key="tutorialStepKey"
-                  :unit-portrait-path="unitPortraitPath"
-                  :unit-backplate-path="unitPortraitBackplatePath"
-                  :unit-quick-meta="unitQuickMeta"
-                  :ability-label="abilityLabel"
-                  :ability-description="abilityDescription"
-                  :ability-icon-path="abilityIconPath"
-                  :synergy-label="synergyLabel"
-                  @sell="sell"
-                  @dragstart="onDragStart"
-                  @drop="onDrop"
-                />
-
-                <PlayersSidebar
-                  :state="state"
-                  :is-lobby="isLobby"
-                  :is-creator="isCreator"
-                  :me-player-id="me.playerId"
-                  :enriched-combat-log="enrichedCombatLog"
-                  :player-type-icon-path="playerTypeIconPath"
-                  :display-player-name="displayPlayerName"
-                  :player-type-badge-class="playerTypeBadgeClass"
-                  :player-type-label="playerTypeLabel"
-                  :stat-health-icon="statHealthIcon"
-                  @kick-player="kickPlayer"
-                />
-              </template>
+              </footer>
             </div>
           </div>
         </Transition>

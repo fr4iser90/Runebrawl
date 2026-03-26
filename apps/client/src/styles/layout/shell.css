@@ -1,0 +1,53 @@
+/* GameShell domain styles.
+ * Migration target: .game-shell, .game-shell-top, .game-shell-main, .game-shell-right, .game-shell-bottom
+ */
+
+.game-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  min-height: 72vh;
+}
+
+.game-shell-top,
+.game-shell-main,
+.game-shell-bottom {
+  border: 1px solid var(--scene-panel-border);
+  border-radius: 12px;
+  background: #1a2033;
+}
+
+.game-shell-top {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.game-shell-main {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(280px, 1fr);
+  gap: 12px;
+  padding: 10px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.game-shell-center {
+  overflow: auto;
+  overflow-x: hidden;
+}
+
+.game-shell-right > .sidebar {
+  height: 100%;
+  margin: 0;
+  overflow: auto;
+  overflow-x: hidden;
+}
+
+.game-shell-bottom {
+  padding: 10px;
+  overflow: auto;
+  overflow-x: hidden;
+}

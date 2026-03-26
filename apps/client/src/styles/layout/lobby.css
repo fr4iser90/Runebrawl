@@ -1,0 +1,33 @@
+/* Lobby domain styles.
+ * Migration target: .lobby-screen, .lobby-header, .lobby-grid, .lobby-card
+ */
+
+.lobby-screen {
+  border: 1px solid #445680;
+  border-radius: 12px;
+  background: rgba(22, 31, 52, 0.74);
+  box-shadow: 0 14px 30px rgba(8, 12, 24, 0.34);
+  padding: 14px;
+}
+
+.lobby-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.lobby-status {
+  margin: 0 0 10px;
+}
+
+.lobby-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 12px;
+}
+
+.lobby-grid > * {
+  min-width: 0;
+}

@@ -21,7 +21,7 @@ import {
   shouldUseHeroPower,
   type BotDifficulty
 } from "./ai/botLogic.js";
-import { BALANCE } from "./data/balance.js";
+import { BALANCE, shopSlotsForTavernTier } from "./data/balance.js";
 import { findHeroById, randomHeroOptions } from "./data/heroes.js";
 import { UNIT_POOL, unitsForTier } from "./data/units.js";
 import { simulateCombat } from "./engine/combat.js";
@@ -491,7 +491,7 @@ export class MatchInstance {
       heroSelected: false,
       heroPowerUsedThisTurn: false,
       heroOptions: [],
-      shop: Array.from({ length: BALANCE.shopSlots }, () => null),
+      shop: Array.from({ length: shopSlotsForTavernTier(1) }, () => null),
       bench: Array.from({ length: BALANCE.benchSlots }, () => null),
       board: Array.from({ length: BALANCE.boardSlots }, () => null),
       eliminated: false,
@@ -889,6 +889,8 @@ export class MatchInstance {
       if (!p.lockedShop) {
         this.releaseShopToPool(p);
         p.shop = this.rollShop(p.tavernTier, this.match.seed + this.match.round + p.gold);
+      } else {
+        this.ensureShopSizeForTier(p, this.match.seed + this.match.round + p.gold + p.xp);
       }
       this.resetBoardHealth(p);
     }
@@ -950,7 +952,7 @@ export class MatchInstance {
       heroSelected: false,
       heroPowerUsedThisTurn: false,
       heroOptions: [],
-      shop: Array.from({ length: BALANCE.shopSlots }, () => null),
+      shop: Array.from({ length: shopSlotsForTavernTier(1) }, () => null),
       bench: Array.from({ length: BALANCE.benchSlots }, () => null),
       board: Array.from({ length: BALANCE.boardSlots }, () => null),
       eliminated: false,
@@ -1251,9 +1253,26 @@ export class MatchInstance {
 
   private rollShop(tier: number, seed: number): (UnitDefinition | null)[] {
     const rng = new SeededRng(seed);
-    return Array.from({ length: BALANCE.shopSlots }, () => {
+    return Array.from({ length: shopSlotsForTavernTier(tier) }, () => {
       return this.drawUnitFromPool(tier, rng);
     });
+  }
+
+  private ensureShopSizeForTier(player: PlayerInternal, seed: number): void {
+    const targetSlots = shopSlotsForTavernTier(player.tavernTier);
+    if (player.shop.length === targetSlots) return;
+    if (player.shop.length > targetSlots) {
+      const overflow = player.shop.slice(targetSlots);
+      for (const unit of overflow) {
+        if (unit) this.returnUnitCopyToPool(unit.id);
+      }
+      player.shop = player.shop.slice(0, targetSlots);
+      return;
+    }
+    const additions = targetSlots - player.shop.length;
+    const rng = new SeededRng(seed);
+    const extra = Array.from({ length: additions }, () => this.drawUnitFromPool(player.tavernTier, rng));
+    player.shop = [...player.shop, ...extra];
   }
 
   private rollUnitTierForShop(tavernTier: number, rng: SeededRng): number {
@@ -1352,6 +1371,7 @@ export class MatchInstance {
     if (player.tavernTier >= BALANCE.maxTavernTier || player.gold < cost) return;
     player.gold -= cost;
     player.tavernTier += 1;
+    this.ensureShopSizeForTier(player, this.match.seed + this.match.round + player.gold + player.xp + this.match.sequence);
   }
 
   private sellUnit(player: PlayerInternal, zone: "bench" | "board", index: number): void {

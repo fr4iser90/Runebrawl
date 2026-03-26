@@ -15,9 +15,9 @@ import {
   type PortraitFrameId,
   coercePortraitFrameId,
   DEFAULT_PORTRAIT_FRAME_ID
-} from "../content/portraitFrameStyles";
-import PortraitFrameSvg from "./PortraitFrameSvg.vue";
-import { useI18n } from "../i18n/useI18n";
+} from "../../content/portraitFrameStyles";
+import PortraitFrameSvg from "../shared/PortraitFrameSvg.vue";
+import { useI18n } from "../../i18n/useI18n";
 
 const { t } = useI18n();
 

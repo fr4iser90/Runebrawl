@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import AdminPanel from "./components/AdminPanel.vue";
+import AdminPanel from "./components/admin/AdminPanel.vue";
 import GameClient from "./components/GameClient.vue";
-import PublicReviewView from "./components/PublicReviewView.vue";
-import PublicSuggestView from "./components/PublicSuggestView.vue";
+import PublicReviewView from "./components/public/PublicReviewView.vue";
+import PublicSuggestView from "./components/public/PublicSuggestView.vue";
 import { useI18n } from "./i18n/useI18n";
 
 const pathname = computed(() => window.location.pathname);

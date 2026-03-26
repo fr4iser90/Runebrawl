@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, useId } from "vue";
-import type { PortraitFrameId } from "../content/portraitFrameStyles";
+import type { PortraitFrameId } from "../../content/portraitFrameStyles";
 
 /**
  * Unit shop card chrome (preview / tooling):

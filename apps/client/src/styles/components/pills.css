@@ -1,0 +1,125 @@
+/* Reusable badge/chip/pill primitives.
+ * Migration target: .stat-pill, .meta-chip, .player-badge, .hotkey-hint
+ */
+
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--scene-pill-border);
+  border-radius: 999px;
+  background: var(--scene-pill-bg);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.hero-power-chip {
+  font-size: 11px;
+  border-color: #7388c8;
+  background: #2d3e66;
+}
+
+.hero-power-passive {
+  border-color: #6ea9c8;
+  background: #2b4c61;
+}
+
+.hero-power-active {
+  border-color: #8b82d0;
+  background: #3b3466;
+}
+
+.hotkey-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;
+  border: 1px solid rgba(200, 214, 255, 0.5);
+  border-radius: 999px;
+  background: rgba(14, 22, 42, 0.45);
+  color: #d7e4ff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  margin: 0 4px 4px 0;
+  border-radius: 999px;
+  border: 1px solid #445380;
+  background: #263152;
+  font-size: 11px;
+  cursor: help;
+}
+
+.tag-chip {
+  border-color: #7a4f9a;
+  background: #35254a;
+}
+
+.chip-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.player-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid #4a5888;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-human {
+  background: #1f3f67;
+  border-color: #4b89cc;
+}
+
+.badge-bot-easy {
+  background: #2f4d2d;
+  border-color: #78b96b;
+}
+
+.badge-bot-normal {
+  background: #3b3657;
+  border-color: #8d86be;
+}
+
+.badge-bot-hard {
+  background: #5b2f2f;
+  border-color: #d27b7b;
+}
+
+@media (max-width: 700px) {
+  .stat-pill {
+    font-size: 12px;
+  }
+
+  .hotkey-hint {
+    font-size: 10px;
+    padding: 1px 5px;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .stat-pill {
+    font-size: 11px;
+    padding: 2px 7px;
+  }
+}
+
+@media (max-width: 380px) {
+  .stat-pill {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+}

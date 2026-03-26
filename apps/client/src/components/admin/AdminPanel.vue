@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import type { HeroDefinition, UnitDefinition } from "@runebrawl/shared";
-import { useAdminApi } from "../composables/useAdminApi";
+import type { GamePhase, HeroDefinition, UnitDefinition } from "@runebrawl/shared";
+import { useAdminApi } from "../../composables/useAdminApi";
 import {
   hasHeroPortrait,
   hasUnitPortrait,
@@ -9,15 +9,15 @@ import {
   heroPortraitPath,
   unitPortraitBackplatePath,
   unitPortraitPath
-} from "../assets/optimized/portraits/loader";
+} from "../../assets/optimized/portraits/loader";
 import {
   PORTRAIT_FRAME_IDS,
   type PortraitFrameId,
   coercePortraitFrameId,
   DEFAULT_PORTRAIT_FRAME_ID
-} from "../content/portraitFrameStyles";
-import PortraitFrameSvg from "./PortraitFrameSvg.vue";
-import { useI18n } from "../i18n/useI18n";
+} from "../../content/portraitFrameStyles";
+import PortraitFrameSvg from "../shared/PortraitFrameSvg.vue";
+import { useI18n } from "../../i18n/useI18n";
 
 const ADMIN_PORTRAIT_FRAME_KEY = "runebrawl.admin.portraitPreviewFrame";
 
@@ -118,6 +118,14 @@ const topStartReasons = computed(() => {
 });
 
 const adminPortraitPreviewFrame = ref<PortraitFrameId>(DEFAULT_PORTRAIT_FRAME_ID);
+const ADMIN_PREVIEW_PHASES: GamePhase[] = ["LOBBY", "HERO_SELECTION", "TAVERN", "POSITIONING", "COMBAT", "ROUND_END", "FINISHED"];
+const adminPreviewPhase = ref<GamePhase>("TAVERN");
+const adminPreviewEmbed = ref(false);
+const adminPreviewReloadToken = ref(0);
+const adminPreviewAutoCycle = ref(false);
+const adminPreviewCycleMs = ref(3000);
+let adminPreviewCycleTimer: ReturnType<typeof setInterval> | null = null;
+const ADMIN_PREVIEW_CYCLE: GamePhase[] = ["TAVERN", "POSITIONING", "COMBAT", "ROUND_END"];
 
 const portraitUnitPreview = computed(() =>
   (adminContentCatalog.value?.units ?? []).map((unit) => ({
@@ -148,6 +156,53 @@ function adminPreviewTierClass(tier: number): AdminTierPreviewClass {
   if (n <= 2) return "tier-low";
   if (n <= 4) return "tier-mid";
   return "tier-high";
+}
+
+const adminMockPreviewUrl = computed(() => {
+  const u = new URL(window.location.origin);
+  u.pathname = "/";
+  u.searchParams.set("rb_mock", "1");
+  u.searchParams.set("rb_phase", adminPreviewPhase.value);
+  u.hash = "";
+  return u.toString();
+});
+
+function openAdminMockPreview(): void {
+  window.open(adminMockPreviewUrl.value, "_blank", "noopener,noreferrer");
+}
+
+function reloadAdminMockPreview(): void {
+  adminPreviewReloadToken.value += 1;
+}
+
+function nextAdminPreviewPhase(): void {
+  const idx = ADMIN_PREVIEW_PHASES.indexOf(adminPreviewPhase.value);
+  const nextIdx = idx >= 0 ? (idx + 1) % ADMIN_PREVIEW_PHASES.length : 0;
+  adminPreviewPhase.value = ADMIN_PREVIEW_PHASES[nextIdx] ?? "TAVERN";
+}
+
+function prevAdminPreviewPhase(): void {
+  const idx = ADMIN_PREVIEW_PHASES.indexOf(adminPreviewPhase.value);
+  const prevIdx = idx >= 0 ? (idx - 1 + ADMIN_PREVIEW_PHASES.length) % ADMIN_PREVIEW_PHASES.length : 0;
+  adminPreviewPhase.value = ADMIN_PREVIEW_PHASES[prevIdx] ?? "TAVERN";
+}
+
+function stepAdminPreviewCycle(): void {
+  const idx = ADMIN_PREVIEW_CYCLE.indexOf(adminPreviewPhase.value);
+  const nextIdx = idx >= 0 ? (idx + 1) % ADMIN_PREVIEW_CYCLE.length : 0;
+  adminPreviewPhase.value = ADMIN_PREVIEW_CYCLE[nextIdx] ?? "TAVERN";
+}
+
+function stopAdminPreviewCycle(): void {
+  if (adminPreviewCycleTimer) {
+    clearInterval(adminPreviewCycleTimer);
+    adminPreviewCycleTimer = null;
+  }
+}
+
+function startAdminPreviewCycle(): void {
+  stopAdminPreviewCycle();
+  adminPreviewCycleTimer = setInterval(stepAdminPreviewCycle, Math.max(1200, adminPreviewCycleMs.value));
 }
 
 const SYNERGY_LABELS: Record<string, string> = {
@@ -618,6 +673,21 @@ watch(adminPortraitPreviewFrame, (v) => {
   }
 });
 
+watch(
+  () => [adminPreviewAutoCycle.value, adminPreviewCycleMs.value],
+  () => {
+    if (adminPreviewAutoCycle.value) {
+      startAdminPreviewCycle();
+    } else {
+      stopAdminPreviewCycle();
+    }
+  }
+);
+
+watch(adminPreviewPhase, () => {
+  reloadAdminMockPreview();
+});
+
 onMounted(() => {
   try {
     const stored = localStorage.getItem(ADMIN_PORTRAIT_FRAME_KEY);
@@ -659,6 +729,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  stopAdminPreviewCycle();
   stopPolling();
   stopAdminStream();
 });
@@ -968,6 +1039,46 @@ onBeforeUnmount(() => {
             </div>
             <div v-if="portraitHeroPreview.length === 0" class="slot-title">{{ t("admin.portraits.none") }}</div>
           </div>
+        </div>
+      </div>
+
+      <div class="admin-card">
+        <h3>{{ t("admin.preview.title") }}</h3>
+        <p class="slot-title">{{ t("admin.preview.hint") }}</p>
+        <div class="join-card">
+          <select v-model="adminPreviewPhase">
+            <option v-for="phase in ADMIN_PREVIEW_PHASES" :key="`preview-phase-${phase}`" :value="phase">
+              {{ formatPhaseLabel(phase) }}
+            </option>
+          </select>
+          <button @click="prevAdminPreviewPhase">{{ t("admin.preview.prev") }}</button>
+          <button @click="nextAdminPreviewPhase">{{ t("admin.preview.next") }}</button>
+          <button @click="openAdminMockPreview">{{ t("admin.preview.open") }}</button>
+          <button @click="reloadAdminMockPreview">{{ t("admin.preview.reload") }}</button>
+          <label class="admin-preview-embed-toggle">
+            <input v-model="adminPreviewEmbed" type="checkbox" />
+            {{ t("admin.preview.embed") }}
+          </label>
+          <label class="admin-preview-embed-toggle">
+            <input v-model="adminPreviewAutoCycle" type="checkbox" />
+            {{ t("admin.preview.autoCycle") }}
+          </label>
+          <label class="admin-preview-cycle-label">
+            {{ t("admin.preview.cycleMs") }}
+            <input v-model.number="adminPreviewCycleMs" type="number" min="1200" step="200" />
+          </label>
+        </div>
+        <div class="log">
+          <div class="slot-title">{{ t("admin.preview.url") }}</div>
+          <code>{{ adminMockPreviewUrl }}</code>
+        </div>
+        <div v-if="adminPreviewEmbed" class="admin-preview-frame-wrap">
+          <iframe
+            :key="`mock-preview-${adminPreviewReloadToken}-${adminPreviewPhase}`"
+            class="admin-preview-frame"
+            :src="adminMockPreviewUrl"
+            :title="t('admin.preview.title')"
+          />
         </div>
       </div>
 

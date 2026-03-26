@@ -11,7 +11,7 @@ import type {
 import { nanoid } from "nanoid";
 import { simulateCombat } from "./engine/combat.js";
 import { SeededRng } from "./engine/rng.js";
-import { BALANCE } from "./data/balance.js";
+import { BALANCE, shopSlotsForTavernTier } from "./data/balance.js";
 import { unitsForTier } from "./data/units.js";
 
 interface SocketLike {
@@ -119,7 +119,7 @@ export class GameManager {
       tavernTier: 1,
       lockedShop: false,
       ready: false,
-      shop: Array.from({ length: BALANCE.shopSlots }, () => null),
+      shop: Array.from({ length: shopSlotsForTavernTier(1) }, () => null),
       bench: Array.from({ length: BALANCE.benchSlots }, () => null),
       board: Array.from({ length: BALANCE.boardSlots }, () => null),
       eliminated: false
@@ -341,7 +341,7 @@ export class GameManager {
         tavernTier: 1,
         lockedShop: false,
         ready: false,
-        shop: Array.from({ length: BALANCE.shopSlots }, () => null),
+      shop: Array.from({ length: shopSlotsForTavernTier(1) }, () => null),
         bench: Array.from({ length: BALANCE.benchSlots }, () => null),
         board: Array.from({ length: BALANCE.boardSlots }, () => null),
         eliminated: false
@@ -366,6 +366,8 @@ export class GameManager {
       p.xp += 1;
       if (!p.lockedShop) {
         p.shop = this.rollShop(p.tavernTier, match.seed + match.round + p.gold);
+      } else {
+        this.ensureShopSizeForTier(p, match.seed + match.round + p.gold + p.xp);
       }
       this.resetBoardHealth(p);
     }
@@ -466,8 +468,27 @@ export class GameManager {
   private rollShop(tier: number, seed: number): (UnitDefinition | null)[] {
     const rng = new SeededRng(seed);
     const pool = unitsForTier(tier);
-    if (pool.length === 0) return Array.from({ length: BALANCE.shopSlots }, () => null);
-    return Array.from({ length: BALANCE.shopSlots }, () => pool[rng.int(pool.length)]);
+    const slots = shopSlotsForTavernTier(tier);
+    if (pool.length === 0) return Array.from({ length: slots }, () => null);
+    return Array.from({ length: slots }, () => pool[rng.int(pool.length)]);
+  }
+
+  private ensureShopSizeForTier(player: PlayerInternal, seed: number): void {
+    const targetSlots = shopSlotsForTavernTier(player.tavernTier);
+    if (player.shop.length === targetSlots) return;
+    if (player.shop.length > targetSlots) {
+      player.shop = player.shop.slice(0, targetSlots);
+      return;
+    }
+    const pool = unitsForTier(player.tavernTier);
+    if (pool.length === 0) {
+      player.shop = [...player.shop, ...Array.from({ length: targetSlots - player.shop.length }, () => null)];
+      return;
+    }
+    const rng = new SeededRng(seed);
+    const additions = targetSlots - player.shop.length;
+    const extra = Array.from({ length: additions }, () => pool[rng.int(pool.length)]);
+    player.shop = [...player.shop, ...extra];
   }
 
   private buyUnit(player: PlayerInternal, shopIndex: number): void {
@@ -548,6 +569,7 @@ export class GameManager {
     if (player.tavernTier >= BALANCE.maxTavernTier || player.gold < cost) return;
     player.gold -= cost;
     player.tavernTier += 1;
+    this.ensureShopSizeForTier(player, match.seed + match.round + player.gold + player.xp + match.sequence);
   }
 
   private sellUnit(player: PlayerInternal, zone: "bench" | "board", index: number): void {

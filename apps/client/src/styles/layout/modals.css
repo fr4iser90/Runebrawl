@@ -1,0 +1,36 @@
+/* Modal domain styles.
+ * Migration target: .modal-backdrop, .modal-card, .modal-header, .settings-row
+ */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(9, 12, 22, 0.62);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+
+.modal-card {
+  width: min(460px, 92vw);
+  border: 1px solid #3b4c79;
+  border-radius: 12px;
+  background: #1a223b;
+  box-shadow: 0 14px 30px rgba(8, 12, 24, 0.5);
+  padding: 12px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+}

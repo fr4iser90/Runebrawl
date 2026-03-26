@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted } from "vue";
 import type { AbilityKey, HeroDefinition, MatchPublicState, SynergyKey, UnitDefinition } from "@runebrawl/shared";
-import { useI18n } from "../../i18n/useI18n";
+import { useI18n } from "../../../i18n/useI18n";
 
 interface PlayerView {
   gold: number;
@@ -44,6 +44,7 @@ const props = defineProps<{
   heroBackplatePath: (heroId: string) => string | null;
   unitPortraitPath: (unitId: string) => string;
   unitBackplatePath: (unitId: string) => string | null;
+  bottomOnly?: boolean;
 }>();
 
 function backplateStyle(url: string | null): Record<string, string> | undefined {
@@ -127,8 +128,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="tavern">
-    <div class="hall-header">
+  <section class="tavern" :class="{ 'tavern-bottom-only': !!props.bottomOnly }">
+    <div v-if="!props.bottomOnly" class="hall-header">
       <h2>{{ t("game.tavernShop") }}</h2>
       <div class="stats">
         <span class="stat-pill">
@@ -138,14 +139,14 @@ onBeforeUnmount(() => {
         <span v-if="props.state.isPrivate && props.state.inviteCode" class="stat-pill">{{ t("game.code") }}: {{ props.state.inviteCode }}</span>
       </div>
     </div>
-    <div class="hall-status">
+    <div v-if="!props.bottomOnly" class="hall-status">
       <p v-if="props.isLobby" class="slot-title">{{ props.lobbyStatusText }}</p>
       <p v-if="props.isHeroSelection && !props.me.heroSelected" class="slot-title">{{ t("game.chooseHero") }}</p>
       <p v-if="props.isHeroSelection && props.me.heroSelected && props.me.hero" class="slot-title">
         {{ t("game.heroLocked", { hero: props.me.hero.name }) }}
       </p>
     </div>
-    <div class="stats hall-economy">
+    <div v-if="!props.bottomOnly" class="stats hall-economy">
       <span class="stat-pill">
         <img class="chip-icon" :src="props.statGoldIcon" alt="" />
         {{ t("game.gold") }}: {{ props.me.gold }}
@@ -178,7 +179,7 @@ onBeforeUnmount(() => {
         :class="[props.unitTierClass(unit), { 'anim-buy-pop': props.animatingShopIndex === idx }]"
       >
         <div v-if="unit" class="portrait-slot portrait-slot-unit" :style="backplateStyle(props.unitBackplatePath(unit.id))">
-          <img class="portrait-image" :src="props.unitPortraitPath(unit.id)" :alt="unit.name" loading="lazy" />
+          <img class="portrait-image portrait-image-contain" :src="props.unitPortraitPath(unit.id)" :alt="unit.name" loading="lazy" />
         </div>
         <div class="unit-name" v-if="unit">
           <img class="unit-icon" :src="props.roleIconPath(unit.role)" alt="" />
@@ -215,7 +216,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </div>
-    <div v-if="props.me.hero" class="slot-title">
+    <div v-if="props.me.hero && !props.bottomOnly" class="slot-title">
       {{ t("game.heroLine", { name: props.me.hero.name, description: props.me.hero.description }) }}
     </div>
     <div class="actions hall-actions">

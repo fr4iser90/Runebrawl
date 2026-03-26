@@ -1,0 +1,68 @@
+/* Reusable button primitives.
+ * Migration target: button, .cta-primary, .danger-ghost, .cta-with-hint
+ */
+
+button {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #3a4368;
+  background: #2a3354;
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--rb-accent);
+  box-shadow: 0 0 0 2px rgba(111, 130, 196, 0.2);
+  transform: translateY(-1px);
+}
+
+.game-scene button:hover:not(:disabled) {
+  border-color: var(--scene-accent);
+  box-shadow: 0 0 0 2px var(--scene-accent-soft);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:focus-visible {
+  outline: none;
+  border-color: #89aefc;
+  box-shadow: 0 0 0 2px rgba(137, 174, 252, 0.35);
+}
+
+.actions button {
+  min-height: 36px;
+}
+
+.cta-primary {
+  border-color: var(--scene-accent-strong);
+  background: linear-gradient(180deg, var(--scene-cta-from), var(--scene-cta-to));
+}
+
+.cta-next {
+  border-color: #8db0ff !important;
+  box-shadow: 0 0 0 2px rgba(141, 176, 255, 0.25), 0 0 18px rgba(89, 131, 226, 0.22);
+  animation: cta-pulse 1.35s ease-in-out infinite;
+}
+
+.cta-with-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.danger-ghost {
+  border: 1px solid #b06a6a;
+  background: rgba(110, 48, 58, 0.28);
+  color: #ffd7d7;
+}
+
+.danger-ghost:hover:not(:disabled) {
+  border-color: #d18888;
+  background: rgba(128, 56, 68, 0.34);
+}

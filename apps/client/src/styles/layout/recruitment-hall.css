@@ -1,0 +1,47 @@
+/* Recruitment hall domain styles.
+ * Migration target: .tavern, .hall-*, .shop-row, .shop-card (layout-specific rules)
+ */
+
+.tavern {
+  border: 1px solid var(--scene-panel-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #1a2033;
+}
+
+.hall-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.hall-status {
+  min-height: 20px;
+  margin-bottom: 6px;
+}
+
+.hall-economy {
+  margin-bottom: 14px;
+}
+
+.hall-actions {
+  margin-top: 8px;
+}
+
+.shop-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tavern.tavern-bottom-only .shop-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+}

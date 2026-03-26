@@ -1,0 +1,19 @@
+:root {
+  --rb-scene-bg-recruitment: url("../assets/optimized/backgrounds/recruitment-bg.svg");
+  --rb-scene-bg-hero-selection: url("../assets/optimized/backgrounds/hero-selection-bg.svg");
+  --rb-scene-bg-lobby: url("../assets/optimized/backgrounds/lobby-bg.svg");
+  --rb-scene-bg-combat: url("../assets/optimized/backgrounds/combat-bg.svg");
+  --rb-scene-bg-finished: url("../assets/optimized/backgrounds/finished-bg.svg");
+  --rb-bg: #121624;
+  --rb-surface-1: #1a2033;
+  --rb-surface-2: #202844;
+  --rb-surface-3: #222b45;
+  --rb-border: #31406a;
+  --rb-border-strong: #4b5888;
+  --rb-text: #f6f7ff;
+  --rb-text-muted: #c9d2f3;
+  --rb-accent: #6f82c4;
+  --rb-danger: #ff7b7b;
+  --rb-radius: 10px;
+  --rb-shadow-card: 0 6px 18px rgba(8, 12, 24, 0.25);
+}

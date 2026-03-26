@@ -1,6 +1,21 @@
 import { createApp } from "vue";
 import App from "./App.vue";
+import "./styles/tokens.css";
+import "./styles/base.css";
+import "./styles/utilities.css";
 import "./styles.css";
-import "./styles/portrait-frames.css";
+import "./styles/layout/shell.css";
+import "./styles/layout/lobby.css";
+import "./styles/layout/hero-selection.css";
+import "./styles/layout/recruitment-hall.css";
+import "./styles/layout/combat.css";
+import "./styles/layout/sidebar.css";
+import "./styles/layout/match-end.css";
+import "./styles/layout/overlays.css";
+import "./styles/layout/modals.css";
+import "./styles/components/cards.css";
+import "./styles/components/buttons.css";
+import "./styles/components/pills.css";
+import "./styles/components/portrait-frames.css";
 
 createApp(App).mount("#app");

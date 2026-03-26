@@ -1,0 +1,44 @@
+/* Combat domain styles.
+ * Migration target: .combat-screen, .combat-arena, .target-line, replay animation classes
+ */
+
+.combat-screen {
+  border: 1px solid #5f4a60;
+  border-radius: 12px;
+  background: rgba(40, 28, 42, 0.74);
+  box-shadow: 0 14px 30px rgba(8, 12, 24, 0.36);
+}
+
+.combat-board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.combat-arena {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.combat-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.target-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 10px;
+  border: 1px solid #5f77b4;
+  border-radius: 999px;
+  background: #253357;
+  box-shadow: 0 0 0 2px rgba(105, 134, 199, 0.22);
+  overflow-wrap: anywhere;
+}

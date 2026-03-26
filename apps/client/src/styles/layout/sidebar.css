@@ -1,0 +1,39 @@
+/* Sidebar domain styles.
+ * Migration target: .sidebar, .player-list, .log
+ */
+
+.sidebar {
+  border: 1px solid var(--scene-panel-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #1a2033;
+}
+
+.player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.player-list li {
+  border: 1px solid #384972;
+  border-radius: 8px;
+  background: #1d2742;
+  padding: 7px 8px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.log {
+  height: 300px;
+  overflow: auto;
+  border: 1px solid #374267;
+  border-radius: 8px;
+  padding: 8px;
+  background: #171d31;
+  font-size: 13px;
+  overflow-x: hidden;
+}
