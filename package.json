@@ -11,6 +11,7 @@
     "build": "npm run build -w @runebrawl/shared && npm run build -w @runebrawl/game-content && npm run build -w @runebrawl/server && npm run build -w @runebrawl/client",
     "typecheck": "npm run typecheck -w @runebrawl/shared && npm run typecheck -w @runebrawl/game-content && npm run typecheck -w @runebrawl/server && npm run typecheck -w @runebrawl/client",
     "validate:community-content": "node ./community/validate-content.mjs",
+    "assets:optimize": "bash scripts/assets-optimize-from-raw.sh",
     "test:e2e": "npm run test:e2e -w @runebrawl/client",
     "test:e2e:visual": "npm run test:e2e:visual -w @runebrawl/client",
     "test:e2e:visual:update": "npm run test:e2e:visual:update -w @runebrawl/client"

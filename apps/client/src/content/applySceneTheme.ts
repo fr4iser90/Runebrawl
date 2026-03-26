@@ -12,7 +12,7 @@ const CSS_VAR_BY_ASSET: Record<keyof ThemeBackgroundAssets, string> = {
 };
 
 function buildFilenameToUrl(): Record<string, string> {
-  const modules = import.meta.glob<string>("../assets/backgrounds/*", {
+  const modules = import.meta.glob<string>("../assets/optimized/backgrounds/*", {
     eager: true,
     query: "?url",
     import: "default"

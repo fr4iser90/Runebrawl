@@ -52,8 +52,8 @@ For full details, read `docs/COMMUNITY_CONTENT_PIPELINE.md`.
 ## Art Contribution Rules
 
 - Portrait naming:
-  - `apps/client/src/assets/portraits/units/unit_<unitId>.webp`
-  - `apps/client/src/assets/portraits/heroes/hero_<heroId>.webp`
+  - `apps/client/src/assets/optimized/portraits/units/unit_<unitId>.webp`
+  - `apps/client/src/assets/optimized/portraits/heroes/hero_<heroId>.webp`
 - Use specs in:
   - `docs/ART_PROMPTS.md`
   - `docs/ASSETS.md`

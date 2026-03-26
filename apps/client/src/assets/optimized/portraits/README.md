@@ -1,23 +1,13 @@
-## Portrait Asset Slots
+## Portrait assets (optimized)
 
-Drop portraits here:
+Runtime portraits live here (WebP/SVG). The Vue loader is `loader.ts` in this folder.
 
-- Units: `apps/client/src/assets/portraits/units/unit_<unitId>.webp`
-- Heroes: `apps/client/src/assets/portraits/heroes/hero_<heroId>.webp`
+- Units: `apps/client/src/assets/optimized/portraits/units/unit_<unitId>.webp`
+- Heroes: `apps/client/src/assets/optimized/portraits/heroes/hero_<heroId>.webp`
 
-Optional **generic portrait backplates** (4:5 plates, see `docs/ART_PROMPTS.md` §13):
+Optional generic backplates (see `docs/ART_PROMPTS.md` §13):
 
-- Unit plates: `apps/client/src/assets/portraits/backplates/units/portrait_bg_unit_<key>.webp`
-- Hero plates: `apps/client/src/assets/portraits/backplates/heroes/portrait_bg_hero_<key>.webp`
+- `optimized/portraits/backplates/units/portrait_bg_unit_<key>.webp`
+- `optimized/portraits/backplates/heroes/portrait_bg_hero_<key>.webp`
 
-Those are for compositing in art tools (or future runtime); the game still loads `unit_*` / `hero_*` for display until you bake a plate into each portrait export.
-
-Examples:
-
-- `unit_alley_blade.webp`
-- `hero_warchief.webp`
-
-Notes:
-
-- The loader auto-falls back to `unit-placeholder.svg` / `hero-placeholder.svg`.
-- Supported formats: `png`, `webp`, `jpg`, `jpeg`, `svg`.
+Source PNG/TIFF: `apps/client/src/assets/raw/portraits/...` → run `npm run assets:optimize` from repo root (inside `nix-shell`).

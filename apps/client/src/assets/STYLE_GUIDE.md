@@ -10,8 +10,8 @@ This guide defines how to create and replace UI/game icons safely.
 
 ## Folder Structure
 
-- `apps/client/src/assets/icons/role-*.svg`
-- `apps/client/src/assets/icons/ability-*.svg`
+- `apps/client/src/assets/optimized/icons/role-*.svg`
+- `apps/client/src/assets/optimized/icons/ability-*.svg`
 
 Current icon sets:
 - Roles: `role-tank.svg`, `role-melee.svg`, `role-ranged.svg`, `role-support.svg`

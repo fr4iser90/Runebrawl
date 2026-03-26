@@ -11,7 +11,7 @@ export interface LocalizedLabel {
 }
 
 export interface ThemeBackgroundAssets {
-  /** Filenames under `apps/client/src/assets/backgrounds/` */
+  /** Filenames under `apps/client/src/assets/optimized/backgrounds/` */
   recruitment: string;
   heroSelection: string;
   lobby: string;

@@ -8,6 +8,7 @@ const allowedHosts = (process.env.VITE_ALLOWED_HOSTS ?? "")
 
 export default defineConfig({
   plugins: [vue()],
+  cacheDir: ".vite-cache",
   server: {
     port: 5173,
     allowedHosts

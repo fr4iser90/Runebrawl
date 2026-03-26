@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { HeroDefinition, UnitDefinition } from "@runebrawl/shared";
 import { useAdminApi } from "../composables/useAdminApi";
-import { hasHeroPortrait, hasUnitPortrait, heroPortraitPath, unitPortraitPath } from "../assets/portraits/loader";
+import { hasHeroPortrait, hasUnitPortrait, heroPortraitPath, unitPortraitPath } from "../assets/optimized/portraits/loader";
 import {
   PORTRAIT_FRAME_IDS,
   type PortraitFrameId,

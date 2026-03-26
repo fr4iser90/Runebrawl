@@ -22,8 +22,8 @@ This guide defines exact portrait specs for consistent unit/hero art production.
 
 ## 3) Naming and Paths (required)
 
-- **Units:** `apps/client/src/assets/portraits/units/unit_<unitId>.webp`
-- **Heroes:** `apps/client/src/assets/portraits/heroes/hero_<heroId>.webp`
+- **Units:** `apps/client/src/assets/optimized/portraits/units/unit_<unitId>.webp`
+- **Heroes:** `apps/client/src/assets/optimized/portraits/heroes/hero_<heroId>.webp`
 
 Examples:
 
@@ -437,8 +437,8 @@ Use this section for full-scene backgrounds behind UI. These are not portraits.
 
 Suggested runtime paths:
 
-- Recruitment Hall backgrounds: `apps/client/src/assets/backgrounds/recruitment_<theme>.webp`
-- Battleground backgrounds: `apps/client/src/assets/backgrounds/battleground_<theme>.webp`
+- Recruitment Hall backgrounds: `apps/client/src/assets/optimized/backgrounds/recruitment_<theme>.webp`
+- Battleground backgrounds: `apps/client/src/assets/optimized/backgrounds/battleground_<theme>.webp`
 
 ### Global Prompt Prefix (Backgrounds)
 
@@ -617,8 +617,8 @@ Use these when you want **consistent readability** in the portrait slot (less em
 - **Lower contrast and detail** than the character paint so the figure stays the hero.
 - **Where to put files (repo):** generic plates live **next to** portraits, not under `backgrounds/` (those are full-scene 16:9).
 
-  - Units: `apps/client/src/assets/portraits/backplates/units/portrait_bg_unit_<key>.webp`
-  - Heroes: `apps/client/src/assets/portraits/backplates/heroes/portrait_bg_hero_<key>.webp`
+  - Units: `apps/client/src/assets/optimized/portraits/backplates/units/portrait_bg_unit_<key>.webp`
+  - Heroes: `apps/client/src/assets/optimized/portraits/backplates/heroes/portrait_bg_hero_<key>.webp`
 
 - Naming (source or flattened exports), if you ship them as separate files for tooling:
 
@@ -820,20 +820,20 @@ When you add new files, swap background URLs by phase class:
 ```css
 /* Example: dwarven forge theme */
 .scene-backdrop {
-  background-image: url("./assets/backgrounds/recruitment_dwarven_forge.webp");
+  background-image: url("./assets/optimized/backgrounds/recruitment_dwarven_forge.webp");
 }
 
 .scene-hero_selection .scene-backdrop {
-  background-image: url("./assets/backgrounds/hero_select_dwarven_forge.webp");
+  background-image: url("./assets/optimized/backgrounds/hero_select_dwarven_forge.webp");
 }
 
 .scene-lobby .scene-backdrop {
-  background-image: url("./assets/backgrounds/lobby_dwarven_forge.webp");
+  background-image: url("./assets/optimized/backgrounds/lobby_dwarven_forge.webp");
 }
 
 .scene-combat .scene-backdrop,
 .scene-round_end .scene-backdrop {
-  background-image: url("./assets/backgrounds/battleground_volcanic_pit.webp");
+  background-image: url("./assets/optimized/backgrounds/battleground_volcanic_pit.webp");
 }
 ```
 

@@ -1,10 +1,10 @@
 :root {
   /* Scene backdrops (overridden at runtime by applySceneTheme.ts) */
-  --rb-scene-bg-recruitment: url("./assets/backgrounds/recruitment-bg.svg");
-  --rb-scene-bg-hero-selection: url("./assets/backgrounds/hero-selection-bg.svg");
-  --rb-scene-bg-lobby: url("./assets/backgrounds/lobby-bg.svg");
-  --rb-scene-bg-combat: url("./assets/backgrounds/combat-bg.svg");
-  --rb-scene-bg-finished: url("./assets/backgrounds/finished-bg.svg");
+  --rb-scene-bg-recruitment: url("./assets/optimized/backgrounds/recruitment-bg.svg");
+  --rb-scene-bg-hero-selection: url("./assets/optimized/backgrounds/hero-selection-bg.svg");
+  --rb-scene-bg-lobby: url("./assets/optimized/backgrounds/lobby-bg.svg");
+  --rb-scene-bg-combat: url("./assets/optimized/backgrounds/combat-bg.svg");
+  --rb-scene-bg-finished: url("./assets/optimized/backgrounds/finished-bg.svg");
 
   --rb-bg: #121624;
   --rb-surface-1: #1a2033;
@@ -90,14 +90,14 @@ body {
 .scene-ornament-top {
   top: 0;
   height: 150px;
-  background-image: url("./assets/backgrounds/ornament-top.svg");
+  background-image: url("./assets/optimized/backgrounds/ornament-top.svg");
   background-size: 100% 100%;
 }
 
 .scene-ornament-bottom {
   bottom: 0;
   height: 160px;
-  background-image: url("./assets/backgrounds/ornament-bottom.svg");
+  background-image: url("./assets/optimized/backgrounds/ornament-bottom.svg");
   background-size: 100% 100%;
 }
 

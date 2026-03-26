@@ -32,7 +32,7 @@ This includes:
 
 ## Where files live (plug-and-play overview)
 
-You do **not** need to move existing assets for the current build. Use this map when adding content.
+Use this map when adding content.
 
 ### Game data (units, heroes, balance)
 
@@ -47,15 +47,19 @@ Process for **external/community** packs: `docs/COMMUNITY_CONTENT_PIPELINE.md` a
 
 ### Client art
 
-| What | Where |
-| --- | --- |
-| Unit portraits | `apps/client/src/assets/portraits/units/unit_<unitId>.webp` (see `docs/ART_PROMPTS.md`) |
-| Hero portraits | `apps/client/src/assets/portraits/heroes/hero_<heroId>.webp` |
-| Scene backgrounds (any theme) | `apps/client/src/assets/backgrounds/<filename>.svg` or `.webp` |
-| Role / ability icons | `apps/client/src/assets/icons/` |
-| Scene ornaments | `apps/client/src/assets/backgrounds/ornament-*.svg` |
+**Shipped (imported by Vite):** `apps/client/src/assets/optimized/` — WebP/SVG the game loads.
 
-**Themes:** Drop new background files into `apps/client/src/assets/backgrounds/`, then reference **only the filename** under each theme in `packages/game-content/src/manifest.json`. The client resolves them at build time via glob. In-game selection: Settings → Scene theme.
+**Sources (optional in git; see root `.gitignore`):** `apps/client/src/assets/raw/` — PNG/TIFF masters. Run `nix-shell` then `npm run assets:optimize` to regenerate WebP under `optimized/` (same relative paths).
+
+| What | Where (optimized) |
+| --- | --- |
+| Unit portraits | `apps/client/src/assets/optimized/portraits/units/unit_<unitId>.webp` (see `docs/ART_PROMPTS.md`) |
+| Hero portraits | `apps/client/src/assets/optimized/portraits/heroes/hero_<heroId>.webp` |
+| Scene backgrounds (any theme) | `apps/client/src/assets/optimized/backgrounds/<filename>.svg` or `.webp` |
+| Role / ability icons | `apps/client/src/assets/optimized/icons/` |
+| Scene ornaments | `apps/client/src/assets/optimized/backgrounds/ornament-*.svg` |
+
+**Themes:** Put themed background files in `optimized/backgrounds/`, then reference **only the filename** under each theme in `packages/game-content/src/manifest.json`. The client resolves them at build time via glob. In-game selection: Settings → Scene theme.
 
 ### New units/heroes (minimal checklist)
 

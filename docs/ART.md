@@ -17,8 +17,8 @@ Export 2x auf 256x320 mit nearest-neighbor (kein blur)
 3) Dateinamen + Ordner
 Leg es so an:
 
-apps/client/src/assets/portraits/units/unit_<unitId>.webp
-apps/client/src/assets/portraits/heroes/hero_<heroId>.webp
+apps/client/src/assets/optimized/portraits/units/unit_<unitId>.webp
+apps/client/src/assets/optimized/portraits/heroes/hero_<heroId>.webp
 Fallback:
 .../units/unit_placeholder.webp
 .../heroes/hero_placeholder.webp

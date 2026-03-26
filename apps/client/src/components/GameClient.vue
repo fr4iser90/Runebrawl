@@ -15,21 +15,21 @@ import type {
   UnitInstance,
   UnitRole
 } from "@runebrawl/shared";
-import roleTankIcon from "../assets/icons/role-tank.svg";
-import roleMeleeIcon from "../assets/icons/role-melee.svg";
-import roleRangedIcon from "../assets/icons/role-ranged.svg";
-import roleSupportIcon from "../assets/icons/role-support.svg";
-import abilityTauntIcon from "../assets/icons/ability-taunt.svg";
-import abilityDeathBurstIcon from "../assets/icons/ability-death-burst.svg";
-import abilityBloodlustIcon from "../assets/icons/ability-bloodlust.svg";
-import abilityLifestealIcon from "../assets/icons/ability-lifesteal.svg";
-import abilityNoneIcon from "../assets/icons/ability-none.svg";
-import statGoldIcon from "../assets/icons/stat-gold.svg";
-import statHealthIcon from "../assets/icons/stat-health.svg";
-import statPlayersIcon from "../assets/icons/stat-players.svg";
-import playerHumanIcon from "../assets/icons/player-human.svg";
-import playerBotIcon from "../assets/icons/player-bot.svg";
-import { heroPortraitPath, unitPortraitPath } from "../assets/portraits/loader";
+import roleTankIcon from "../assets/optimized/icons/role-tank.svg";
+import roleMeleeIcon from "../assets/optimized/icons/role-melee.svg";
+import roleRangedIcon from "../assets/optimized/icons/role-ranged.svg";
+import roleSupportIcon from "../assets/optimized/icons/role-support.svg";
+import abilityTauntIcon from "../assets/optimized/icons/ability-taunt.svg";
+import abilityDeathBurstIcon from "../assets/optimized/icons/ability-death-burst.svg";
+import abilityBloodlustIcon from "../assets/optimized/icons/ability-bloodlust.svg";
+import abilityLifestealIcon from "../assets/optimized/icons/ability-lifesteal.svg";
+import abilityNoneIcon from "../assets/optimized/icons/ability-none.svg";
+import statGoldIcon from "../assets/optimized/icons/stat-gold.svg";
+import statHealthIcon from "../assets/optimized/icons/stat-health.svg";
+import statPlayersIcon from "../assets/optimized/icons/stat-players.svg";
+import playerHumanIcon from "../assets/optimized/icons/player-human.svg";
+import playerBotIcon from "../assets/optimized/icons/player-bot.svg";
+import { heroPortraitPath, unitPortraitPath } from "../assets/optimized/portraits/loader";
 import { useI18n } from "../i18n/useI18n";
 import MenuScreen from "./game/MenuScreen.vue";
 import RecruitmentHallView from "./game/RecruitmentHallView.vue";
