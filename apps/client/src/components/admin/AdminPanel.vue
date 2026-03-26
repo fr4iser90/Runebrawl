@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import type { GamePhase, HeroDefinition, UnitDefinition } from "@runebrawl/shared";
+import {
+  MAGIC_SPELL_VISUAL_IDS,
+  UNIT_RACES,
+  type GamePhase,
+  type HeroDefinition,
+  type UnitDefinition,
+  type UnitRace
+} from "@runebrawl/shared";
 import { useAdminApi } from "../../composables/useAdminApi";
 import {
   hasHeroPortrait,
@@ -333,6 +340,12 @@ const selectedUnitErrors = computed(() => {
   for (const tag of unit.tags ?? []) {
     if (!SYNERGY_KEYS.includes(tag)) errors.push(t("admin.builder.validation.unit.invalidTag", { tag }));
   }
+  if (unit.magicSpell && !(MAGIC_SPELL_VISUAL_IDS as readonly string[]).includes(unit.magicSpell)) {
+    errors.push(t("admin.builder.validation.unit.invalidMagicSpell", { spell: String(unit.magicSpell) }));
+  }
+  if (unit.race && !(UNIT_RACES as readonly string[]).includes(unit.race)) {
+    errors.push(t("admin.builder.validation.unit.invalidRace", { race: String(unit.race) }));
+  }
   return errors;
 });
 
@@ -349,12 +362,17 @@ const selectedHeroErrors = computed(() => {
   if (!Number.isFinite(hero.powerCost) || hero.powerCost < 0) errors.push(t("admin.builder.validation.hero.powerCostRange"));
   if (!Number.isFinite(hero.offerWeight) || (hero.offerWeight ?? 0) <= 0) errors.push(t("admin.builder.validation.hero.offerWeightRange"));
   if (hero.powerType === "PASSIVE" && hero.powerCost !== 0) errors.push(t("admin.builder.validation.hero.passiveCostZero"));
+  if (hero.race && !(UNIT_RACES as readonly string[]).includes(hero.race)) {
+    errors.push(t("admin.builder.validation.hero.invalidRace", { race: String(hero.race) }));
+  }
   return errors;
 });
 
 const hasFormValidationErrors = computed(() => selectedUnitErrors.value.length > 0 || selectedHeroErrors.value.length > 0);
 
-function unitFieldInvalid(field: "id" | "name" | "tier" | "attack" | "hp" | "speed" | "shopWeight" | "role" | "ability" | "tags"): boolean {
+function unitFieldInvalid(
+  field: "id" | "name" | "tier" | "attack" | "hp" | "speed" | "shopWeight" | "role" | "ability" | "tags" | "race"
+): boolean {
   if (!selectedUnit.value) return false;
   const unit = selectedUnit.value;
   switch (field) {
@@ -378,10 +396,14 @@ function unitFieldInvalid(field: "id" | "name" | "tier" | "attack" | "hp" | "spe
       return !ABILITY_KEYS.includes(unit.ability);
     case "tags":
       return (unit.tags ?? []).some((tag) => !SYNERGY_KEYS.includes(tag));
+    case "race":
+      return !!(unit.race && !(UNIT_RACES as readonly string[]).includes(unit.race));
   }
 }
 
-function heroFieldInvalid(field: "id" | "name" | "description" | "powerType" | "powerKey" | "powerCost" | "offerWeight"): boolean {
+function heroFieldInvalid(
+  field: "id" | "name" | "description" | "powerType" | "powerKey" | "powerCost" | "offerWeight" | "race"
+): boolean {
   if (!selectedHero.value) return false;
   const hero = selectedHero.value;
   switch (field) {
@@ -399,7 +421,21 @@ function heroFieldInvalid(field: "id" | "name" | "description" | "powerType" | "
       return !Number.isFinite(hero.powerCost) || hero.powerCost < 0 || (hero.powerType === "PASSIVE" && hero.powerCost !== 0);
     case "offerWeight":
       return !Number.isFinite(hero.offerWeight) || (hero.offerWeight ?? 0) <= 0;
+    case "race":
+      return !!(hero.race && !(UNIT_RACES as readonly string[]).includes(hero.race));
   }
+}
+
+function onUnitRaceChange(e: Event): void {
+  if (!selectedUnit.value) return;
+  const v = (e.target as HTMLSelectElement).value;
+  selectedUnit.value.race = v === "" ? undefined : (v as UnitRace);
+}
+
+function onHeroRaceChange(e: Event): void {
+  if (!selectedHero.value) return;
+  const v = (e.target as HTMLSelectElement).value;
+  selectedHero.value.race = v === "" ? undefined : (v as UnitRace);
 }
 
 const builderDiffSummary = computed(() => {
@@ -883,6 +919,15 @@ onBeforeUnmount(() => {
                   <select v-model="selectedUnit.ability" :class="{ 'input-invalid': unitFieldInvalid('ability') }">
                     <option v-for="ability in ABILITY_KEYS" :key="`ability-${ability}`" :value="ability">{{ ability }}</option>
                   </select>
+                  <label class="builder-label">{{ t("admin.builder.race") }}</label>
+                  <select
+                    :value="selectedUnit.race ?? ''"
+                    :class="{ 'input-invalid': unitFieldInvalid('race') }"
+                    @change="onUnitRaceChange"
+                  >
+                    <option value="">{{ t("admin.builder.raceNone") }}</option>
+                    <option v-for="r in UNIT_RACES" :key="`urace-${r}`" :value="r">{{ r }}</option>
+                  </select>
                   <input
                     v-model="selectedUnitTagsText"
                     :placeholder="t('admin.builder.tagsPlaceholder', { tags: SYNERGY_KEYS.join(', ') })"
@@ -916,6 +961,15 @@ onBeforeUnmount(() => {
                   </select>
                   <input v-model.number="selectedHero.powerCost" type="number" min="0" :class="{ 'input-invalid': heroFieldInvalid('powerCost') }" />
                   <input v-model.number="selectedHero.offerWeight" type="number" min="0.01" step="0.01" :placeholder="t('admin.builder.offerWeight')" :class="{ 'input-invalid': heroFieldInvalid('offerWeight') }" />
+                  <label class="builder-label">{{ t("admin.builder.race") }}</label>
+                  <select
+                    :value="selectedHero.race ?? ''"
+                    :class="{ 'input-invalid': heroFieldInvalid('race') }"
+                    @change="onHeroRaceChange"
+                  >
+                    <option value="">{{ t("admin.builder.raceNone") }}</option>
+                    <option v-for="r in UNIT_RACES" :key="`hrace-${r}`" :value="r">{{ r }}</option>
+                  </select>
                 </div>
                 <div v-if="selectedHeroErrors.length > 0" class="builder-errors">
                   <div v-for="(err, idx) in selectedHeroErrors" :key="`hero-err-${idx}`">{{ err }}</div>

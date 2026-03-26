@@ -7,5 +7,6 @@ export const warChanter: HeroDefinition = {
   powerType: "ACTIVE",
   powerKey: "WAR_DRUM",
   powerCost: 2,
-  offerWeight: 0.95
+  offerWeight: 0.95,
+  race: "HUMAN"
 };

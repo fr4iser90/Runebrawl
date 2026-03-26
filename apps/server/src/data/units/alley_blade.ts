@@ -10,5 +10,6 @@ export const alleyBlade: UnitDefinition = {
   speed: 4,
   ability: "NONE",
   shopWeight: 1,
-  tags: ["BERSERKER"]
+  tags: ["BERSERKER"],
+  race: "HUMAN"
 };

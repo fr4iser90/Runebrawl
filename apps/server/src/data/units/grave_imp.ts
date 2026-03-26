@@ -10,5 +10,6 @@ export const graveImp: UnitDefinition = {
   speed: 4,
   ability: "DEATH_BURST",
   shopWeight: 1,
-  tags: ["BERSERKER"]
+  tags: ["BERSERKER"],
+  race: "UNDEAD"
 };

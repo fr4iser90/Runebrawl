@@ -9,10 +9,10 @@ export type CombatFxKey =
   | "damagePop";
 
 /**
- * Central mapping from semantic combat FX → CSS class names.
+ * Legacy pulse class names (generic fallback when no archetype-specific FX applies).
  *
- * Keep this file UI-agnostic: it only defines names and small helpers.
- * Actual animations live in `styles/layout/combat.css`.
+ * **Replay ATTACK styling** is resolved in `combatFxRegistry.ts`.
+ * Styles: `combat.css` (melee), `combat/ranged.css` (ranged draw/release), more categories as needed.
  */
 export const COMBAT_FX_CLASS: Record<CombatFxKey, string> = {
   attack: "pulse-attack",

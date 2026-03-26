@@ -10,6 +10,8 @@ import "./styles/layout/lobby.css";
 import "./styles/layout/hero-selection.css";
 import "./styles/layout/recruitment-hall.css";
 import "./styles/layout/combat.css";
+import "./styles/layout/combat/ranged.css";
+import "./styles/layout/combat/magic.css";
 import "./styles/layout/sidebar.css";
 import "./styles/layout/match-end.css";
 import "./styles/layout/overlays.css";

@@ -9,6 +9,7 @@ const UNIT_ROLES = new Set(["Tank", "Melee", "Ranged", "Support"]);
 const ABILITIES = new Set(["NONE", "DEATH_BURST", "TAUNT", "BLOODLUST", "LIFESTEAL"]);
 const SYNERGIES = new Set(["BERSERKER"]);
 const UNIT_RACES = new Set(["HUMAN", "ORC", "ELF", "DWARF", "UNDEAD"]);
+const MAGIC_SPELLS = new Set(["arcane_missile", "fireball", "ice_storm"]);
 const HERO_POWER_TYPES = new Set(["PASSIVE", "ACTIVE"]);
 const HERO_POWER_KEYS = new Set(["BONUS_GOLD", "WAR_DRUM", "RECRUITER", "FORTIFY"]);
 
@@ -140,6 +141,11 @@ function validateUnits(units, filePath, packName, takenUnitIds) {
         fail(row, `field "tags" must be an array with values in: ${Array.from(SYNERGIES).join(", ")}`);
       }
     }
+    if ("magicSpell" in unit && unit.magicSpell !== undefined && unit.magicSpell !== null) {
+      if (typeof unit.magicSpell !== "string" || !MAGIC_SPELLS.has(unit.magicSpell)) {
+        fail(row, `field "magicSpell" must be one of: ${Array.from(MAGIC_SPELLS).join(", ")}`);
+      }
+    }
   }
 
   if (units.length === 0) {
@@ -193,6 +199,11 @@ function validateHeroes(heroes, filePath, packName, takenHeroIds) {
     if ("offerWeight" in hero && !isPositiveNumber(hero.offerWeight)) {
       fail(row, 'field "offerWeight" must be a number > 0');
     }
+    if ("race" in hero && hero.race !== undefined && hero.race !== null) {
+      if (typeof hero.race !== "string" || !UNIT_RACES.has(hero.race)) {
+        fail(row, `field "race" must be one of: ${Array.from(UNIT_RACES).join(", ")}`);
+      }
+    }
   }
 
   if (heroes.length === 0) {
@@ -218,22 +229,32 @@ async function listSubmissionPacks(relativeDir) {
   }
 }
 
-async function loadCoreIds() {
-  const coreUnits = await readJson("apps/server/src/data/units.json");
-  const coreHeroes = await readJson("apps/server/src/data/heroes.json");
-  const unitIds = new Set();
-  const heroIds = new Set();
+/** Core roster ids come from `apps/server/src/data/units/*.ts` and `heroes/*.ts` (not JSON). */
+async function extractIdsFromDefinitionTsDir(relativeDir) {
+  const absoluteDir = path.join(repoRoot, relativeDir);
+  const ids = new Set();
+  let entries;
+  try {
+    entries = await readdir(absoluteDir);
+  } catch {
+    return ids;
+  }
+  for (const file of entries) {
+    if (!file.endsWith(".ts") || file === "index.ts") continue;
+    try {
+      const content = await readFile(path.join(absoluteDir, file), "utf8");
+      const m = content.match(/id:\s*["']([^"']+)["']/);
+      if (m) ids.add(m[1]);
+    } catch {
+      // skip unreadable
+    }
+  }
+  return ids;
+}
 
-  if (Array.isArray(coreUnits)) {
-    for (const unit of coreUnits) {
-      if (isObject(unit) && typeof unit.id === "string") unitIds.add(unit.id);
-    }
-  }
-  if (Array.isArray(coreHeroes)) {
-    for (const hero of coreHeroes) {
-      if (isObject(hero) && typeof hero.id === "string") heroIds.add(hero.id);
-    }
-  }
+async function loadCoreIds() {
+  const unitIds = await extractIdsFromDefinitionTsDir("apps/server/src/data/units");
+  const heroIds = await extractIdsFromDefinitionTsDir("apps/server/src/data/heroes");
   return { unitIds, heroIds };
 }
 

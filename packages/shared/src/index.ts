@@ -4,6 +4,10 @@ export type UnitRole = "Tank" | "Melee" | "Ranged" | "Support";
 export type AbilityKey = "NONE" | "DEATH_BURST" | "TAUNT" | "BLOODLUST" | "LIFESTEAL";
 export type SynergyKey = "BERSERKER";
 
+/** World-space magic basic-attack VFX (client `MagicSpellProjectile`); optional on units. */
+export const MAGIC_SPELL_VISUAL_IDS = ["arcane_missile", "fireball", "ice_storm"] as const;
+export type MagicSpellVisualId = (typeof MAGIC_SPELL_VISUAL_IDS)[number];
+
 /** Lore / UI grouping; no combat rules wired yet (optional on units). */
 export const UNIT_RACES = ["HUMAN", "ORC", "ELF", "DWARF", "UNDEAD"] as const;
 export type UnitRace = (typeof UNIT_RACES)[number];
@@ -19,6 +23,8 @@ export interface HeroDefinition {
   powerKey: HeroPowerKey;
   powerCost: number;
   offerWeight?: number;
+  /** Optional; same `UnitRace` vocabulary as minions for lore / future tribal rules. */
+  race?: UnitRace;
 }
 
 export interface UnitDefinition {
@@ -41,6 +47,8 @@ export interface UnitDefinition {
   castOnFirstStrike?: AbilityKey;
   castOnBattlefieldAdded?: AbilityKey;
   castOnRecruitmentRefresh?: AbilityKey;
+  /** Which magic basic-attack projectile VFX to play (magic-role units); omit = client default `arcane_missile`. */
+  magicSpell?: MagicSpellVisualId;
 }
 
 export interface UnitInstance {
@@ -63,6 +71,8 @@ export interface UnitInstance {
   castOnFirstStrike?: AbilityKey;
   castOnBattlefieldAdded?: AbilityKey;
   castOnRecruitmentRefresh?: AbilityKey;
+  /** Copied from `UnitDefinition` at spawn; drives combat magic projectile visuals. */
+  magicSpell?: MagicSpellVisualId;
 }
 
 export interface PlayerPublicState {

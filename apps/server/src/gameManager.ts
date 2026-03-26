@@ -68,7 +68,8 @@ function cloneUnitFromDef(def: UnitDefinition): UnitInstance {
     speed: def.speed,
     ability: def.ability,
     race: def.race,
-    tags: def.tags
+    tags: def.tags,
+    magicSpell: def.magicSpell
   };
 }
 

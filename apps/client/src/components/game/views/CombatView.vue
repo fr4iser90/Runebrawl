@@ -1,8 +1,17 @@
 <script setup lang="ts">
 import type { AbilityKey } from "@runebrawl/shared";
 import type { UnitInstance } from "@runebrawl/shared";
+import { nextTick, ref, watch, type ComponentPublicInstance } from "vue";
 import { useI18n } from "../../../i18n/useI18n";
 import PortraitFrameSvg from "../../shared/PortraitFrameSvg.vue";
+import type {
+  CombatFxOverlayId,
+  MagicProjectileFlight,
+  MagicSpellVisualId,
+  RangedProjectileFlight
+} from "../combat/combatFxRegistry";
+import MagicSpellProjectile from "../combat/fx/MagicSpellProjectile.vue";
+import RangedArrowProjectile from "../combat/fx/RangedArrowProjectile.vue";
 import UnitCardFrameCorners from "../cards/UnitCardFrameCorners.vue";
 
 interface DuelMetaView {
@@ -45,12 +54,17 @@ const props = defineProps<{
   unitLabelReplay: (unit: ReplayUnit | null) => string;
   unitHpPercent: (unit: ReplayUnit | null) => number;
   unitPulseClass: (unit: UnitInstance | null, side: "me" | "enemy", slotIndex: number) => string;
+  attackFxOverlayId: (side: "me" | "enemy", idx: number) => CombatFxOverlayId | null;
+  rangedProjectileFlight: RangedProjectileFlight | null;
+  magicProjectileFlight: MagicProjectileFlight | null;
   slotAnimationClass: (side: "me" | "enemy", idx: number) => string;
   slotHitClass: (side: "me" | "enemy", idx: number) => string;
   slotKey: (side: "me" | "enemy", idx: number) => string;
   abilityIconPath: (ability: AbilityKey) => string;
   abilityLabel: (ability: AbilityKey) => string;
   abilityDescription: (ability: AbilityKey) => string;
+  /** In-game "Pause FX" — passed through to ranged/magic projectiles */
+  reducedMotion?: boolean;
 }>();
 
 function backplateStyle(url: string | null): Record<string, string> | undefined {
@@ -64,6 +78,87 @@ function backplateStyle(url: string | null): Record<string, string> | undefined 
 }
 
 const { t } = useI18n();
+
+function overlayId(side: "me" | "enemy", idx: number): CombatFxOverlayId | null {
+  return props.attackFxOverlayId(side, idx);
+}
+
+const slotEls = ref<Record<string, HTMLElement | null>>({});
+
+function setSlotRef(side: "me" | "enemy", idx: number, el: Element | ComponentPublicInstance | null) {
+  const key = `${side}-${idx}`;
+  if (!el) {
+    delete slotEls.value[key];
+    return;
+  }
+  const node = el instanceof HTMLElement ? el : (el as ComponentPublicInstance).$el;
+  if (node instanceof HTMLElement) slotEls.value[key] = node;
+}
+
+type ProjectileKind = "ranged" | "magic";
+type ProjectileState =
+  | { kind: "ranged"; x1: number; y1: number; x2: number; y2: number; key: number }
+  | { kind: "magic"; spell: MagicSpellVisualId; x1: number; y1: number; x2: number; y2: number; key: number };
+
+function magicProjectileHideMs(spell: MagicSpellVisualId): number {
+  switch (spell) {
+    case "ice_storm":
+      return 340;
+    case "fireball":
+      return 300;
+    case "arcane_missile":
+    default:
+      return 280;
+  }
+}
+const projectileState = ref<ProjectileState | null>(null);
+const projectileSeq = ref(0);
+let projectileHideTimer: number | null = null;
+
+watch(
+  () => [props.rangedProjectileFlight, props.magicProjectileFlight] as const,
+  async ([ranged, magic]) => {
+    if (projectileHideTimer !== null) {
+      window.clearTimeout(projectileHideTimer);
+      projectileHideTimer = null;
+    }
+    projectileState.value = null;
+    const flight = ranged ?? magic;
+    const kind: ProjectileKind | null = ranged ? "ranged" : magic ? "magic" : null;
+    if (!flight || !kind) return;
+    await nextTick();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const fromEl = slotEls.value[`${flight.from.side}-${flight.from.slot}`];
+    const toEl = slotEls.value[`${flight.to.side}-${flight.to.slot}`];
+    if (!fromEl || !toEl) return;
+    const a = fromEl.getBoundingClientRect();
+    const b = toEl.getBoundingClientRect();
+    const x1 = a.left + a.width / 2;
+    const y1 = a.top + a.height / 2;
+    const x2 = b.left + b.width / 2;
+    const y2 = b.top + b.height / 2;
+    projectileSeq.value += 1;
+    if (kind === "magic" && magic) {
+      projectileState.value = {
+        kind: "magic",
+        spell: magic.spell,
+        x1,
+        y1,
+        x2,
+        y2,
+        key: projectileSeq.value
+      };
+    } else {
+      projectileState.value = { kind: "ranged", x1, y1, x2, y2, key: projectileSeq.value };
+    }
+    const hideMs = kind === "magic" && magic ? magicProjectileHideMs(magic.spell) : 220;
+    projectileHideTimer = window.setTimeout(() => {
+      projectileState.value = null;
+      projectileHideTimer = null;
+    }, hideMs);
+  },
+  { flush: "post" }
+);
 
 function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tier-high" {
   const level = unit?.level ?? 1;
@@ -96,6 +191,7 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
             v-for="(unit, idx) in props.me.board"
             :key="`combat-me-${idx}`"
             class="slot"
+            :ref="(el) => setSlotRef('me', idx, el)"
             :class="[
               { 'slot--filled': !!props.replayMyBoard[idx] },
               props.unitPulseClass(unit, 'me', idx),
@@ -132,6 +228,25 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
                 scope="unitShopCard"
                 :hide-ornate-corner-studs="true"
               />
+              <svg
+                v-if="overlayId('me', idx) === 'melee_sword'"
+                class="melee-sword-fx"
+                viewBox="0 0 100 100"
+                aria-hidden="true"
+              >
+                <path
+                  class="melee-sword-fx__blade"
+                  d="M82 14 L24 58 L30 66 L88 22 Z"
+                />
+                <path
+                  class="melee-sword-fx__edge"
+                  fill="none"
+                  stroke="rgba(255, 252, 240, 0.95)"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  d="M78 18 L28 58"
+                />
+              </svg>
             </div>
             <div class="hp-track" v-if="props.replayMyBoard[idx]">
               <div class="hp-fill" :style="{ width: `${props.unitHpPercent(props.replayMyBoard[idx])}%` }"></div>
@@ -149,6 +264,7 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
             v-for="(unit, idx) in props.myCombatOpponent.board"
             :key="`combat-opp-${idx}`"
             class="slot"
+            :ref="(el) => setSlotRef('enemy', idx, el)"
             :class="[
               { 'slot--filled': !!props.replayEnemyBoard[idx] },
               props.unitPulseClass(unit, 'enemy', idx),
@@ -185,6 +301,25 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
                 scope="unitShopCard"
                 :hide-ornate-corner-studs="true"
               />
+              <svg
+                v-if="overlayId('enemy', idx) === 'melee_sword'"
+                class="melee-sword-fx melee-sword-fx--mirror"
+                viewBox="0 0 100 100"
+                aria-hidden="true"
+              >
+                <path
+                  class="melee-sword-fx__blade"
+                  d="M82 14 L24 58 L30 66 L88 22 Z"
+                />
+                <path
+                  class="melee-sword-fx__edge"
+                  fill="none"
+                  stroke="rgba(255, 252, 240, 0.95)"
+                  stroke-width="1.2"
+                  stroke-linecap="round"
+                  d="M78 18 L28 58"
+                />
+              </svg>
             </div>
             <div class="hp-track" v-if="props.replayEnemyBoard[idx]">
               <div class="hp-fill" :style="{ width: `${props.unitHpPercent(props.replayEnemyBoard[idx])}%` }"></div>
@@ -197,5 +332,24 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
       </div>
     </div>
     <p class="slot-title" v-if="props.activeCombatLine">{{ t("game.replay") }}: {{ props.activeCombatLine }}</p>
+    <RangedArrowProjectile
+      v-if="projectileState?.kind === 'ranged'"
+      :x1="projectileState.x1"
+      :y1="projectileState.y1"
+      :x2="projectileState.x2"
+      :y2="projectileState.y2"
+      :anim-key="projectileState.key"
+      :reduced-motion="!!props.reducedMotion"
+    />
+    <MagicSpellProjectile
+      v-if="projectileState?.kind === 'magic'"
+      :spell="projectileState.spell"
+      :x1="projectileState.x1"
+      :y1="projectileState.y1"
+      :x2="projectileState.x2"
+      :y2="projectileState.y2"
+      :anim-key="projectileState.key"
+      :reduced-motion="!!props.reducedMotion"
+    />
   </section>
 </template>

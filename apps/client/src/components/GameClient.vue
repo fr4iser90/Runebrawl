@@ -42,6 +42,17 @@ import HeroSelectionView from "./game/views/HeroSelectionView.vue";
 import LobbyView from "./game/views/LobbyView.vue";
 import SettingsModal from "./game/modals/SettingsModal.vue";
 import BoardBenchView from "./game/BoardBenchView.vue";
+import {
+  attackArchetypeFromRole,
+  resolveMagicSpellProjectileId,
+  resolveReplayAbilitySlotClasses,
+  resolveReplayAttackOverlayId,
+  resolveReplayAttackSlotClasses,
+  resolveReplayDeathSlotClasses,
+  type CombatFxOverlayId,
+  type MagicProjectileFlight,
+  type RangedProjectileFlight
+} from "./game/combat/combatFxRegistry";
 import CombatView from "./game/views/CombatView.vue";
 import RoundResultOverlay from "./game/overlays/RoundResultOverlay.vue";
 import MatchEndView from "./game/views/MatchEndView.vue";
@@ -1166,6 +1177,45 @@ function sideFromOwner(owner: "A" | "B"): "me" | "enemy" {
   return owner === "B" ? "me" : "enemy";
 }
 
+const rangedProjectileFlight = computed((): RangedProjectileFlight | null => {
+  if (reducedMotion.value) return null;
+  const e = activeCombatEvent.value;
+  if (!e || e.type !== "ATTACK" || replayAnimationPhase.value !== "HIT" || !myDuelMeta.value) return null;
+  const si = e.sourceSlotIndex;
+  const ti = e.targetSlotIndex;
+  if (si === undefined || ti === undefined || e.sourceOwnerId === undefined || e.targetOwnerId === undefined) {
+    return null;
+  }
+  const attackerSide = sideFromOwner(e.sourceOwnerId);
+  const board = attackerSide === "me" ? replayMyBoard.value : replayEnemyBoard.value;
+  const u = board[si];
+  if (!u || attackArchetypeFromRole(u.role) !== "ranged") return null;
+  return {
+    from: { side: attackerSide, slot: si },
+    to: { side: sideFromOwner(e.targetOwnerId), slot: ti }
+  };
+});
+
+const magicProjectileFlight = computed((): MagicProjectileFlight | null => {
+  if (reducedMotion.value) return null;
+  const e = activeCombatEvent.value;
+  if (!e || e.type !== "ATTACK" || replayAnimationPhase.value !== "HIT" || !myDuelMeta.value) return null;
+  const si = e.sourceSlotIndex;
+  const ti = e.targetSlotIndex;
+  if (si === undefined || ti === undefined || e.sourceOwnerId === undefined || e.targetOwnerId === undefined) {
+    return null;
+  }
+  const attackerSide = sideFromOwner(e.sourceOwnerId);
+  const board = attackerSide === "me" ? replayMyBoard.value : replayEnemyBoard.value;
+  const u = board[si];
+  if (!u || attackArchetypeFromRole(u.role) !== "magic") return null;
+  return {
+    from: { side: attackerSide, slot: si },
+    to: { side: sideFromOwner(e.targetOwnerId), slot: ti },
+    spell: resolveMagicSpellProjectileId(u)
+  };
+});
+
 function phaseLabel(phase: string): string {
   return t(`phase.${phase}`);
 }
@@ -1227,21 +1277,58 @@ function initializeReplayBoards(): void {
 }
 
 function unitPulseClass(unit: UnitInstance | null, side: "me" | "enemy", slotIndex: number): string {
-  if (!unit || !activeCombatEvent.value || activeCombatEvent.value.type !== "ATTACK" || !myDuelMeta.value) return "";
+  if (!unit || !activeCombatEvent.value || !myDuelMeta.value) return "";
   const expectedOwner: "A" | "B" = side === "me" ? (myDuelMeta.value.meIsA ? "A" : "B") : myDuelMeta.value.meIsA ? "B" : "A";
-  const isAttacker =
-    activeCombatEvent.value.sourceOwnerId === expectedOwner &&
-    activeCombatEvent.value.sourceSlotIndex === slotIndex &&
-    unit.name === activeCombatEvent.value.sourceUnitName;
-  const isDefender =
-    activeCombatEvent.value.targetOwnerId === expectedOwner &&
-    activeCombatEvent.value.targetSlotIndex === slotIndex &&
-    unit.name === activeCombatEvent.value.targetUnitName;
-  if (replayAnimationPhase.value === "WINDUP" && isAttacker) return "pulse-windup";
-  if (replayAnimationPhase.value === "HIT" && isAttacker) return "pulse-attack";
-  if (replayAnimationPhase.value === "HIT" && isDefender) return "pulse-hit";
-  if (replayAnimationPhase.value === "RECOVER" && isAttacker) return "pulse-recover";
+  const ev = activeCombatEvent.value;
+  if (ev.type === "ATTACK") {
+    return resolveReplayAttackSlotClasses({
+      phase: replayAnimationPhase.value,
+      event: ev,
+      unit,
+      side,
+      slotIndex,
+      expectedOwnerForSide: expectedOwner
+    });
+  }
+  if (ev.type === "ABILITY_TRIGGERED") {
+    return resolveReplayAbilitySlotClasses({
+      phase: replayAnimationPhase.value,
+      event: ev,
+      unit,
+      side,
+      slotIndex,
+      expectedOwnerForSide: expectedOwner
+    });
+  }
+  if (ev.type === "UNIT_DIED") {
+    return resolveReplayDeathSlotClasses({
+      phase: replayAnimationPhase.value,
+      event: ev,
+      unit,
+      side,
+      slotIndex,
+      expectedOwnerForSide: expectedOwner
+    });
+  }
   return "";
+}
+
+function attackFxOverlayId(side: "me" | "enemy", slotIndex: number): CombatFxOverlayId | null {
+  if (!myDuelMeta.value) return null;
+  const expectedOwner: "A" | "B" = side === "me" ? (myDuelMeta.value.meIsA ? "A" : "B") : myDuelMeta.value.meIsA ? "B" : "A";
+  const board = side === "me" ? replayMyBoard.value : replayEnemyBoard.value;
+  const u = board[slotIndex] ?? null;
+  return resolveReplayAttackOverlayId(
+    {
+      phase: replayAnimationPhase.value,
+      event: activeCombatEvent.value,
+      unit: u,
+      side,
+      slotIndex,
+      expectedOwnerForSide: expectedOwner
+    },
+    { reducedMotion: reducedMotion.value }
+  );
 }
 
 function slotAnimationClass(side: "me" | "enemy", idx: number): string {
@@ -1527,7 +1614,12 @@ onMounted(() => {
             <div
               v-else
               class="game-shell"
-              :class="[isCombatView ? 'game-shell--combat' : 'game-shell--shop', `phase-${state.phase.toLowerCase()}`, `perspective-${perspectiveMode}`]"
+              :class="[
+                isCombatView ? 'game-shell--combat' : 'game-shell--shop',
+                `phase-${state.phase.toLowerCase()}`,
+                `perspective-${perspectiveMode}`,
+                { 'anim-reduced': reducedMotion }
+              ]"
             >
               <header class="game-shell-top">
                 <div class="game-shell-top-left">
@@ -1595,12 +1687,16 @@ onMounted(() => {
                     :unit-label-replay="unitLabelReplay"
                     :unit-hp-percent="unitHpPercent"
                     :unit-pulse-class="unitPulseClass"
+                    :attack-fx-overlay-id="attackFxOverlayId"
+                    :ranged-projectile-flight="rangedProjectileFlight"
+                    :magic-projectile-flight="magicProjectileFlight"
                     :slot-animation-class="slotAnimationClass"
                     :slot-hit-class="slotHitClass"
                     :slot-key="slotKey"
                     :ability-icon-path="abilityIconPath"
                     :ability-label="abilityLabel"
                     :ability-description="abilityDescription"
+                    :reduced-motion="reducedMotion"
                   />
                   <BoardBenchView
                     v-else

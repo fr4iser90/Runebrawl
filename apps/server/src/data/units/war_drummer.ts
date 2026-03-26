@@ -9,5 +9,7 @@ export const warDrummer: UnitDefinition = {
   hp: 8,
   speed: 3,
   ability: "BLOODLUST",
-  shopWeight: 1
+  shopWeight: 1,
+  magicSpell: "fireball",
+  race: "ORC"
 };

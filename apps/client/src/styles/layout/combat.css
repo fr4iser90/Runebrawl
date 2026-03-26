@@ -272,6 +272,162 @@
   box-shadow: 0 0 0 2px rgba(138, 160, 214, 0.22);
 }
 
+/* --- Melee / Tank: lunge toward opponent + sword flash (replay ATTACK phases) --- */
+.combat-screen .slot.fx-melee-from-me .slot-card-chrome,
+.combat-screen .slot.fx-melee-from-enemy .slot-card-chrome {
+  --fx-lunge-x: 0;
+  --fx-lunge-y: 0;
+}
+
+/* Side-by-side: move horizontally toward center. */
+.combat-screen .slot.fx-melee-from-me .slot-card-chrome {
+  --fx-lunge-x: 12%;
+  --fx-lunge-y: 0;
+}
+
+.combat-screen .slot.fx-melee-from-enemy .slot-card-chrome {
+  --fx-lunge-x: -12%;
+  --fx-lunge-y: 0;
+}
+
+.perspective-right_left .combat-screen .slot.fx-melee-from-me .slot-card-chrome {
+  --fx-lunge-x: -12%;
+  --fx-lunge-y: 0;
+}
+
+.perspective-right_left .combat-screen .slot.fx-melee-from-enemy .slot-card-chrome {
+  --fx-lunge-x: 12%;
+  --fx-lunge-y: 0;
+}
+
+/* Stacked boards: lunge vertically toward the other row. */
+.perspective-bottom_top .combat-screen .slot.fx-melee-from-me .slot-card-chrome {
+  --fx-lunge-x: 0;
+  --fx-lunge-y: -11%;
+}
+
+.perspective-bottom_top .combat-screen .slot.fx-melee-from-enemy .slot-card-chrome {
+  --fx-lunge-x: 0;
+  --fx-lunge-y: 11%;
+}
+
+.perspective-corner .combat-screen .slot.fx-melee-from-me .slot-card-chrome {
+  --fx-lunge-x: 9%;
+  --fx-lunge-y: -7%;
+}
+
+.perspective-corner .combat-screen .slot.fx-melee-from-enemy .slot-card-chrome {
+  --fx-lunge-x: -9%;
+  --fx-lunge-y: 7%;
+}
+
+.combat-screen .slot.slot--filled.fx-melee-windup .slot-card-chrome {
+  transform: translate(var(--fx-lunge-x)) translate(var(--fx-lunge-y));
+  transition: transform 92ms ease-in;
+  box-shadow: 0 0 0 2px rgba(157, 200, 255, 0.35);
+}
+
+.combat-screen .slot.slot--filled.fx-melee-hit .slot-card-chrome {
+  transform: translate(var(--fx-lunge-x)) translate(var(--fx-lunge-y));
+  transition: transform 80ms linear;
+  box-shadow: 0 0 0 2px rgba(255, 210, 130, 0.55);
+}
+
+.combat-screen .slot.slot--filled.fx-melee-hit .slot-card-chrome::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(
+    118deg,
+    transparent 0%,
+    transparent 36%,
+    rgba(255, 252, 235, 0.92) 48%,
+    rgba(255, 190, 70, 0.55) 50.5%,
+    transparent 54%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+  animation: melee-slash-glint 150ms ease-out forwards;
+}
+
+.combat-screen .slot.slot--filled.fx-melee-recover .slot-card-chrome {
+  transform: translate(0, 0);
+  transition: transform 135ms ease-out;
+  box-shadow: 0 0 0 2px rgba(138, 160, 214, 0.22);
+}
+
+.melee-sword-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  overflow: visible;
+  animation: melee-sword-swing 150ms ease-out forwards;
+}
+
+.melee-sword-fx__blade {
+  fill: #fff8e6;
+  filter: drop-shadow(0 0 3px rgba(255, 200, 80, 0.95));
+}
+
+.melee-sword-fx--mirror {
+  transform: scaleX(-1);
+}
+
+@keyframes melee-slash-glint {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes melee-sword-swing {
+  0% {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  40% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0.35;
+    filter: blur(0);
+  }
+}
+
+.game-shell.anim-reduced .combat-screen .slot[class*="fx-melee"] .slot-card-chrome {
+  transform: none !important;
+}
+
+.game-shell.anim-reduced .combat-screen .slot.fx-melee-hit .slot-card-chrome::before {
+  animation: none;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .combat-screen .slot[class*="fx-melee"] .slot-card-chrome {
+    transform: none !important;
+  }
+
+  .combat-screen .slot.fx-melee-hit .slot-card-chrome::before {
+    animation: none;
+    opacity: 0;
+  }
+
+  .melee-sword-fx {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 .hp-track {
   width: 100%;
   height: 8px;

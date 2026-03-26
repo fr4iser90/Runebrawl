@@ -7,5 +7,6 @@ export const ironGuardian: HeroDefinition = {
   powerType: "ACTIVE",
   powerKey: "FORTIFY",
   powerCost: 1,
-  offerWeight: 1
+  offerWeight: 1,
+  race: "DWARF"
 };

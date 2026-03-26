@@ -38,7 +38,7 @@ Use this map when adding content.
 
 | What | Where |
 | --- | --- |
-| Live unit/hero rows (bundled with server) | `apps/server/src/data/units.json`, `heroes.json` |
+| Live unit/hero definitions (bundled with server) | `apps/server/src/data/units/*.ts`, `heroes/*.ts` (see `units/index.ts`, `heroes/index.ts`) |
 | Economy / timers / tier odds | `apps/server/src/data/balance.json` |
 | Content manifest (themes, scene background filenames) | `packages/game-content/src/manifest.json` |
 | Community pack template (PR flow) | `community/content-pack-template/` |
@@ -63,7 +63,7 @@ Process for **external/community** packs: `docs/COMMUNITY_CONTENT_PIPELINE.md` a
 
 ### New units/heroes (minimal checklist)
 
-1. Add row to `units.json` / `heroes.json` (stable `id`, snake_case).
+1. Add a new `*.ts` file under `apps/server/src/data/units/` or `heroes/` and register it in `index.ts` (stable `id`, snake_case).
 2. Add portrait file matching the naming above (optional: placeholder until art exists).
 3. If the unit uses a **new** `ability` / `powerKey` / `tag`, you still need matching **server code** and often `packages/shared` types — not JSON-only today. See `docs/SYNERGY_SYSTEM.md` and server `effectRegistry` / combat wiring.
 4. For community contribution, use the template under `community/` and follow `CONTRIBUTING.md`.

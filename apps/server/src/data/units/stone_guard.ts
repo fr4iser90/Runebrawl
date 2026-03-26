@@ -9,5 +9,6 @@ export const stoneGuard: UnitDefinition = {
   hp: 8,
   speed: 2,
   ability: "TAUNT",
-  shopWeight: 1.2
+  shopWeight: 1.2,
+  race: "HUMAN"
 };

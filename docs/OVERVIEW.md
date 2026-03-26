@@ -25,7 +25,7 @@ The current round/game flow is implemented with explicit phases:
 
 ### Hero System v1
 
-- Hero pool is data-driven (`apps/server/src/data/heroes.json`)
+- Hero pool is data-driven (`apps/server/src/data/heroes/*.ts`, aggregated in `heroes/index.ts`)
 - Each player gets 3 random hero options before round 1
 - Hero selection is required (timeout fallback auto-picks)
 - Passive and active hero powers are supported
@@ -33,7 +33,7 @@ The current round/game flow is implemented with explicit phases:
 
 ### Unit + Economy Systems
 
-- Data-driven unit pool (`apps/server/src/data/units.json`)
+- Data-driven unit pool (`apps/server/src/data/units/*.ts`, aggregated in `units/index.ts`)
 - Shop buy/reroll/lock flow
 - Recruitment hall tier upgrades and XP progression
 - Unit placement between bench and board
@@ -134,8 +134,8 @@ The current round/game flow is implemented with explicit phases:
 ## Data-Driven Configuration
 
 - Balance config: `apps/server/src/data/balance.json`
-- Unit config: `apps/server/src/data/units.json`
-- Hero config: `apps/server/src/data/heroes.json`
+- Unit config: `apps/server/src/data/units/` (TypeScript modules + `units/index.ts`)
+- Hero config: `apps/server/src/data/heroes/` (TypeScript modules + `heroes/index.ts`)
 
 ## Current MVP Boundaries
 

@@ -7,5 +7,6 @@ export const recruiterQueen: HeroDefinition = {
   powerType: "ACTIVE",
   powerKey: "RECRUITER",
   powerCost: 2,
-  offerWeight: 1.05
+  offerWeight: 1.05,
+  race: "HUMAN"
 };

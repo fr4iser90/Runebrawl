@@ -1,0 +1,130 @@
+/**
+ * Ranged attack replay: bow draw (WINDUP) → release (HIT) → recover.
+ * Projectile flight across the arena belongs in `RangedArrowFx.vue` / arena layer later.
+ */
+
+.combat-screen .slot.fx-ranged-from-me .slot-card-chrome,
+.combat-screen .slot.fx-ranged-from-enemy .slot-card-chrome {
+  --fx-ranged-draw-x: 0;
+  --fx-ranged-draw-y: 0;
+  --fx-ranged-release-x: 0;
+  --fx-ranged-release-y: 0;
+}
+
+/* Horizontal duel: draw = slight pull away from opponent, release = snap toward them */
+.combat-screen .slot.fx-ranged-from-me .slot-card-chrome {
+  --fx-ranged-draw-x: -8%;
+  --fx-ranged-draw-y: 0;
+  --fx-ranged-release-x: 11%;
+  --fx-ranged-release-y: 0;
+}
+
+.combat-screen .slot.fx-ranged-from-enemy .slot-card-chrome {
+  --fx-ranged-draw-x: 8%;
+  --fx-ranged-draw-y: 0;
+  --fx-ranged-release-x: -11%;
+  --fx-ranged-release-y: 0;
+}
+
+.perspective-right_left .combat-screen .slot.fx-ranged-from-me .slot-card-chrome {
+  --fx-ranged-draw-x: 8%;
+  --fx-ranged-release-x: -11%;
+}
+
+.perspective-right_left .combat-screen .slot.fx-ranged-from-enemy .slot-card-chrome {
+  --fx-ranged-draw-x: -8%;
+  --fx-ranged-release-x: 11%;
+}
+
+.perspective-bottom_top .combat-screen .slot.fx-ranged-from-me .slot-card-chrome {
+  --fx-ranged-draw-x: 0;
+  --fx-ranged-draw-y: 8%;
+  --fx-ranged-release-x: 0;
+  --fx-ranged-release-y: -11%;
+}
+
+.perspective-bottom_top .combat-screen .slot.fx-ranged-from-enemy .slot-card-chrome {
+  --fx-ranged-draw-x: 0;
+  --fx-ranged-draw-y: -8%;
+  --fx-ranged-release-x: 0;
+  --fx-ranged-release-y: 11%;
+}
+
+.perspective-corner .combat-screen .slot.fx-ranged-from-me .slot-card-chrome {
+  --fx-ranged-draw-x: -6%;
+  --fx-ranged-draw-y: 6%;
+  --fx-ranged-release-x: 9%;
+  --fx-ranged-release-y: -7%;
+}
+
+.perspective-corner .combat-screen .slot.fx-ranged-from-enemy .slot-card-chrome {
+  --fx-ranged-draw-x: 6%;
+  --fx-ranged-draw-y: -6%;
+  --fx-ranged-release-x: -9%;
+  --fx-ranged-release-y: 7%;
+}
+
+.combat-screen .slot.slot--filled.fx-ranged-draw .slot-card-chrome {
+  transform: translate(var(--fx-ranged-draw-x)) translate(var(--fx-ranged-draw-y)) scale(0.98);
+  transition: transform 95ms ease-in;
+  box-shadow: 0 0 0 2px rgba(130, 210, 255, 0.32);
+}
+
+.combat-screen .slot.slot--filled.fx-ranged-release .slot-card-chrome {
+  transform: translate(var(--fx-ranged-release-x)) translate(var(--fx-ranged-release-y)) scale(1);
+  transition: transform 88ms cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 0 0 2px rgba(180, 230, 255, 0.45);
+}
+
+.combat-screen .slot.slot--filled.fx-ranged-release .slot-card-chrome::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 70% 40%,
+    rgba(255, 255, 255, 0.35) 0%,
+    transparent 45%
+  );
+  mix-blend-mode: screen;
+  animation: ranged-release-muzzle 150ms ease-out forwards;
+}
+
+.combat-screen .slot.slot--filled.fx-ranged-recover .slot-card-chrome {
+  transform: translate(0, 0) scale(1);
+  transition: transform 135ms ease-out;
+  box-shadow: 0 0 0 2px rgba(138, 160, 214, 0.22);
+}
+
+@keyframes ranged-release-muzzle {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.game-shell.anim-reduced .combat-screen .slot[class*="fx-ranged"] .slot-card-chrome {
+  transform: none !important;
+}
+
+.game-shell.anim-reduced .combat-screen .slot.fx-ranged-release .slot-card-chrome::before {
+  animation: none;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .combat-screen .slot[class*="fx-ranged"] .slot-card-chrome {
+    transform: none !important;
+  }
+
+  .combat-screen .slot.fx-ranged-release .slot-card-chrome::before {
+    animation: none;
+    opacity: 0;
+  }
+}

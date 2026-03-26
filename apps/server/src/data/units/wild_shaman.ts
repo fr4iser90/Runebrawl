@@ -9,5 +9,7 @@ export const wildShaman: UnitDefinition = {
   hp: 6,
   speed: 3,
   ability: "BLOODLUST",
-  shopWeight: 0.95
+  shopWeight: 0.95,
+  magicSpell: "ice_storm",
+  race: "ORC"
 };

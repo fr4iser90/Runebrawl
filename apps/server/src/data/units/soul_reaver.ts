@@ -10,5 +10,6 @@ export const soulReaver: UnitDefinition = {
   speed: 4,
   ability: "LIFESTEAL",
   shopWeight: 0.85,
-  tags: ["BERSERKER"]
+  tags: ["BERSERKER"],
+  race: "UNDEAD"
 };

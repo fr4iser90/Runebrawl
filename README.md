@@ -84,7 +84,7 @@ Expected endpoints:
 - 8-player FFA fill target (bots auto-fill empty seats)
 - JSON-driven balance and unit data:
   - `apps/server/src/data/balance.json`
-  - `apps/server/src/data/units.json`
+  - `apps/server/src/data/units/` (TypeScript definitions; `units/index.ts` builds the pool)
 - Match history/replay endpoints:
   - `GET /matches/:matchId/history`
   - `GET /matches/:matchId/replay?from=<sequence>`

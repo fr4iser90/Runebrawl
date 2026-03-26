@@ -9,5 +9,6 @@ export const emberArcher: UnitDefinition = {
   hp: 4,
   speed: 5,
   ability: "NONE",
-  shopWeight: 0.9
+  shopWeight: 0.9,
+  race: "ELF"
 };

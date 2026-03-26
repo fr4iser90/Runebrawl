@@ -147,7 +147,8 @@ function cloneUnitFromDef(def: UnitDefinition): UnitInstance {
     castOnCrit: def.castOnCrit,
     castOnFirstStrike: def.castOnFirstStrike,
     castOnBattlefieldAdded: def.castOnBattlefieldAdded,
-    castOnRecruitmentRefresh: def.castOnRecruitmentRefresh
+    castOnRecruitmentRefresh: def.castOnRecruitmentRefresh,
+    magicSpell: def.magicSpell
   };
 }
 

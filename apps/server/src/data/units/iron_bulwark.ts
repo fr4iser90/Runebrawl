@@ -9,5 +9,6 @@ export const ironBulwark: UnitDefinition = {
   hp: 11,
   speed: 2,
   ability: "TAUNT",
-  shopWeight: 1.05
+  shopWeight: 1.05,
+  race: "DWARF"
 };

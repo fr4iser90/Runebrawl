@@ -7,5 +7,6 @@ export const goldBaron: HeroDefinition = {
   powerType: "PASSIVE",
   powerKey: "BONUS_GOLD",
   powerCost: 0,
-  offerWeight: 1
+  offerWeight: 1,
+  race: "HUMAN"
 };
