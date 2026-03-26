@@ -285,7 +285,12 @@ server.post("/public/submissions", async (request, reply) => {
   }
   const units = body.units as UnitDefinition[];
   const heroes = body.heroes as HeroDefinition[];
-  const validation = contentBuilder.validateContent(units, heroes, { allowPartialCatalog: true });
+  const tags = metaParsed.metadata.tags.map((t) => t.trim().toLowerCase());
+  const hasSemanticTag = tags.includes("proposal_race") || tags.includes("proposal_mechanics");
+  const validation = contentBuilder.validateContent(units, heroes, {
+    allowPartialCatalog: true,
+    allowSemanticProposal: hasSemanticTag && units.length === 0 && heroes.length === 0
+  });
   try {
     const { id } = await publicSubmissionStore.createSubmission({
       metadata: metaParsed.metadata,

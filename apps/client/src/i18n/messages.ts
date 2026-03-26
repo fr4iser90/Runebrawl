@@ -44,9 +44,22 @@ export const messages: Record<Locale, Record<string, string>> = {
     "suggest.lead": "Create JSON for units and heroes, then submit for public review. Nothing goes live without admin approval.",
     "suggest.disclaimer": "You are not editing the live game. Invalid rows may still be stored as pending_validation; fix and resubmit if needed.",
     "suggest.stepIntro": "What are you contributing?",
-    "suggest.scopeBoth": "Units and heroes",
-    "suggest.scopeUnits": "Units only",
-    "suggest.scopeHeroes": "Heroes only",
+    "suggest.scopeUnits": "Units",
+    "suggest.scopeHeroes": "Heroes",
+    "suggest.scopeRace": "Race (idea)",
+    "suggest.scopeMechanics": "Mechanics (idea)",
+    "suggest.stepMetaSemantic": "Your proposal",
+    "suggest.semanticStepLead":
+      "This step saves your idea to the public review list (votes, admin visibility). There is no extra page — title and the text field below are what others see first. Pack-style fields exist so submissions use one format in the database.",
+    "suggest.packIdSemantic": "Submission ID (snake_case)",
+    "suggest.descriptionSemantic": "Your idea (main text)",
+    "suggest.semanticMetaAdvancedSummary": "Technical fields (version & target game version)",
+    "suggest.semanticMetaAdvancedHint":
+      "Same metadata shape as content packs. Leave defaults unless you care about a specific game version.",
+    "suggest.packIdHintSemantic":
+      "Unique handle for this submission (like a ticket id). Lowercase, numbers, underscores only. Prevents duplicate open entries with the same id.",
+    "suggest.semanticMetaHint":
+      "Tags proposal_race or proposal_mechanics are added automatically for filtering on the review page.",
     "suggest.stepMeta": "Pack metadata",
     "suggest.packId": "Pack ID (snake_case)",
     "suggest.metaTitle": "Title",
@@ -626,9 +639,22 @@ export const messages: Record<Locale, Record<string, string>> = {
     "suggest.lead": "Erzeuge JSON für Units und Helden und reiche es zur öffentlichen Review ein. Nichts geht live ohne Admin-Freigabe.",
     "suggest.disclaimer": "Du bearbeitest nicht das Live-Spiel. Ungültige Zeilen können als pending_validation gespeichert werden — korrigieren und neu einreichen.",
     "suggest.stepIntro": "Womit möchtest du beitragen?",
-    "suggest.scopeBoth": "Units und Helden",
-    "suggest.scopeUnits": "Nur Units",
-    "suggest.scopeHeroes": "Nur Helden",
+    "suggest.scopeUnits": "Units",
+    "suggest.scopeHeroes": "Helden",
+    "suggest.scopeRace": "Rasse (Idee)",
+    "suggest.scopeMechanics": "Mechanik (Idee)",
+    "suggest.stepMetaSemantic": "Dein Vorschlag",
+    "suggest.semanticStepLead":
+      "Hier wird deine Idee für die öffentliche Review-Liste gespeichert (Votes, Sichtbarkeit fürs Team). Es gibt keine zweite „Ideen-Seite“ — Titel und das große Textfeld sind das, was andere zuerst sehen. Pack-ähnliche Felder gibt es, damit alle Einreichungen ein einheitliches Format in der Datenbank haben.",
+    "suggest.packIdSemantic": "Einreichungs-ID (snake_case)",
+    "suggest.descriptionSemantic": "Deine Idee (Haupttext)",
+    "suggest.semanticMetaAdvancedSummary": "Technische Felder (Version & Ziel-Spielversion)",
+    "suggest.semanticMetaAdvancedHint":
+      "Gleiches Schema wie bei Content-Packs. Standardwerte reichen, außer du willst eine bestimmte Spielversion anvisieren.",
+    "suggest.packIdHintSemantic":
+      "Eindeutiger Name für diese Einreichung (wie ein Ticket). Nur Kleinbuchstaben, Zahlen, Unterstriche. Verhindert doppelte offene Einträge mit derselben ID.",
+    "suggest.semanticMetaHint":
+      "Tags proposal_race bzw. proposal_mechanics werden automatisch ergänzt (Filter auf der Review-Seite).",
     "suggest.stepMeta": "Pack-Metadaten",
     "suggest.packId": "Pack-ID (snake_case)",
     "suggest.metaTitle": "Titel",

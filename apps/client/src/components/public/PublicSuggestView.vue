@@ -33,7 +33,7 @@ const CAST_ABILITIES: AbilityKey[] = ["NONE", "DEATH_BURST", "TAUNT", "BLOODLUST
 const HERO_POWER_TYPES: HeroPowerType[] = ["PASSIVE", "ACTIVE"];
 const HERO_POWER_KEYS: HeroPowerKey[] = ["BONUS_GOLD", "WAR_DRUM", "RECRUITER", "FORTIFY"];
 
-type Scope = "both" | "units_only" | "heroes_only";
+type Scope = "units_only" | "heroes_only" | "race_idea" | "mechanics_idea";
 type StepKey = "intro" | "meta" | "units" | "heroes" | "review";
 
 interface UnitFormRow {
@@ -74,7 +74,7 @@ interface HeroFormRow {
   offerWeight: number;
 }
 
-const scope = ref<Scope>("both");
+const scope = ref<Scope>("units_only");
 const stepIndex = ref(0);
 const phase = ref<"wizard" | "success">("wizard");
 
@@ -139,8 +139,16 @@ function emptyHeroRow(): HeroFormRow {
   };
 }
 
+const isSemanticScope = computed(
+  () => scope.value === "race_idea" || scope.value === "mechanics_idea"
+);
+
 const stepSequence = computed((): StepKey[] => {
   const seq: StepKey[] = ["intro", "meta"];
+  if (isSemanticScope.value) {
+    seq.push("review");
+    return seq;
+  }
   if (scope.value !== "heroes_only") seq.push("units");
   if (scope.value !== "units_only") seq.push("heroes");
   seq.push("review");
@@ -153,6 +161,15 @@ watch(scope, () => {
   const max = stepSequence.value.length - 1;
   if (stepIndex.value > max) stepIndex.value = max;
 });
+
+watch(
+  () => scope.value,
+  (s) => {
+    if (s === "race_idea" || s === "mechanics_idea") {
+      if (!metadata.targetGameVersion.trim()) metadata.targetGameVersion = "n/a";
+    }
+  }
+);
 
 watch(
   [scope, stepIndex, metadata, units, heroes],
@@ -210,7 +227,15 @@ function loadDraft(): void {
       heroes?: HeroFormRow[];
     };
     if (d.v !== DRAFT_VERSION) return;
-    if (d.scope === "both" || d.scope === "units_only" || d.scope === "heroes_only") scope.value = d.scope;
+    if (
+      d.scope === "units_only" ||
+      d.scope === "heroes_only" ||
+      d.scope === "race_idea" ||
+      d.scope === "mechanics_idea"
+    ) {
+      scope.value = d.scope;
+    }
+    if ((d.scope as string | undefined) === "both") scope.value = "units_only";
     if (typeof d.stepIndex === "number" && d.stepIndex >= 0) stepIndex.value = d.stepIndex;
     if (d.metadata) Object.assign(metadata, d.metadata);
     if (Array.isArray(d.units) && d.units.length > 0) {
@@ -347,6 +372,13 @@ function parseTags(): string[] {
     .filter((s) => s.length > 0);
 }
 
+function mergeProposalTags(tags: string[]): string[] {
+  const set = new Set(tags);
+  if (scope.value === "race_idea") set.add("proposal_race");
+  if (scope.value === "mechanics_idea") set.add("proposal_mechanics");
+  return [...set];
+}
+
 function unitRowToDef(row: UnitFormRow): UnitDefinition | null {
   const id = row.id.trim();
   const name = row.name.trim();
@@ -407,7 +439,7 @@ function heroRowToDef(row: HeroFormRow): HeroDefinition | null {
 }
 
 function buildPayload(): { metadata: Record<string, unknown>; units: UnitDefinition[]; heroes: HeroDefinition[] } | null {
-  const tags = parseTags();
+  const tags = mergeProposalTags(parseTags());
   if (!metadata.packId.trim() || !/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(metadata.packId.trim())) return null;
   if (tags.length === 0) return null;
   const meta = {
@@ -463,13 +495,15 @@ async function submitPack(): Promise<void> {
     submitError.value = t("suggest.errorForm");
     return;
   }
-  if (scope.value !== "heroes_only" && payload.units.length === 0) {
-    submitError.value = t("suggest.errorNeedUnit");
-    return;
-  }
-  if (scope.value !== "units_only" && payload.heroes.length === 0) {
-    submitError.value = t("suggest.errorNeedHero");
-    return;
+  if (!isSemanticScope.value) {
+    if (scope.value !== "heroes_only" && payload.units.length === 0) {
+      submitError.value = t("suggest.errorNeedUnit");
+      return;
+    }
+    if (scope.value !== "units_only" && payload.heroes.length === 0) {
+      submitError.value = t("suggest.errorNeedHero");
+      return;
+    }
   }
   submitting.value = true;
   try {
@@ -541,7 +575,7 @@ function resetWizard(): void {
   submittedUnitIds.value = [];
   portraitStatus.value = {};
   stepIndex.value = 0;
-  scope.value = "both";
+  scope.value = "units_only";
   Object.assign(metadata, {
     packId: "",
     title: "",
@@ -602,26 +636,43 @@ function resetWizard(): void {
       <section v-show="currentStep === 'intro'" class="suggest-card">
         <h3>{{ t("suggest.stepIntro") }}</h3>
         <fieldset class="suggest-scope">
-          <label><input v-model="scope" type="radio" value="both" /> {{ t("suggest.scopeBoth") }}</label>
           <label><input v-model="scope" type="radio" value="units_only" /> {{ t("suggest.scopeUnits") }}</label>
           <label><input v-model="scope" type="radio" value="heroes_only" /> {{ t("suggest.scopeHeroes") }}</label>
+          <label><input v-model="scope" type="radio" value="race_idea" /> {{ t("suggest.scopeRace") }}</label>
+          <label><input v-model="scope" type="radio" value="mechanics_idea" /> {{ t("suggest.scopeMechanics") }}</label>
         </fieldset>
       </section>
 
       <!-- Metadata -->
       <section v-show="currentStep === 'meta'" class="suggest-card">
-        <h3>{{ t("suggest.stepMeta") }}</h3>
+        <h3>{{ isSemanticScope ? t("suggest.stepMetaSemantic") : t("suggest.stepMeta") }}</h3>
+        <p v-if="isSemanticScope" class="suggest-meta-lead">{{ t("suggest.semanticStepLead") }}</p>
         <div class="suggest-grid">
-          <label>{{ t("suggest.packId") }} * <input v-model="metadata.packId" type="text" autocomplete="off" /></label>
+          <label>
+            {{ isSemanticScope ? t("suggest.packIdSemantic") : t("suggest.packId") }} *
+            <input v-model="metadata.packId" type="text" autocomplete="off" />
+          </label>
           <label>{{ t("suggest.metaTitle") }} * <input v-model="metadata.title" type="text" /></label>
           <label>{{ t("suggest.author") }} * <input v-model="metadata.author" type="text" /></label>
-          <label>{{ t("suggest.version") }} * <input v-model="metadata.version" type="text" /></label>
-          <label class="span-2">{{ t("suggest.description") }} * <textarea v-model="metadata.description" rows="3" /></label>
-          <label>{{ t("suggest.targetGameVersion") }} * <input v-model="metadata.targetGameVersion" type="text" /></label>
+          <label v-if="!isSemanticScope">{{ t("suggest.version") }} * <input v-model="metadata.version" type="text" /></label>
+          <label class="span-2">
+            {{ isSemanticScope ? t("suggest.descriptionSemantic") : t("suggest.description") }} *
+            <textarea v-model="metadata.description" :rows="isSemanticScope ? 6 : 3" />
+          </label>
+          <label v-if="!isSemanticScope">{{ t("suggest.targetGameVersion") }} * <input v-model="metadata.targetGameVersion" type="text" /></label>
           <label>{{ t("suggest.tags") }} * <input v-model="metadata.tagsInput" type="text" /></label>
           <label class="span-2">{{ t("suggest.notes") }} <textarea v-model="metadata.notes" rows="2" /></label>
         </div>
-        <p class="muted small">{{ t("suggest.packIdHint") }}</p>
+        <details v-if="isSemanticScope" class="suggest-meta-advanced">
+          <summary>{{ t("suggest.semanticMetaAdvancedSummary") }}</summary>
+          <div class="suggest-grid suggest-meta-advanced-grid">
+            <label>{{ t("suggest.version") }} * <input v-model="metadata.version" type="text" /></label>
+            <label>{{ t("suggest.targetGameVersion") }} * <input v-model="metadata.targetGameVersion" type="text" /></label>
+          </div>
+          <p class="muted small">{{ t("suggest.semanticMetaAdvancedHint") }}</p>
+        </details>
+        <p v-if="isSemanticScope" class="muted small">{{ t("suggest.semanticMetaHint") }}</p>
+        <p class="muted small">{{ isSemanticScope ? t("suggest.packIdHintSemantic") : t("suggest.packIdHint") }}</p>
       </section>
 
       <!-- Units -->

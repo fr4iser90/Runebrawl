@@ -35,6 +35,8 @@ export interface ContentValidationResult {
 /** When true, allows units-only or heroes-only packs (public ingest). Publish path stays strict. */
 export interface ContentValidationOptions {
   allowPartialCatalog?: boolean;
+  /** Tags proposal_race / proposal_mechanics: allow empty units+heroes (semantic community ideas). */
+  allowSemanticProposal?: boolean;
 }
 
 export interface ContentPublishAuditEntry {
@@ -315,7 +317,9 @@ export class ContentBuilderService {
       if (units.length === 0) errors.push("Unit list cannot be empty.");
       if (heroes.length === 0) errors.push("Hero list cannot be empty.");
     } else if (units.length === 0 && heroes.length === 0) {
-      errors.push("Pack must include at least one unit or one hero.");
+      if (options?.allowSemanticProposal !== true) {
+        errors.push("Pack must include at least one unit or one hero.");
+      }
     }
 
     const duplicateUnitIds = hasDuplicates(units.map((u) => u.id));
