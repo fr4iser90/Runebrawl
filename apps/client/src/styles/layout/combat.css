@@ -13,30 +13,69 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.combat-screen > h2 {
+  flex-shrink: 0;
+  margin: 0 0 4px;
+}
+
+.combat-screen > p.slot-title {
+  flex-shrink: 0;
+  margin: 4px 0 0;
 }
 
 .combat-arena {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: minmax(0, 1fr);
   gap: 12px;
+  flex: 1 1 0;
+  min-height: 0;
+  align-items: stretch;
 }
 
 .perspective-bottom_top .combat-arena {
   display: flex;
   flex-direction: column-reverse;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.perspective-bottom_top .combat-screen .combat-side {
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .perspective-right_left .combat-arena {
   display: flex;
   flex-direction: row-reverse;
   gap: 12px;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  align-items: stretch;
+}
+
+.perspective-right_left .combat-screen .combat-side {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
 }
 
 .perspective-corner .combat-arena {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: minmax(0, 1fr);
   gap: 12px;
   align-items: stretch;
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .perspective-corner .combat-side:first-child {
@@ -53,6 +92,28 @@
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.combat-screen .combat-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.combat-screen .combat-side h3 {
+  flex-shrink: 0;
+}
+
+/* Same 3×2 grid as board positioning; rows share remaining height (shell main column). */
+.combat-screen .slot-row {
+  display: grid;
+  grid-template-columns: repeat(var(--rb-combat-slot-cols), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rb-combat-slot-rows), minmax(0, 1fr));
+  gap: 6px;
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .target-line {
@@ -88,6 +149,8 @@
 
 .combat-screen .slot {
   border-style: solid;
+  min-width: 0;
+  min-height: 0;
   background:
     linear-gradient(180deg, rgba(203, 162, 88, 0.08), rgba(24, 20, 34, 0.92) 28%, rgba(18, 16, 28, 0.96)),
     rgba(40, 28, 42, 0.32);
@@ -101,6 +164,12 @@
   background: transparent;
   box-shadow: none;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Move pulse outlines from stretched slot → actual card box. */
@@ -121,13 +190,36 @@
   box-shadow: 0 0 0 2px rgba(138, 160, 214, 0.22);
 }
 
-/* Combat uses the same card-chrome as board/bench; avoid banner-wide cards. */
+/* Combat: fit cards inside grid cells (do not stretch to column width like a banner). */
 .combat-screen .slot .slot-card-chrome {
-  height: 100%;
   width: auto;
   max-width: 100%;
   aspect-ratio: var(--rb-unit-card-aspect-board);
   margin: 0 auto;
+}
+
+.combat-screen .slot.slot--filled .slot-card-chrome {
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.combat-screen .slot.slot--filled .slot-card-content {
+  min-height: 0;
+}
+
+.combat-screen .slot.slot--filled .slot-title {
+  flex-shrink: 0;
+  margin-bottom: 2px;
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+.combat-screen .slot.slot--filled .hp-track,
+.combat-screen .slot.slot--filled .damage-pop {
+  flex-shrink: 0;
 }
 
 .scene-combat .combat-screen .target-line,
@@ -153,11 +245,6 @@
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
   opacity: 0.9;
   margin-bottom: 6px;
-}
-
-.combat-side h3 {
-  margin: 0 0 8px;
-  font-size: 14px;
 }
 
 .pulse-attack {
@@ -235,15 +322,16 @@
 
   .combat-arena {
     grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .combat-screen .slot-row {
-    grid-template-columns: repeat(3, minmax(90px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
   }
 
-  .combat-screen .slot {
-    min-height: 118px;
+  .combat-screen .slot:not(.slot--filled) {
+    min-height: 88px;
     padding: 10px 8px;
   }
 
@@ -284,8 +372,8 @@
     padding: 8px;
   }
 
-  .combat-screen .slot {
-    min-height: 92px;
+  .combat-screen .slot:not(.slot--filled) {
+    min-height: 72px;
     padding: 7px;
   }
 
@@ -296,8 +384,8 @@
 }
 
 @media (max-width: 380px) {
-  .combat-screen .slot {
-    min-height: 98px;
+  .combat-screen .slot:not(.slot--filled) {
+    min-height: 76px;
   }
 
   .target-line {

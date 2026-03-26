@@ -29,6 +29,10 @@
   --rb-board-zone: 66%;
   --rb-bench-zone: 34%;
 
+  /* Combat replay grid: shares main shell column height (see .game-shell-center). */
+  --rb-combat-slot-cols: 3;
+  --rb-combat-slot-rows: 2;
+
   /* Unit card aspect ratios (width / height). */
   --rb-unit-card-aspect-shop: 1 / 1.25;
   --rb-unit-card-aspect-board: 1 / 1.15;
