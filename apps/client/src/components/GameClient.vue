@@ -1654,6 +1654,8 @@ onMounted(() => {
                   :player-type-badge-class="playerTypeBadgeClass"
                   :player-type-label="playerTypeLabel"
                   :stat-health-icon="statHealthIcon"
+                  :hero-portrait-path="heroPortraitPath"
+                  :hero-backplate-path="heroPortraitBackplatePath"
                   @kick-player="kickPlayer"
                 />
               </aside>

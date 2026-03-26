@@ -18,6 +18,8 @@ const props = defineProps<{
   playerTypeBadgeClass: (name: string) => string;
   playerTypeLabel: (name: string) => string;
   statHealthIcon: string;
+  heroPortraitPath: (heroId: string) => string;
+  heroBackplatePath: (heroId: string) => string | null;
 }>();
 
 const emit = defineEmits<{
@@ -25,18 +27,52 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+function heroBackplateStyle(url: string | null): Record<string, string> | undefined {
+  if (!url) return undefined;
+  return {
+    backgroundImage: `url("${url}")`,
+    backgroundSize: "cover",
+    backgroundPosition: "center center",
+    backgroundRepeat: "no-repeat"
+  };
+}
 </script>
 
 <template>
   <aside class="sidebar">
     <h3>{{ t("game.players") }}</h3>
     <ul class="player-list">
-      <li v-for="p in props.state.players" :key="p.playerId">
-        <img class="chip-icon" :src="props.playerTypeIconPath(p.name)" alt="" />
-        {{ props.displayPlayerName(p.name) }} -
-        <span class="player-badge" :class="props.playerTypeBadgeClass(p.name)">{{ props.playerTypeLabel(p.name) }}</span> -
-        <img class="chip-icon" :src="props.statHealthIcon" alt="" /> {{ p.health }} {{ t("game.hpShort") }} -
-        {{ p.hero ? p.hero.name : t("game.noHero") }} - {{ p.ready ? t("game.ready") : t("game.thinking") }}
+      <li v-for="p in props.state.players" :key="p.playerId" class="player-row">
+        <div class="player-row-main">
+          <div class="player-hero-icon" :style="heroBackplateStyle(p.hero ? props.heroBackplatePath(p.hero.id) : null)">
+            <img v-if="p.hero" class="portrait-image portrait-image-contain" :src="props.heroPortraitPath(p.hero.id)" :alt="p.hero.name" loading="lazy" />
+            <span v-else>?</span>
+          </div>
+          <div class="player-row-text">
+            <div class="player-row-topline">
+              <span class="player-name">{{ props.displayPlayerName(p.name) }}</span>
+              <span class="player-badge" :class="props.playerTypeBadgeClass(p.name)">{{ props.playerTypeLabel(p.name) }}</span>
+              <span class="player-status-badge" :class="p.ready ? 'status-ready' : 'status-thinking'">
+                {{ p.ready ? t("game.ready") : t("game.thinking") }}
+              </span>
+            </div>
+            <div class="player-row-meta">
+              <img class="chip-icon" :src="props.statHealthIcon" alt="" />
+              <span>{{ p.health }} {{ t("game.hpShort") }}</span>
+              <span class="meta-dot">•</span>
+              <span>{{ p.hero ? p.hero.name : t("game.noHero") }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="player-hover-card">
+          <div class="player-hover-title">{{ props.displayPlayerName(p.name) }}</div>
+          <div>{{ p.hero ? p.hero.name : t("game.noHero") }}</div>
+          <div>{{ t("game.health") }}: {{ p.health }}</div>
+          <div>{{ t("game.gold") }}: {{ p.gold }}</div>
+          <div>{{ t("game.tier") }}: {{ p.tavernTier }} / {{ t("game.xp") }}: {{ p.xp }}</div>
+          <div>{{ p.ready ? t("game.ready") : t("game.thinking") }}</div>
+        </div>
         <button v-if="props.isLobby && props.isCreator && p.playerId !== props.mePlayerId" @click="emit('kickPlayer', p.playerId)">
           {{ t("game.kick") }}
         </button>

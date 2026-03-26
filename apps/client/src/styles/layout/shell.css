@@ -49,6 +49,8 @@
 
 .game-shell-right {
   min-height: 0;
+  display: flex;
+  overflow: hidden;
 }
 
 .game-shell-center > .board,
@@ -58,6 +60,8 @@
 }
 
 .game-shell-right > .sidebar {
+  flex: 1 1 auto;
+  min-height: 0;
   height: 100%;
   margin: 0;
   overflow: auto;
@@ -253,6 +257,7 @@
 .game-shell--shop {
   grid-template-columns: minmax(0, var(--rb-main-center)) minmax(0, var(--rb-main-rail));
   grid-template-rows: var(--rb-shell-top) var(--rb-shell-bottom) var(--rb-shell-main);
+  column-gap: 8px;
 }
 
 .game-shell--shop .game-shell-bottom {
@@ -272,11 +277,12 @@
 .game-shell--shop .game-shell-right {
   grid-column: 2;
   grid-row: 1 / 4;
-  padding: 10px 10px 10px 6px;
+  padding: 0;
 }
 
 .game-shell--combat {
   grid-template-columns: minmax(0, var(--rb-main-center)) minmax(0, var(--rb-main-rail));
+  column-gap: 8px;
 }
 
 .game-shell--combat .game-shell-top,
@@ -288,7 +294,7 @@
 .game-shell--combat .game-shell-right {
   grid-column: 2;
   grid-row: 1 / 4;
-  padding: 10px 10px 10px 6px;
+  padding: 0;
 }
 
 @media (max-height: 900px) {
@@ -344,8 +350,8 @@
   }
 
   .game-shell-main { gap: 8px; }
-  .game-shell--shop .game-shell-right { padding: 8px 8px 8px 4px; }
-  .game-shell--combat .game-shell-right { padding: 8px 8px 8px 4px; }
+  .game-shell--shop .game-shell-right { padding: 0; }
+  .game-shell--combat .game-shell-right { padding: 0; }
 }
 
 @media (max-height: 820px) {
@@ -373,7 +379,7 @@
   .game-shell-main { gap: 6px; }
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 900px) {
   .game-shell--shop,
   .game-shell--combat {
     grid-template-columns: 1fr;
@@ -391,7 +397,7 @@
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 780px) {
   .game-shell {
     min-height: unset;
   }
