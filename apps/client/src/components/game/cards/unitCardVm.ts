@@ -16,7 +16,6 @@ export interface UnitCardVM {
   stats: {
     atk: number;
     hp: number;
-    speed?: number;
     armor?: number;
   };
   progress?: { current: number; target: number };
@@ -47,7 +46,6 @@ export function unitCardFromDefinition(
     stats: {
       atk: unit.attack,
       hp: unit.hp,
-      speed: unit.speed
     },
     surface,
     interactive: {
@@ -75,7 +73,6 @@ export function unitCardFromInstance(
     stats: {
       atk: unit.attack,
       hp: unit.hp,
-      speed: unit.speed
     },
     surface,
     interactive: {

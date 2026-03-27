@@ -7,7 +7,6 @@ export const emberArcher: UnitDefinition = {
   tier: 1,
   attack: 3,
   hp: 4,
-  speed: 5,
   ability: "NONE",
   shopWeight: 0.9,
   race: "ELF"

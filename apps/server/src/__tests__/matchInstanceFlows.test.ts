@@ -18,7 +18,6 @@ function makeUnit(overrides: Partial<UnitInstance> = {}): UnitInstance {
     attack: 4,
     hp: 6,
     maxHp: 6,
-    speed: 4,
     ability: "NONE",
     ...overrides
   };

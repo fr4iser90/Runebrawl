@@ -7,7 +7,6 @@ export const alleyBlade: UnitDefinition = {
   tier: 1,
   attack: 4,
   hp: 5,
-  speed: 4,
   ability: "NONE",
   shopWeight: 1,
   tags: ["BERSERKER"],

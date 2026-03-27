@@ -72,7 +72,6 @@ const props = defineProps<{
   unitPortraitPath: (unitId: string) => string;
   unitBackplatePath: (unitId: string) => string | null;
   unitLabelReplay: (unit: ReplayUnit | null) => string;
-  tempoPercent: (side: "me" | "enemy", slotIndex: number) => number;
   unitPulseClass: (unit: UnitInstance | null, side: "me" | "enemy", slotIndex: number) => string;
   attackFxOverlayId: (side: "me" | "enemy", idx: number) => CombatFxOverlayId | null;
   rangedProjectileFlight: RangedProjectileFlight | null;
@@ -278,7 +277,6 @@ function winnerName(): string {
                 :tier="(props.replayMyBoard[idx]?.level ?? 1)"
                 :atk="(props.replayMyBoard[idx]?.attack ?? 0)"
                 :hp="(props.replayMyBoard[idx]?.hp ?? 0)"
-                :speed="(props.replayMyBoard[idx]?.speed ?? 0)"
                 :ability-icon-url="props.abilityIconPath((props.replayMyBoard[idx]?.ability ?? 'NONE') as AbilityKey)"
                 :ability-title="`${props.abilityLabel((props.replayMyBoard[idx]?.ability ?? 'NONE') as AbilityKey)}: ${props.abilityDescription((props.replayMyBoard[idx]?.ability ?? 'NONE') as AbilityKey)}`"
               />
@@ -307,9 +305,6 @@ function winnerName(): string {
                   d="M78 18 L28 58"
                 />
               </svg>
-            </div>
-            <div class="tempo-track" v-if="props.replayMyBoard[idx]">
-              <div class="tempo-fill" :style="{ width: `${props.tempoPercent('me', idx)}%` }"></div>
             </div>
             <div class="damage-pop" v-if="props.recentDamageBySlot[props.slotKey('me', idx)]">
               {{ props.recentDamageBySlot[props.slotKey("me", idx)] }}
@@ -356,7 +351,6 @@ function winnerName(): string {
                 :tier="(props.replayEnemyBoard[idx]?.level ?? 1)"
                 :atk="(props.replayEnemyBoard[idx]?.attack ?? 0)"
                 :hp="(props.replayEnemyBoard[idx]?.hp ?? 0)"
-                :speed="(props.replayEnemyBoard[idx]?.speed ?? 0)"
                 :ability-icon-url="props.abilityIconPath((props.replayEnemyBoard[idx]?.ability ?? 'NONE') as AbilityKey)"
                 :ability-title="`${props.abilityLabel((props.replayEnemyBoard[idx]?.ability ?? 'NONE') as AbilityKey)}: ${props.abilityDescription((props.replayEnemyBoard[idx]?.ability ?? 'NONE') as AbilityKey)}`"
               />
@@ -385,9 +379,6 @@ function winnerName(): string {
                   d="M78 18 L28 58"
                 />
               </svg>
-            </div>
-            <div class="tempo-track" v-if="props.replayEnemyBoard[idx]">
-              <div class="tempo-fill" :style="{ width: `${props.tempoPercent('enemy', idx)}%` }"></div>
             </div>
             <div class="damage-pop" v-if="props.recentDamageBySlot[props.slotKey('enemy', idx)]">
               {{ props.recentDamageBySlot[props.slotKey("enemy", idx)] }}

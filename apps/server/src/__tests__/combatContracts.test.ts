@@ -12,7 +12,6 @@ function unit(overrides: Partial<UnitInstance>): UnitInstance {
     attack: 3,
     hp: 5,
     maxHp: 5,
-    speed: 3,
     ability: "NONE",
     ...overrides
   };
@@ -21,9 +20,9 @@ function unit(overrides: Partial<UnitInstance>): UnitInstance {
 describe("combat contracts", () => {
   it("emits synergyKey for Berserker trigger when 3+ active", () => {
     const teamA: UnitInstance[] = [
-      unit({ instanceId: "a1", unitId: "ba", name: "Bers-1", tags: ["BERSERKER"], attack: 4, speed: 5 }),
-      unit({ instanceId: "a2", unitId: "bb", name: "Bers-2", tags: ["BERSERKER"], attack: 3, speed: 4 }),
-      unit({ instanceId: "a3", unitId: "bc", name: "Bers-3", tags: ["BERSERKER"], attack: 3, speed: 4 })
+      unit({ instanceId: "a1", unitId: "ba", name: "Bers-1", tags: ["BERSERKER"], attack: 4 }),
+      unit({ instanceId: "a2", unitId: "bb", name: "Bers-2", tags: ["BERSERKER"], attack: 3 }),
+      unit({ instanceId: "a3", unitId: "bc", name: "Bers-3", tags: ["BERSERKER"], attack: 3 })
     ];
     const teamB: UnitInstance[] = [unit({ instanceId: "b1", unitId: "x1", name: "Target", role: "Tank", hp: 12, maxHp: 12 })];
     const result = simulateCombat(teamA, teamB, 1337);
@@ -50,7 +49,6 @@ describe("combat contracts", () => {
         attack: 1,
         hp: 1,
         maxHp: 1,
-        speed: 1
       })
     ];
     const teamB: UnitInstance[] = [
@@ -61,8 +59,7 @@ describe("combat contracts", () => {
         ability: "NONE",
         attack: 10,
         hp: 12,
-        maxHp: 12,
-        speed: 10
+        maxHp: 12
       })
     ];
 

@@ -7,7 +7,6 @@ export const skySniper: UnitDefinition = {
   tier: 3,
   attack: 6,
   hp: 5,
-  speed: 6,
   ability: "NONE",
   shopWeight: 0.9,
   race: "ELF"

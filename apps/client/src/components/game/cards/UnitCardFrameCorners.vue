@@ -11,14 +11,12 @@ const props = defineProps<{
   tier: number;
   atk: number;
   hp: number;
-  speed: number;
   abilityIconUrl: string;
   abilityTitle?: string;
   tierAriaLabel?: string;
 }>();
 
 const tl = studByCorner("tl");
-const tr = studByCorner("tr");
 const bl = studByCorner("bl");
 const br = studByCorner("br");
 const bm = ORNATE_BOTTOM_CENTER_ABILITY;
@@ -26,11 +24,6 @@ const bm = ORNATE_BOTTOM_CENTER_ABILITY;
 const tierStyle = computed(() => ({
   ...studCenterStyle(tl.cx, tl.cy),
   ...studBadgeBoxStyle(tl.r)
-}));
-
-const speedStyle = computed(() => ({
-  ...studCenterStyle(tr.cx, tr.cy),
-  ...studBadgeBoxStyle(tr.r)
 }));
 
 const atkStyle = computed(() => ({
@@ -54,12 +47,6 @@ const abilityStyle = computed(() => ({
     <!-- TL: Tier -->
     <div class="unit-card-frame-corners__hitbox" :style="tierStyle">
       <span class="unit-card-frame-corners__tier" :aria-label="props.tierAriaLabel ?? `Tier ${props.tier}`">T{{ props.tier }}</span>
-    </div>
-    <!-- TR: Speed -->
-    <div class="unit-card-frame-corners__hitbox" :style="speedStyle">
-      <span class="unit-card-frame-corners__stat unit-card-frame-corners__stat--spd" :aria-label="`Speed ${props.speed}`">{{
-        props.speed
-      }}</span>
     </div>
     <!-- BL: Attack -->
     <div class="unit-card-frame-corners__hitbox" :style="atkStyle">
@@ -130,11 +117,6 @@ const abilityStyle = computed(() => ({
 
 .unit-card-frame-corners__stat--hp {
   color: #a8f0c0;
-  text-shadow: 0 0 0.12em rgba(0, 0, 0, 0.95);
-}
-
-.unit-card-frame-corners__stat--spd {
-  color: #c8d8ff;
   text-shadow: 0 0 0.12em rgba(0, 0, 0, 0.95);
 }
 

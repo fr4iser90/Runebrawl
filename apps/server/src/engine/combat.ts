@@ -8,7 +8,6 @@ interface CombatUnit extends UnitInstance {
   ownerId: "A" | "B";
   slotIndex: number;
   alive: boolean;
-  nextActionAt: number;
 }
 
 export interface CombatStepEvent {
@@ -86,19 +85,10 @@ function selectTarget(attacker: CombatUnit, enemy: CombatUnit[], rng: SeededRng)
   return aliveEnemies[rng.int(aliveEnemies.length)];
 }
 
-function nextActor(all: CombatUnit[], rng: SeededRng): CombatUnit | undefined {
-  const alive = all.filter((u) => u.alive);
-  if (alive.length === 0) return undefined;
-  alive.sort((a, b) => {
-    if (a.nextActionAt !== b.nextActionAt) return a.nextActionAt - b.nextActionAt;
-    if (a.speed !== b.speed) return b.speed - a.speed;
-    if (a.slotIndex !== b.slotIndex) return a.slotIndex - b.slotIndex;
-    return a.ownerId.localeCompare(b.ownerId);
-  });
-  const top = alive[0];
-  const tied = alive.filter((u) => u.nextActionAt === top.nextActionAt && u.speed === top.speed);
-  if (tied.length > 1) return tied[rng.int(tied.length)];
-  return top;
+function attackerForTurn(team: CombatUnit[], slotIndex: number): CombatUnit | undefined {
+  const unit = team.find((u) => u.slotIndex === slotIndex);
+  if (!unit || !unit.alive) return undefined;
+  return unit;
 }
 
 function onDeath(
@@ -284,15 +274,13 @@ export function simulateCombat(
     ...u,
     ownerId: "A",
     slotIndex: i,
-    alive: true,
-    nextActionAt: 100 / Math.max(1, u.speed)
+    alive: true
   }));
   const b: CombatUnit[] = teamB.map((u, i) => ({
     ...u,
     ownerId: "B",
     slotIndex: i,
-    alive: true,
-    nextActionAt: 100 / Math.max(1, u.speed)
+    alive: true
   }));
   const activeSynergies = {
     A: new Set<SynergyKey>(),
@@ -301,84 +289,92 @@ export function simulateCombat(
   if (hasSynergy(a, "BERSERKER", 3)) activeSynergies.A.add("BERSERKER");
   if (hasSynergy(b, "BERSERKER", 3)) activeSynergies.B.add("BERSERKER");
 
-  let maxIterations = 300;
+  let maxCycles = 300;
 
-  while (living(a).length > 0 && living(b).length > 0 && maxIterations > 0) {
-    maxIterations -= 1;
-    const attacker = nextActor([...a, ...b], rng);
-    if (!attacker) break;
-    if (!attacker.alive) continue;
+  while (living(a).length > 0 && living(b).length > 0 && maxCycles > 0) {
+    maxCycles -= 1;
+    const maxSlots = Math.max(a.length, b.length);
+    let actedThisCycle = false;
 
-    const attackers = attacker.ownerId === "A" ? a : b;
-    const defenders = attacker.ownerId === "A" ? b : a;
-    const defender = selectTarget(attacker, defenders, rng);
-    if (!defender) break;
+    for (let slot = 0; slot < maxSlots; slot += 1) {
+      for (const side of ["A", "B"] as const) {
+        const attackers = side === "A" ? a : b;
+        const defenders = side === "A" ? b : a;
+        if (living(attackers).length === 0 || living(defenders).length === 0) break;
 
-    const attackMessage = `${attacker.name} attacks ${defender.name}.`;
-    log.push(attackMessage);
-    events.push({
-      type: "ATTACK",
-      sourceOwnerId: attacker.ownerId as "A" | "B",
-      sourceSlotIndex: attacker.slotIndex,
-      sourceUnitName: attacker.name,
-      targetOwnerId: defender.ownerId as "A" | "B",
-      targetSlotIndex: defender.slotIndex,
-      targetUnitName: defender.name,
-      message: attackMessage
-    });
-    const hitEvent: GameEvent = {
-      type: "ATTACK_HIT",
-      sourceOwnerId: attacker.ownerId,
-      sourceSlotIndex: attacker.slotIndex,
-      sourceUnitName: attacker.name,
-      targetOwnerId: defender.ownerId,
-      targetSlotIndex: defender.slotIndex,
-      targetUnitName: defender.name,
-      damageToTarget: attacker.attack,
-      damageToSource: defender.attack
-    };
-    applyEffect("RESOLVE_ATTACK_HIT", hitEvent, {
-      sourceUnit: attacker,
-      targetUnit: defender
-    });
-    applyOnHitEffects(attacker, defender, hitEvent, log, events, activeSynergies);
+        const attacker = attackerForTurn(attackers, slot);
+        if (!attacker) continue;
 
-    const defenderDied = defender.hp <= 0 && defender.alive;
-    const attackerDied = attacker.hp <= 0 && attacker.alive;
+        const defender = selectTarget(attacker, defenders, rng);
+        if (!defender) continue;
+        actedThisCycle = true;
 
-    if (defenderDied) {
-      defender.alive = false;
-      const defenderDeathMessage = `${defender.name} dies.`;
-      log.push(defenderDeathMessage);
-      events.push({
-        type: "UNIT_DIED",
-        sourceOwnerId: defender.ownerId as "A" | "B",
-        sourceSlotIndex: defender.slotIndex,
-        sourceUnitName: defender.name,
-        message: defenderDeathMessage
-      });
-      onKill(attacker, defender, log, events);
-      onDeath(defender, defenders, attackers, log, events, rng);
+        const attackMessage = `${attacker.name} attacks ${defender.name}.`;
+        log.push(attackMessage);
+        events.push({
+          type: "ATTACK",
+          sourceOwnerId: attacker.ownerId as "A" | "B",
+          sourceSlotIndex: attacker.slotIndex,
+          sourceUnitName: attacker.name,
+          targetOwnerId: defender.ownerId as "A" | "B",
+          targetSlotIndex: defender.slotIndex,
+          targetUnitName: defender.name,
+          message: attackMessage
+        });
+        const hitEvent: GameEvent = {
+          type: "ATTACK_HIT",
+          sourceOwnerId: attacker.ownerId,
+          sourceSlotIndex: attacker.slotIndex,
+          sourceUnitName: attacker.name,
+          targetOwnerId: defender.ownerId,
+          targetSlotIndex: defender.slotIndex,
+          targetUnitName: defender.name,
+          damageToTarget: attacker.attack,
+          damageToSource: defender.attack
+        };
+        applyEffect("RESOLVE_ATTACK_HIT", hitEvent, {
+          sourceUnit: attacker,
+          targetUnit: defender
+        });
+        applyOnHitEffects(attacker, defender, hitEvent, log, events, activeSynergies);
+
+        const defenderDied = defender.hp <= 0 && defender.alive;
+        const attackerDied = attacker.hp <= 0 && attacker.alive;
+
+        if (defenderDied) {
+          defender.alive = false;
+          const defenderDeathMessage = `${defender.name} dies.`;
+          log.push(defenderDeathMessage);
+          events.push({
+            type: "UNIT_DIED",
+            sourceOwnerId: defender.ownerId as "A" | "B",
+            sourceSlotIndex: defender.slotIndex,
+            sourceUnitName: defender.name,
+            message: defenderDeathMessage
+          });
+          onKill(attacker, defender, log, events);
+          onDeath(defender, defenders, attackers, log, events, rng);
+        }
+
+        if (attackerDied) {
+          attacker.alive = false;
+          const attackerDeathMessage = `${attacker.name} dies.`;
+          log.push(attackerDeathMessage);
+          events.push({
+            type: "UNIT_DIED",
+            sourceOwnerId: attacker.ownerId as "A" | "B",
+            sourceSlotIndex: attacker.slotIndex,
+            sourceUnitName: attacker.name,
+            message: attackerDeathMessage
+          });
+          onKill(defender, attacker, log, events);
+          onDeath(attacker, attackers, defenders, log, events, rng);
+        }
+      }
     }
 
-    if (attackerDied) {
-      attacker.alive = false;
-      const attackerDeathMessage = `${attacker.name} dies.`;
-      log.push(attackerDeathMessage);
-      events.push({
-        type: "UNIT_DIED",
-        sourceOwnerId: attacker.ownerId as "A" | "B",
-        sourceSlotIndex: attacker.slotIndex,
-        sourceUnitName: attacker.name,
-        message: attackerDeathMessage
-      });
-      onKill(defender, attacker, log, events);
-      onDeath(attacker, attackers, defenders, log, events, rng);
-    }
-
-    if (attacker.alive) {
-      attacker.nextActionAt += 100 / Math.max(1, attacker.speed);
-    }
+    // Safety: if nobody could act, prevent an infinite loop.
+    if (!actedThisCycle) break;
   }
 
   const survivorsA = living(a).length;

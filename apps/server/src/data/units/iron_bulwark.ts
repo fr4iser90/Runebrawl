@@ -7,7 +7,6 @@ export const ironBulwark: UnitDefinition = {
   tier: 3,
   attack: 4,
   hp: 11,
-  speed: 2,
   ability: "TAUNT",
   shopWeight: 1.05,
   race: "DWARF"

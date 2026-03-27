@@ -74,7 +74,6 @@ interface UnitFormRow {
   tier: number;
   attack: number;
   hp: number;
-  speed: number;
   ability: AbilityKey;
   shopWeight: number;
   race: "" | UnitRace;
@@ -145,7 +144,6 @@ function emptyUnitRow(): UnitFormRow {
     tier: 1,
     attack: 2,
     hp: 5,
-    speed: 3,
     ability: "NONE",
     shopWeight: 1,
     race: "",
@@ -418,11 +416,9 @@ function unitRowToDef(row: UnitFormRow): UnitDefinition | null {
   const tier = Math.round(Number(row.tier));
   const attack = Math.round(Number(row.attack));
   const hp = Math.round(Number(row.hp));
-  const speed = Math.round(Number(row.speed));
   if (!Number.isFinite(tier) || tier < 1 || tier > 6) return null;
   if (!Number.isFinite(attack) || attack < 0) return null;
   if (!Number.isFinite(hp) || hp < 1) return null;
-  if (!Number.isFinite(speed) || speed < 1) return null;
 
   const out: UnitDefinition = {
     id,
@@ -431,7 +427,6 @@ function unitRowToDef(row: UnitFormRow): UnitDefinition | null {
     tier,
     attack,
     hp,
-    speed,
     ability: row.ability
   };
   const sw = Number(row.shopWeight);
@@ -722,7 +717,6 @@ function resetWizard(): void {
                 <label>{{ t("suggest.tier") }} <input v-model.number="row.tier" type="number" min="1" max="6" /></label>
                 <label>{{ t("suggest.attack") }} <input v-model.number="row.attack" type="number" min="0" /></label>
                 <label>{{ t("suggest.hp") }} <input v-model.number="row.hp" type="number" min="1" /></label>
-                <label>{{ t("suggest.speed") }} <input v-model.number="row.speed" type="number" min="1" /></label>
                 <label>{{ t("suggest.ability") }} <select v-model="row.ability"><option v-for="a in ABILITIES" :key="a" :value="a">{{ a }}</option></select></label>
                 <label>{{ t("suggest.shopWeight") }} <input v-model.number="row.shopWeight" type="number" min="0" step="0.05" /></label>
                 <label>{{ t("suggest.race") }} <select v-model="row.race"><option value="">{{ t("suggest.raceNone") }}</option><option v-for="r in UNIT_RACES" :key="r" :value="r">{{ r }}</option></select></label>
@@ -777,7 +771,6 @@ function resetWizard(): void {
                       :tier="Math.round(Number(row.tier)) || 1"
                       :atk="Math.round(Number(row.attack)) || 0"
                       :hp="Math.round(Number(row.hp)) || 1"
-                      :speed="Math.round(Number(row.speed)) || 1"
                       :ability-icon-url="abilityIconPath(row.ability)"
                       :ability-title="`${t(`ability.${row.ability}.label`)}: ${t(`ability.${row.ability}.desc`)}`"
                     />

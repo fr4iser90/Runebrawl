@@ -389,7 +389,6 @@ const selectedUnitErrors = computed(() => {
   if (!Number.isFinite(unit.tier) || unit.tier < 1 || unit.tier > 6) errors.push(t("admin.builder.validation.unit.tierRange"));
   if (!Number.isFinite(unit.attack) || unit.attack < 0) errors.push(t("admin.builder.validation.unit.attackRange"));
   if (!Number.isFinite(unit.hp) || unit.hp <= 0) errors.push(t("admin.builder.validation.unit.hpRange"));
-  if (!Number.isFinite(unit.speed) || unit.speed <= 0) errors.push(t("admin.builder.validation.unit.speedRange"));
   if (!Number.isFinite(unit.shopWeight) || (unit.shopWeight ?? 0) <= 0) errors.push(t("admin.builder.validation.unit.shopWeightRange"));
   for (const tag of unit.tags ?? []) {
     if (!SYNERGY_KEYS.includes(tag)) errors.push(t("admin.builder.validation.unit.invalidTag", { tag }));
@@ -425,7 +424,7 @@ const selectedHeroErrors = computed(() => {
 const hasFormValidationErrors = computed(() => selectedUnitErrors.value.length > 0 || selectedHeroErrors.value.length > 0);
 
 function unitFieldInvalid(
-  field: "id" | "name" | "tier" | "attack" | "hp" | "speed" | "shopWeight" | "role" | "ability" | "tags" | "race"
+  field: "id" | "name" | "tier" | "attack" | "hp" | "shopWeight" | "role" | "ability" | "tags" | "race"
 ): boolean {
   if (!selectedUnit.value) return false;
   const unit = selectedUnit.value;
@@ -440,8 +439,6 @@ function unitFieldInvalid(
       return !Number.isFinite(unit.attack) || unit.attack < 0;
     case "hp":
       return !Number.isFinite(unit.hp) || unit.hp <= 0;
-    case "speed":
-      return !Number.isFinite(unit.speed) || unit.speed <= 0;
     case "shopWeight":
       return !Number.isFinite(unit.shopWeight) || (unit.shopWeight ?? 0) <= 0;
     case "role":
@@ -529,7 +526,6 @@ function addUnitFormRow(): void {
     tier: 1,
     attack: 1,
     hp: 1,
-    speed: 1,
     ability: "NONE",
     shopWeight: 1
   });
@@ -968,7 +964,6 @@ onBeforeUnmount(() => {
                   <input v-model.number="selectedUnit.tier" type="number" min="1" max="6" :class="{ 'input-invalid': unitFieldInvalid('tier') }" />
                   <input v-model.number="selectedUnit.attack" type="number" min="0" :class="{ 'input-invalid': unitFieldInvalid('attack') }" />
                   <input v-model.number="selectedUnit.hp" type="number" min="1" :class="{ 'input-invalid': unitFieldInvalid('hp') }" />
-                  <input v-model.number="selectedUnit.speed" type="number" min="1" :class="{ 'input-invalid': unitFieldInvalid('speed') }" />
                   <input v-model.number="selectedUnit.shopWeight" type="number" min="0.01" step="0.01" :placeholder="t('admin.builder.shopWeight')" :class="{ 'input-invalid': unitFieldInvalid('shopWeight') }" />
                   <select v-model="selectedUnit.ability" :class="{ 'input-invalid': unitFieldInvalid('ability') }">
                     <option v-for="ability in ABILITY_KEYS" :key="`ability-${ability}`" :value="ability">{{ ability }}</option>

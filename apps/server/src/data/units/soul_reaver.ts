@@ -7,7 +7,6 @@ export const soulReaver: UnitDefinition = {
   tier: 2,
   attack: 4,
   hp: 6,
-  speed: 4,
   ability: "LIFESTEAL",
   shopWeight: 0.85,
   tags: ["BERSERKER"],

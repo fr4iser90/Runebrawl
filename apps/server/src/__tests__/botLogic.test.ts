@@ -16,7 +16,6 @@ function makeDef(overrides: Partial<UnitDefinition>): UnitDefinition {
     tier: 1,
     attack: 2,
     hp: 2,
-    speed: 2,
     ability: "NONE",
     ...overrides
   };
@@ -32,7 +31,6 @@ function makeInst(overrides: Partial<UnitInstance>): UnitInstance {
     attack: 2,
     hp: 2,
     maxHp: 2,
-    speed: 2,
     ability: "NONE",
     ...overrides
   };

@@ -65,7 +65,6 @@ function cloneUnitFromDef(def: UnitDefinition): UnitInstance {
     attack: def.attack,
     hp: def.hp,
     maxHp: def.hp,
-    speed: def.speed,
     ability: def.ability,
     race: def.race,
     tags: def.tags,

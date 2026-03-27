@@ -7,7 +7,6 @@ export const wildShaman: UnitDefinition = {
   tier: 2,
   attack: 2,
   hp: 6,
-  speed: 3,
   ability: "BLOODLUST",
   shopWeight: 0.95,
   magicSpell: "ice_storm",

@@ -309,7 +309,6 @@ function onShopDragStart(shopIndex: number, event: DragEvent): void {
             :tier="card.tier"
             :atk="card.stats.atk"
             :hp="card.stats.hp"
-            :speed="card.stats.speed ?? 0"
             :ability-icon-url="props.abilityIconPath(card.ability)"
             :ability-title="`${props.abilityLabel(card.ability)}: ${props.abilityDescription(card.ability)}`"
           />
@@ -349,7 +348,7 @@ function onShopDragStart(shopIndex: number, event: DragEvent): void {
           {{ hoveredShopUnit.role }}
         </span>
       </div>
-      <div class="shop-hover-preview-stats">{{ t("game.unitMeta", { attack: hoveredShopUnit.stats.atk, hp: hoveredShopUnit.stats.hp, speed: hoveredShopUnit.stats.speed ?? 0 }) }}</div>
+      <div class="shop-hover-preview-stats">{{ t("game.unitMeta", { attack: hoveredShopUnit.stats.atk, hp: hoveredShopUnit.stats.hp }) }}</div>
       <div class="shop-hover-preview-ability">
         <img class="chip-icon" :src="props.abilityIconPath(hoveredShopUnit.ability)" alt="" />
         <span>{{ props.abilityLabel(hoveredShopUnit.ability) }}</span>

@@ -357,7 +357,6 @@ export class ContentBuilderService {
       if (!Number.isFinite(unit.tier) || unit.tier < 1 || unit.tier > 6) errors.push(`Unit ${unit.id}: tier must be 1..6.`);
       if (!Number.isFinite(unit.attack) || unit.attack < 0) errors.push(`Unit ${unit.id}: attack must be >= 0.`);
       if (!Number.isFinite(unit.hp) || unit.hp <= 0) errors.push(`Unit ${unit.id}: hp must be > 0.`);
-      if (!Number.isFinite(unit.speed) || unit.speed <= 0) errors.push(`Unit ${unit.id}: speed must be > 0.`);
       if (unit.shopWeight !== undefined && (!Number.isFinite(unit.shopWeight) || unit.shopWeight <= 0)) {
         errors.push(`Unit ${unit.id}: shopWeight must be > 0.`);
       }

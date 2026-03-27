@@ -155,7 +155,6 @@ onBeforeUnmount(() => {
               :tier="card.tier"
               :atk="card.stats.atk"
               :hp="card.stats.hp"
-              :speed="card.stats.speed ?? 0"
               :ability-icon-url="props.abilityIconPath(card.ability)"
               :ability-title="`${props.abilityLabel(card.ability)}: ${props.abilityDescription(card.ability)}`"
             />
@@ -218,7 +217,6 @@ onBeforeUnmount(() => {
               :tier="card.tier"
               :atk="card.stats.atk"
               :hp="card.stats.hp"
-              :speed="card.stats.speed ?? 0"
               :ability-icon-url="props.abilityIconPath(card.ability)"
               :ability-title="`${props.abilityLabel(card.ability)}: ${props.abilityDescription(card.ability)}`"
             />

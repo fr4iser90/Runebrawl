@@ -81,7 +81,7 @@ export function selectShopIndex(
   }
   const frontlineNeed = player.board.slice(0, 3).filter((u) => !u).length;
   const scored = choices.map(({ unit, idx }) => {
-    let score = unit.attack + unit.hp * 0.6 + unit.speed * 0.3 + unit.tier * 0.25;
+    let score = unit.attack + unit.hp * 0.6 + unit.tier * 0.25;
     const copies = unitCountById.get(unit.id) ?? 0;
     if (copies > 0) score += 2.5 + copies;
     if (frontlineNeed > 0 && (unit.role === "Tank" || unit.role === "Melee")) score += 1.3;
@@ -125,7 +125,7 @@ export function autoPlaceBoard(
     .sort((a, b) => b.hp + b.attack - (a.hp + a.attack));
   const backline = allUnits
     .filter((u) => u.role === "Ranged" || u.role === "Support")
-    .sort((a, b) => b.attack + b.speed * 0.6 - (a.attack + a.speed * 0.6));
+    .sort((a, b) => b.attack - a.attack);
   const ordered = [...frontline, ...backline];
   for (let i = 0; i < Math.min(player.board.length, ordered.length); i += 1) {
     player.board[i] = ordered[i];

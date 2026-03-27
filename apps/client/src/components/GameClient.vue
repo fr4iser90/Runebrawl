@@ -579,7 +579,6 @@ function mockUnit(seed: number, name: string, role: UnitRole, ability: AbilityKe
     attack: 2 + (seed % 3),
     hp: 4 + (seed % 4),
     maxHp: 4 + (seed % 4),
-    speed: 1 + (seed % 3),
     ability,
     role,
     name
@@ -611,15 +610,15 @@ function buildMockState(
     mockUnit(200 + idx, idx % 2 === 0 ? "Bone Medic" : "Iron Ravager", idx % 2 === 0 ? "Support" : "Melee", idx % 2 === 0 ? "NONE" : "DEATH_BURST")
   );
   const mockUnitCatalog: UnitDefinition[] = [
-    { id: "stone_guard", name: "Stone Guard", role: "Tank", tier: 1, attack: 2, hp: 8, speed: 2, ability: "TAUNT", shopWeight: 1 },
-    { id: "alley_blade", name: "Alley Blade", role: "Melee", tier: 1, attack: 4, hp: 5, speed: 4, ability: "NONE", shopWeight: 1 },
-    { id: "ember_archer", name: "Ember Archer", role: "Ranged", tier: 1, attack: 3, hp: 4, speed: 5, ability: "NONE", shopWeight: 1 },
-    { id: "wild_shaman", name: "Wild Shaman", role: "Support", tier: 2, attack: 2, hp: 6, speed: 3, ability: "BLOODLUST", shopWeight: 1 },
-    { id: "grave_imp", name: "Grave Imp", role: "Melee", tier: 2, attack: 5, hp: 5, speed: 4, ability: "DEATH_BURST", shopWeight: 1 },
-    { id: "soul_reaver", name: "Soul Reaver", role: "Melee", tier: 2, attack: 4, hp: 6, speed: 4, ability: "LIFESTEAL", shopWeight: 1 },
-    { id: "iron_bulwark", name: "Iron Bulwark", role: "Tank", tier: 3, attack: 4, hp: 11, speed: 2, ability: "TAUNT", shopWeight: 1 },
-    { id: "sky_sniper", name: "Sky Sniper", role: "Ranged", tier: 3, attack: 6, hp: 5, speed: 6, ability: "NONE", shopWeight: 1 },
-    { id: "war_drummer", name: "War Drummer", role: "Support", tier: 4, attack: 4, hp: 8, speed: 3, ability: "BLOODLUST", shopWeight: 1 }
+    { id: "stone_guard", name: "Stone Guard", role: "Tank", tier: 1, attack: 2, hp: 8, ability: "TAUNT", shopWeight: 1 },
+    { id: "alley_blade", name: "Alley Blade", role: "Melee", tier: 1, attack: 4, hp: 5, ability: "NONE", shopWeight: 1 },
+    { id: "ember_archer", name: "Ember Archer", role: "Ranged", tier: 1, attack: 3, hp: 4, ability: "NONE", shopWeight: 1 },
+    { id: "wild_shaman", name: "Wild Shaman", role: "Support", tier: 2, attack: 2, hp: 6, ability: "BLOODLUST", shopWeight: 1 },
+    { id: "grave_imp", name: "Grave Imp", role: "Melee", tier: 2, attack: 5, hp: 5, ability: "DEATH_BURST", shopWeight: 1 },
+    { id: "soul_reaver", name: "Soul Reaver", role: "Melee", tier: 2, attack: 4, hp: 6, ability: "LIFESTEAL", shopWeight: 1 },
+    { id: "iron_bulwark", name: "Iron Bulwark", role: "Tank", tier: 3, attack: 4, hp: 11, ability: "TAUNT", shopWeight: 1 },
+    { id: "sky_sniper", name: "Sky Sniper", role: "Ranged", tier: 3, attack: 6, hp: 5, ability: "NONE", shopWeight: 1 },
+    { id: "war_drummer", name: "War Drummer", role: "Support", tier: 4, attack: 4, hp: 8, ability: "BLOODLUST", shopWeight: 1 }
   ];
   const mockShop: (UnitDefinition | null)[] = Array.from({ length: counts.shopSlots }, (_, idx) => {
     const source = mockUnitCatalog[idx % mockUnitCatalog.length];
@@ -1315,44 +1314,6 @@ function sideFromOwner(owner: "A" | "B"): "me" | "enemy" {
   return owner === "B" ? "me" : "enemy";
 }
 
-function attackEventMatchesSourceSlot(event: CombatReplayEvent, side: "me" | "enemy", slotIndex: number): boolean {
-  if (event.type !== "ATTACK") return false;
-  if (event.sourceOwnerId === undefined || event.sourceSlotIndex === undefined) return false;
-  return sideFromOwner(event.sourceOwnerId) === side && event.sourceSlotIndex === slotIndex;
-}
-
-function tempoPercent(side: "me" | "enemy", slotIndex: number): number {
-  const board = side === "me" ? replayMyBoard.value : replayEnemyBoard.value;
-  const unit = board[slotIndex];
-  if (!unit || unit.isDead || unit.hp <= 0) return 0;
-
-  const event = activeCombatEvent.value;
-  if (event && attackEventMatchesSourceSlot(event, side, slotIndex)) {
-    if (replayAnimationPhase.value === "HIT") return 100;
-    if (replayAnimationPhase.value === "WINDUP") return 88;
-    if (replayAnimationPhase.value === "RECOVER") return 18;
-  }
-
-  const startIdx = Math.max(0, combatReplayStep.value + 1);
-  let seenAttackEvents = 0;
-  let sourceAttackDistance = Number.POSITIVE_INFINITY;
-
-  for (let i = startIdx; i < myCombatEvents.value.length; i += 1) {
-    const next = myCombatEvents.value[i];
-    if (next.type !== "ATTACK") continue;
-    seenAttackEvents += 1;
-    if (attackEventMatchesSourceSlot(next, side, slotIndex)) {
-      sourceAttackDistance = seenAttackEvents;
-      break;
-    }
-    if (seenAttackEvents >= 8) break;
-  }
-
-  if (!Number.isFinite(sourceAttackDistance)) return 8;
-  const clamped = Math.min(Math.max(1, sourceAttackDistance), 6);
-  return Math.max(10, Math.min(90, 100 - clamped * 14));
-}
-
 const rangedProjectileFlight = computed((): RangedProjectileFlight | null => {
   if (reducedMotion.value) return null;
   const e = activeCombatEvent.value;
@@ -1864,7 +1825,6 @@ onMounted(() => {
                     :unit-portrait-path="unitPortraitPath"
                     :unit-backplate-path="unitPortraitBackplatePath"
                     :unit-label-replay="unitLabelReplay"
-                    :tempo-percent="tempoPercent"
                     :unit-pulse-class="unitPulseClass"
                     :attack-fx-overlay-id="attackFxOverlayId"
                     :ranged-projectile-flight="rangedProjectileFlight"

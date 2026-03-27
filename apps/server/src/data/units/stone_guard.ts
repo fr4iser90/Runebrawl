@@ -7,7 +7,6 @@ export const stoneGuard: UnitDefinition = {
   tier: 1,
   attack: 2,
   hp: 8,
-  speed: 2,
   ability: "TAUNT",
   shopWeight: 1.2,
   race: "HUMAN"

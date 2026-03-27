@@ -7,7 +7,6 @@ export const warDrummer: UnitDefinition = {
   tier: 4,
   attack: 4,
   hp: 8,
-  speed: 3,
   ability: "BLOODLUST",
   shopWeight: 1,
   magicSpell: "fireball",

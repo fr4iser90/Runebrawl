@@ -34,7 +34,6 @@ export interface UnitDefinition {
   tier: number;
   attack: number;
   hp: number;
-  speed: number;
   ability: AbilityKey;
   /** Optional; when set must be one of `UNIT_RACES`. */
   race?: UnitRace;
@@ -58,7 +57,6 @@ export interface UnitInstance {
   attack: number;
   hp: number;
   maxHp: number;
-  speed: number;
   ability: AbilityKey;
   role: UnitRole;
   name: string;
