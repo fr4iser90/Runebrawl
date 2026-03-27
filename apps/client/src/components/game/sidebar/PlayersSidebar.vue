@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick, ref, watch } from "vue";
 import type { MatchPublicState } from "@runebrawl/shared";
 import { useI18n } from "../../../i18n/useI18n";
 
@@ -27,6 +28,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const logEl = ref<HTMLElement | null>(null);
 
 function heroBackplateStyle(url: string | null): Record<string, string> | undefined {
   if (!url) return undefined;
@@ -37,6 +39,16 @@ function heroBackplateStyle(url: string | null): Record<string, string> | undefi
     backgroundRepeat: "no-repeat"
   };
 }
+
+watch(
+  () => props.enrichedCombatLog.length,
+  async () => {
+    await nextTick();
+    if (!logEl.value) return;
+    logEl.value.scrollTop = logEl.value.scrollHeight;
+  },
+  { flush: "post" }
+);
 </script>
 
 <template>
@@ -80,7 +92,7 @@ function heroBackplateStyle(url: string | null): Record<string, string> | undefi
     </ul>
 
     <h3>{{ t("game.combatLog") }}</h3>
-    <div class="log">
+    <div ref="logEl" class="log">
       <div v-for="(entry, idx) in props.enrichedCombatLog" :key="idx" class="log-entry">
         <div>{{ entry.line }}</div>
         <div v-if="entry.hint" class="log-hint">{{ entry.hint }}</div>

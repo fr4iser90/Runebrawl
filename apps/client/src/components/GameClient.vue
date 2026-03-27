@@ -81,7 +81,7 @@ const profileSyncState = ref<"idle" | "saving" | "saved" | "error">("idle");
 const animatingShopIndex = ref<number | null>(null);
 const showSettings = ref(false);
 const animationSpeed = ref<"slow" | "normal" | "fast">(
-  (localStorage.getItem("runebrawl.ui.animationSpeed") as "slow" | "normal" | "fast" | null) ?? "normal"
+  (localStorage.getItem("runebrawl.ui.animationSpeed") as "slow" | "normal" | "fast" | null) ?? "slow"
 );
 const reducedMotion = ref(localStorage.getItem("runebrawl.ui.reducedMotion") === "1");
 type PerspectiveMode = "bottom_top" | "left_right" | "right_left" | "corner";
@@ -418,16 +418,16 @@ interface AnimationStep {
 
 const EVENT_ANIMATION_MAP: Record<CombatReplayEvent["type"], AnimationStep[]> = {
   ATTACK: [
-    { phase: "WINDUP", durationMs: 100 },
-    { phase: "HIT", durationMs: 150, applyEvent: true },
-    { phase: "RECOVER", durationMs: 140 }
+    { phase: "WINDUP", durationMs: 130 },
+    { phase: "HIT", durationMs: 190, applyEvent: true },
+    { phase: "RECOVER", durationMs: 175 }
   ],
-  ABILITY_TRIGGERED: [{ phase: "ABILITY", durationMs: 180, applyEvent: true }],
+  ABILITY_TRIGGERED: [{ phase: "ABILITY", durationMs: 230, applyEvent: true }],
   UNIT_DIED: [
-    { phase: "DEATH", durationMs: 250, applyEvent: true },
-    { phase: "CLEANUP", durationMs: 120 }
+    { phase: "DEATH", durationMs: 320, applyEvent: true },
+    { phase: "CLEANUP", durationMs: 150 }
   ],
-  DUEL_RESULT: [{ phase: "RESULT", durationMs: 260, applyEvent: true }]
+  DUEL_RESULT: [{ phase: "RESULT", durationMs: 320, applyEvent: true }]
 };
 
 const combatReplayStep = ref(-1);
@@ -852,6 +852,11 @@ function resetActiveSession(): void {
   storedMatchId.value = null;
   localStorage.removeItem("runebrawl.playerId");
   localStorage.removeItem("runebrawl.matchId");
+  enrichedCombatLogHistory.value = [];
+  activeCombatLogMatchId.value = null;
+  lastRoundLogged.value = null;
+  processedDuelId.value = null;
+  processedDuelEventCount.value = 0;
   state.value = null;
   connected.value = false;
   ws.value?.close();
@@ -1163,41 +1168,95 @@ interface TriggerHintMeta {
   synergyKey?: SynergyKey;
 }
 
-const triggerHintByLogMessage = computed(() => {
-  const buckets: Record<string, TriggerHintMeta[]> = {};
-  for (const event of state.value?.combatEvents ?? []) {
-    if (event.type !== "ABILITY_TRIGGERED" || (!event.abilityKey && !event.synergyKey)) continue;
-    if (!buckets[event.message]) buckets[event.message] = [];
-    buckets[event.message].push({ abilityKey: event.abilityKey, synergyKey: event.synergyKey });
-  }
-  return buckets;
-});
+interface EnrichedLogEntry {
+  line: string;
+  hint: string;
+}
 
-const enrichedCombatLog = computed(() => {
-  const lines = state.value?.combatLog ?? [];
-  const consumedPerMessage: Record<string, number> = {};
-  return lines.map((line) => {
-    const bucket = triggerHintByLogMessage.value[line] ?? [];
-    const offset = consumedPerMessage[line] ?? 0;
-    consumedPerMessage[line] = offset + 1;
-    const triggerMeta = bucket[offset] ?? null;
-    if (!triggerMeta) {
-      return { line, hint: "" };
-    }
-    if (triggerMeta.synergyKey) {
-      return {
-        line,
-        hint: `${t("game.hint")}: ${synergyLabel(triggerMeta.synergyKey)} - ${synergyDescription(triggerMeta.synergyKey)}`
-      };
-    }
-    const ability = triggerMeta.abilityKey;
-    if (!ability) return { line, hint: "" };
-    return {
-      line,
-      hint: `${t("game.hint")}: ${abilityLabel(ability)} - ${abilityDescription(ability)}`
-    };
-  });
-});
+const enrichedCombatLogHistory = ref<EnrichedLogEntry[]>([]);
+const activeCombatLogMatchId = ref<string | null>(null);
+const lastRoundLogged = ref<number | null>(null);
+const processedDuelId = ref<string | null>(null);
+const processedDuelEventCount = ref(0);
+
+function hintFromEvent(event: CombatReplayEvent): string {
+  if (event.type !== "ABILITY_TRIGGERED") return "";
+  if (event.synergyKey) {
+    return `${t("game.hint")}: ${synergyLabel(event.synergyKey)} - ${synergyDescription(event.synergyKey)}`;
+  }
+  if (event.abilityKey) {
+    return `${t("game.hint")}: ${abilityLabel(event.abilityKey)} - ${abilityDescription(event.abilityKey)}`;
+  }
+  return "";
+}
+
+function ownerLabel(owner: "A" | "B" | undefined): string {
+  if (!owner) return t("game.unknown");
+  if (!myDuelMeta.value) return owner;
+  const side = sideFromOwner(owner);
+  return side === "me" ? myDuelMeta.value.meName : myDuelMeta.value.opponentName;
+}
+
+function eventLineWithContext(event: CombatReplayEvent): string {
+  if (event.type === "ATTACK") {
+    const srcOwner = ownerLabel(event.sourceOwnerId);
+    const tgtOwner = ownerLabel(event.targetOwnerId);
+    const srcUnit = event.sourceUnitName ?? t("game.unknown");
+    const tgtUnit = event.targetUnitName ?? t("game.unknown");
+    return `[${srcOwner}] ${srcUnit} attacks [${tgtOwner}] ${tgtUnit}.`;
+  }
+
+  if (event.type === "UNIT_DIED") {
+    const owner = ownerLabel(event.sourceOwnerId);
+    const unit = event.sourceUnitName ?? t("game.unknown");
+    return `[${owner}] ${unit} dies.`;
+  }
+
+  if (event.type === "DUEL_RESULT") {
+    return `[RESULT] ${event.message}`;
+  }
+
+  if (event.sourceOwnerId !== undefined) {
+    return `[${ownerLabel(event.sourceOwnerId)}] ${event.message}`;
+  }
+  return event.message;
+}
+
+function ingestCombatLog(stateNow: MatchPublicState): void {
+  if (activeCombatLogMatchId.value !== stateNow.matchId) {
+    activeCombatLogMatchId.value = stateNow.matchId;
+    enrichedCombatLogHistory.value = [];
+    lastRoundLogged.value = null;
+    processedDuelId.value = null;
+    processedDuelEventCount.value = 0;
+  }
+
+  if (lastRoundLogged.value !== stateNow.round) {
+    lastRoundLogged.value = stateNow.round;
+    enrichedCombatLogHistory.value = [...enrichedCombatLogHistory.value, { line: `Round ${stateNow.round} started.`, hint: "" }];
+  }
+
+  const events = myCombatEvents.value;
+  const duelId = events[0]?.duelId ?? null;
+  if (!duelId) return;
+
+  if (processedDuelId.value !== duelId) {
+    processedDuelId.value = duelId;
+    processedDuelEventCount.value = 0;
+  }
+
+  const fresh = events.slice(processedDuelEventCount.value);
+  if (fresh.length === 0) return;
+  processedDuelEventCount.value = events.length;
+
+  const appended: EnrichedLogEntry[] = fresh
+    .filter((event) => event.message && !event.message.includes("(combat log truncated)"))
+    .map((event) => ({ line: eventLineWithContext(event), hint: hintFromEvent(event) }));
+  if (appended.length === 0) return;
+  enrichedCombatLogHistory.value = [...enrichedCombatLogHistory.value, ...appended];
+}
+
+const enrichedCombatLog = computed(() => enrichedCombatLogHistory.value);
 
 function unitTierClass(unit: UnitDefinition | null): "" | "tier-low" | "tier-mid" | "tier-high" {
   if (!unit) return "";
@@ -1339,13 +1398,13 @@ function phaseLabel(phase: string): string {
 
 function animationSpeedMultiplier(): number {
   if (reducedMotion.value) return 0.65;
-  if (animationSpeed.value === "slow") return 1.25;
-  if (animationSpeed.value === "fast") return 0.8;
-  return 1;
+  if (animationSpeed.value === "slow") return 1.45;
+  if (animationSpeed.value === "fast") return 0.95;
+  return 1.15;
 }
 
 function animationDurationMs(baseMs: number): number {
-  return Math.max(60, Math.round(baseMs * animationSpeedMultiplier()));
+  return Math.max(80, Math.round(baseMs * animationSpeedMultiplier()));
 }
 
 function applyCombatEvent(event: CombatReplayEvent): void {
@@ -1540,6 +1599,15 @@ watch(
     startCombatPlayback();
   },
   { immediate: true }
+);
+
+watch(
+  () => state.value,
+  (next) => {
+    if (!next) return;
+    ingestCombatLog(next);
+  },
+  { deep: false }
 );
 
 watch(animationSpeed, (next) => {
