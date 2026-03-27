@@ -10,14 +10,45 @@ import type {
   UnitRole
 } from "@runebrawl/shared";
 import { UNIT_RACES } from "@runebrawl/shared";
-import {
-  PORTRAIT_FRAME_IDS,
-  type PortraitFrameId,
-  coercePortraitFrameId,
-  DEFAULT_PORTRAIT_FRAME_ID
-} from "../../content/portraitFrameStyles";
+import roleTankIcon from "../../assets/optimized/icons/role-tank.svg";
+import roleMeleeIcon from "../../assets/optimized/icons/role-melee.svg";
+import roleRangedIcon from "../../assets/optimized/icons/role-ranged.svg";
+import roleSupportIcon from "../../assets/optimized/icons/role-support.svg";
+import abilityTauntIcon from "../../assets/optimized/icons/ability-taunt.svg";
+import abilityDeathBurstIcon from "../../assets/optimized/icons/ability-death-burst.svg";
+import abilityBloodlustIcon from "../../assets/optimized/icons/ability-bloodlust.svg";
+import abilityLifestealIcon from "../../assets/optimized/icons/ability-lifesteal.svg";
+import abilityNoneIcon from "../../assets/optimized/icons/ability-none.svg";
 import PortraitFrameSvg from "../shared/PortraitFrameSvg.vue";
+import UnitCardFrameCorners from "../game/cards/UnitCardFrameCorners.vue";
 import { useI18n } from "../../i18n/useI18n";
+
+const ABILITY_ICON_PATHS: Record<AbilityKey, string> = {
+  NONE: abilityNoneIcon,
+  TAUNT: abilityTauntIcon,
+  DEATH_BURST: abilityDeathBurstIcon,
+  BLOODLUST: abilityBloodlustIcon,
+  LIFESTEAL: abilityLifestealIcon
+};
+
+function roleIconPath(role: UnitRole): string {
+  switch (role) {
+    case "Tank":
+      return roleTankIcon;
+    case "Melee":
+      return roleMeleeIcon;
+    case "Ranged":
+      return roleRangedIcon;
+    case "Support":
+      return roleSupportIcon;
+    default:
+      return roleSupportIcon;
+  }
+}
+
+function abilityIconPath(ability: AbilityKey): string {
+  return ABILITY_ICON_PATHS[ability];
+}
 
 const { t } = useI18n();
 
@@ -60,8 +91,6 @@ interface UnitFormRow {
   /** Preview-only framing (%), matches object-position; in-game stays center-top until persisted. */
   portraitFocusX: number;
   portraitFocusY: number;
-  /** Preview-only shop card frame style (not in submission JSON yet). */
-  portraitFrameId: PortraitFrameId;
 }
 
 interface HeroFormRow {
@@ -100,6 +129,14 @@ const portraitStatus = ref<Record<string, "idle" | "uploading" | "done" | "error
 
 const submittedUnitIds = ref<string[]>([]);
 
+/** Server/db unique `pack_id`; always generated in the client — never user-edited. */
+const submissionPackId = ref<string | null>(null);
+
+function generateSubmissionPackId(): string {
+  const part = Math.random().toString(36).slice(2, 10);
+  return `suggestion_${Date.now()}_${part}`;
+}
+
 function emptyUnitRow(): UnitFormRow {
   return {
     id: "",
@@ -122,8 +159,7 @@ function emptyUnitRow(): UnitFormRow {
     portraitFile: null,
     portraitPreviewUrl: null,
     portraitFocusX: 50,
-    portraitFocusY: 0,
-    portraitFrameId: DEFAULT_PORTRAIT_FRAME_ID
+    portraitFocusY: 0
   };
 }
 
@@ -163,16 +199,7 @@ watch(scope, () => {
 });
 
 watch(
-  () => scope.value,
-  (s) => {
-    if (s === "race_idea" || s === "mechanics_idea") {
-      if (!metadata.targetGameVersion.trim()) metadata.targetGameVersion = "n/a";
-    }
-  }
-);
-
-watch(
-  [scope, stepIndex, metadata, units, heroes],
+  [scope, stepIndex, metadata, units, heroes, submissionPackId],
   () => {
     scheduleDraftSave();
   },
@@ -200,6 +227,7 @@ function scheduleDraftSave(): void {
         v: DRAFT_VERSION,
         scope: scope.value,
         stepIndex: stepIndex.value,
+        submissionPackId: submissionPackId.value ?? undefined,
         metadata: { ...metadata },
         units: units.value.map((u) => {
           const { portraitFile: _f, portraitPreviewUrl: _p, ...rest } = u;
@@ -222,6 +250,8 @@ function loadDraft(): void {
       v?: number;
       scope?: Scope;
       stepIndex?: number;
+      submissionPackId?: string;
+      semanticPackId?: string;
       metadata?: typeof metadata;
       units?: UnitFormRow[];
       heroes?: HeroFormRow[];
@@ -238,6 +268,10 @@ function loadDraft(): void {
     if ((d.scope as string | undefined) === "both") scope.value = "units_only";
     if (typeof d.stepIndex === "number" && d.stepIndex >= 0) stepIndex.value = d.stepIndex;
     if (d.metadata) Object.assign(metadata, d.metadata);
+    const savedPid = d.submissionPackId ?? d.semanticPackId;
+    if (typeof savedPid === "string" && savedPid.trim()) {
+      submissionPackId.value = savedPid.trim();
+    }
     if (Array.isArray(d.units) && d.units.length > 0) {
       units.value = d.units.map((raw) => {
         const u = raw as Partial<UnitFormRow>;
@@ -247,8 +281,7 @@ function loadDraft(): void {
           portraitFile: null,
           portraitPreviewUrl: null,
           portraitFocusX: typeof u.portraitFocusX === "number" ? u.portraitFocusX : 50,
-          portraitFocusY: typeof u.portraitFocusY === "number" ? u.portraitFocusY : 0,
-          portraitFrameId: coercePortraitFrameId(u.portraitFrameId)
+          portraitFocusY: typeof u.portraitFocusY === "number" ? u.portraitFocusY : 0
         };
       });
     }
@@ -336,10 +369,6 @@ function resetPortraitFocus(index: number): void {
   row.portraitFocusY = 0;
 }
 
-function portraitPreviewWrapperClass(row: UnitFormRow): string {
-  return `portrait-frame-variant portrait-frame-variant--${row.portraitFrameId}`;
-}
-
 function clearUnitPortrait(index: number): void {
   setUnitPortraitFile(index, null);
 }
@@ -366,10 +395,12 @@ function removeHero(i: number): void {
 }
 
 function parseTags(): string[] {
-  return metadata.tagsInput
+  const raw = metadata.tagsInput
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
+  if (raw.length === 0) return ["community"];
+  return raw;
 }
 
 function mergeProposalTags(tags: string[]): string[] {
@@ -438,17 +469,29 @@ function heroRowToDef(row: HeroFormRow): HeroDefinition | null {
   return out;
 }
 
+function ensureSubmissionPackId(): string {
+  if (!submissionPackId.value) submissionPackId.value = generateSubmissionPackId();
+  return submissionPackId.value;
+}
+
 function buildPayload(): { metadata: Record<string, unknown>; units: UnitDefinition[]; heroes: HeroDefinition[] } | null {
   const tags = mergeProposalTags(parseTags());
-  if (!metadata.packId.trim() || !/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(metadata.packId.trim())) return null;
   if (tags.length === 0) return null;
+  if (!metadata.title.trim() || !metadata.author.trim() || !metadata.description.trim()) return null;
+
+  const packIdForPayload = ensureSubmissionPackId();
+  if (!/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(packIdForPayload)) return null;
+
+  const version = "1.0.0";
+  const targetGameVersion = "any";
+
   const meta = {
-    packId: metadata.packId.trim(),
+    packId: packIdForPayload,
     title: metadata.title.trim(),
     author: metadata.author.trim(),
-    version: metadata.version.trim(),
+    version,
     description: metadata.description.trim(),
-    targetGameVersion: metadata.targetGameVersion.trim(),
+    targetGameVersion,
     tags,
     ...(metadata.notes.trim() ? { notes: metadata.notes.trim() } : {})
   };
@@ -576,6 +619,7 @@ function resetWizard(): void {
   portraitStatus.value = {};
   stepIndex.value = 0;
   scope.value = "units_only";
+  submissionPackId.value = null;
   Object.assign(metadata, {
     packId: "",
     title: "",
@@ -628,7 +672,6 @@ function resetWizard(): void {
     <template v-else>
       <section class="suggest-hero">
         <h2>{{ t("suggest.pageTitle") }}</h2>
-        <p class="suggest-lead">{{ t("suggest.lead") }}</p>
         <p class="suggest-disclaimer">{{ t("suggest.disclaimer") }}</p>
       </section>
 
@@ -643,36 +686,20 @@ function resetWizard(): void {
         </fieldset>
       </section>
 
-      <!-- Metadata -->
+      <!-- Metadata: only human-facing fields; pack_id / version / target / tags are set when submitting. -->
       <section v-show="currentStep === 'meta'" class="suggest-card">
         <h3>{{ isSemanticScope ? t("suggest.stepMetaSemantic") : t("suggest.stepMeta") }}</h3>
         <p v-if="isSemanticScope" class="suggest-meta-lead">{{ t("suggest.semanticStepLead") }}</p>
-        <div class="suggest-grid">
-          <label>
-            {{ isSemanticScope ? t("suggest.packIdSemantic") : t("suggest.packId") }} *
-            <input v-model="metadata.packId" type="text" autocomplete="off" />
-          </label>
-          <label>{{ t("suggest.metaTitle") }} * <input v-model="metadata.title" type="text" /></label>
-          <label>{{ t("suggest.author") }} * <input v-model="metadata.author" type="text" /></label>
-          <label v-if="!isSemanticScope">{{ t("suggest.version") }} * <input v-model="metadata.version" type="text" /></label>
+        <div class="suggest-grid suggest-grid--semantic">
+          <label class="span-2">{{ t("suggest.metaTitle") }} * <input v-model="metadata.title" type="text" /></label>
+          <label class="span-2">{{ t("suggest.author") }} * <input v-model="metadata.author" type="text" /></label>
           <label class="span-2">
             {{ isSemanticScope ? t("suggest.descriptionSemantic") : t("suggest.description") }} *
-            <textarea v-model="metadata.description" :rows="isSemanticScope ? 6 : 3" />
+            <textarea v-model="metadata.description" :rows="isSemanticScope ? 6 : 4" />
           </label>
-          <label v-if="!isSemanticScope">{{ t("suggest.targetGameVersion") }} * <input v-model="metadata.targetGameVersion" type="text" /></label>
-          <label>{{ t("suggest.tags") }} * <input v-model="metadata.tagsInput" type="text" /></label>
           <label class="span-2">{{ t("suggest.notes") }} <textarea v-model="metadata.notes" rows="2" /></label>
         </div>
-        <details v-if="isSemanticScope" class="suggest-meta-advanced">
-          <summary>{{ t("suggest.semanticMetaAdvancedSummary") }}</summary>
-          <div class="suggest-grid suggest-meta-advanced-grid">
-            <label>{{ t("suggest.version") }} * <input v-model="metadata.version" type="text" /></label>
-            <label>{{ t("suggest.targetGameVersion") }} * <input v-model="metadata.targetGameVersion" type="text" /></label>
-          </div>
-          <p class="muted small">{{ t("suggest.semanticMetaAdvancedHint") }}</p>
-        </details>
         <p v-if="isSemanticScope" class="muted small">{{ t("suggest.semanticMetaHint") }}</p>
-        <p class="muted small">{{ isSemanticScope ? t("suggest.packIdHintSemantic") : t("suggest.packIdHint") }}</p>
       </section>
 
       <!-- Units -->
@@ -716,13 +743,7 @@ function resetWizard(): void {
             </div>
 
             <aside class="suggest-unit-preview-column" :title="t('suggest.portraitPreviewTitle')">
-              <label class="suggest-frame-picker">
-                {{ t("suggest.portraitFrame") }}
-                <select v-model="row.portraitFrameId">
-                  <option v-for="fid in PORTRAIT_FRAME_IDS" :key="fid" :value="fid">{{ t(`suggest.frame.${fid}`) }}</option>
-                </select>
-              </label>
-              <div class="suggest-portrait-shop-preview portrait-frame-preview-svg" :class="portraitPreviewWrapperClass(row)">
+              <div class="suggest-portrait-shop-preview portrait-frame-live-svg">
                 <div class="shop-card suggest-preview-shop-card" :class="previewTierClass(row.tier)">
                   <div class="unit-card-chrome">
                     <div class="unit-card-chrome__content">
@@ -741,14 +762,31 @@ function resetWizard(): void {
                         </div>
                       </div>
                       <div class="unit-name">
+                        <img class="unit-icon" :src="roleIconPath(row.role)" alt="" />
                         <span>{{ row.name.trim() || "—" }}</span>
                       </div>
                       <div class="unit-meta">
-                        <span class="meta-chip">T{{ row.tier }}</span>
-                        <span class="meta-chip">{{ row.role }}</span>
+                        <span class="meta-chip">
+                          <img class="chip-icon" :src="roleIconPath(row.role)" alt="" />
+                          {{ row.role }}
+                        </span>
+                        <span v-if="row.tagBerserker" class="meta-chip tag-chip">BERSERKER</span>
                       </div>
                     </div>
-                    <PortraitFrameSvg :frame-id="row.portraitFrameId" :tier-class="previewTierClass(row.tier)" scope="unitShopCard" />
+                    <UnitCardFrameCorners
+                      :tier="Math.round(Number(row.tier)) || 1"
+                      :atk="Math.round(Number(row.attack)) || 0"
+                      :hp="Math.round(Number(row.hp)) || 1"
+                      :speed="Math.round(Number(row.speed)) || 1"
+                      :ability-icon-url="abilityIconPath(row.ability)"
+                      :ability-title="`${t(`ability.${row.ability}.label`)}: ${t(`ability.${row.ability}.desc`)}`"
+                    />
+                    <PortraitFrameSvg
+                      frame-id="ornate"
+                      :tier-class="previewTierClass(row.tier)"
+                      scope="unitShopCard"
+                      :hide-ornate-corner-studs="true"
+                    />
                   </div>
                 </div>
               </div>

@@ -41,7 +41,6 @@ export const messages: Record<Locale, Record<string, string>> = {
     "review.portraits": "Uploaded portraits (WebP)",
 
     "suggest.pageTitle": "Suggest a content pack",
-    "suggest.lead": "Create JSON for units and heroes, then submit for public review. Nothing goes live without admin approval.",
     "suggest.disclaimer": "You are not editing the live game. Invalid rows may still be stored as pending_validation; fix and resubmit if needed.",
     "suggest.stepIntro": "What are you contributing?",
     "suggest.scopeUnits": "Units",
@@ -50,18 +49,11 @@ export const messages: Record<Locale, Record<string, string>> = {
     "suggest.scopeMechanics": "Mechanics (idea)",
     "suggest.stepMetaSemantic": "Your proposal",
     "suggest.semanticStepLead":
-      "This step saves your idea to the public review list (votes, admin visibility). There is no extra page — title and the text field below are what others see first. Pack-style fields exist so submissions use one format in the database.",
-    "suggest.packIdSemantic": "Submission ID (snake_case)",
+      "Shows up on the public review page like other suggestions. Title and main text are what people read first. A technical id, version, and target-version are filled in for you when you submit.",
     "suggest.descriptionSemantic": "Your idea (main text)",
-    "suggest.semanticMetaAdvancedSummary": "Technical fields (version & target game version)",
-    "suggest.semanticMetaAdvancedHint":
-      "Same metadata shape as content packs. Leave defaults unless you care about a specific game version.",
-    "suggest.packIdHintSemantic":
-      "Unique handle for this submission (like a ticket id). Lowercase, numbers, underscores only. Prevents duplicate open entries with the same id.",
     "suggest.semanticMetaHint":
-      "Tags proposal_race or proposal_mechanics are added automatically for filtering on the review page.",
-    "suggest.stepMeta": "Pack metadata",
-    "suggest.packId": "Pack ID (snake_case)",
+      "proposal_race or proposal_mechanics is added automatically for the review list. You do not need to fill tags.",
+    "suggest.stepMeta": "About your submission",
     "suggest.metaTitle": "Title",
     "suggest.author": "Author",
     "suggest.version": "Version",
@@ -69,7 +61,6 @@ export const messages: Record<Locale, Record<string, string>> = {
     "suggest.targetGameVersion": "Target game version",
     "suggest.tags": "Tags (comma-separated)",
     "suggest.notes": "Notes (optional)",
-    "suggest.packIdHint": "Use lowercase letters, numbers, and underscores only (e.g. my_faction_pack).",
     "suggest.stepUnits": "Units",
     "suggest.unitPortraitIntro":
       "Portrait preview sits in a column beside the form (above the fields on small screens) so the card reads larger. Pick a cosmetic frame to compare styles; the live shop still uses the default tier border until we add a player or content setting. Sliders only adjust preview crop; the live game uses center-top until we store framing in data.",
@@ -120,7 +111,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "suggest.back": "Back",
     "suggest.next": "Next",
     "suggest.stepCounter": "Step {current} / {total}",
-    "suggest.errorForm": "Check pack ID (snake_case), metadata, and at least one tag.",
+    "suggest.errorForm": "Check title, author, description, and tags (or try again).",
     "suggest.errorNeedUnit": "Add at least one valid unit row.",
     "suggest.errorNeedHero": "Add at least one valid hero row.",
     "suggest.errorDuplicatePack": "A pack with this ID is already open for review.",
@@ -636,7 +627,6 @@ export const messages: Record<Locale, Record<string, string>> = {
     "review.portraits": "Hochgeladene Portraits (WebP)",
 
     "suggest.pageTitle": "Content-Pack vorschlagen",
-    "suggest.lead": "Erzeuge JSON für Units und Helden und reiche es zur öffentlichen Review ein. Nichts geht live ohne Admin-Freigabe.",
     "suggest.disclaimer": "Du bearbeitest nicht das Live-Spiel. Ungültige Zeilen können als pending_validation gespeichert werden — korrigieren und neu einreichen.",
     "suggest.stepIntro": "Womit möchtest du beitragen?",
     "suggest.scopeUnits": "Units",
@@ -645,18 +635,11 @@ export const messages: Record<Locale, Record<string, string>> = {
     "suggest.scopeMechanics": "Mechanik (Idee)",
     "suggest.stepMetaSemantic": "Dein Vorschlag",
     "suggest.semanticStepLead":
-      "Hier wird deine Idee für die öffentliche Review-Liste gespeichert (Votes, Sichtbarkeit fürs Team). Es gibt keine zweite „Ideen-Seite“ — Titel und das große Textfeld sind das, was andere zuerst sehen. Pack-ähnliche Felder gibt es, damit alle Einreichungen ein einheitliches Format in der Datenbank haben.",
-    "suggest.packIdSemantic": "Einreichungs-ID (snake_case)",
+      "Erscheint auf der öffentlichen Review-Seite wie andere Vorschläge. Titel und Haupttext lesen die Leute zuerst. Technische ID, Version und Ziel-Spielversion werden beim Absenden automatisch gesetzt.",
     "suggest.descriptionSemantic": "Deine Idee (Haupttext)",
-    "suggest.semanticMetaAdvancedSummary": "Technische Felder (Version & Ziel-Spielversion)",
-    "suggest.semanticMetaAdvancedHint":
-      "Gleiches Schema wie bei Content-Packs. Standardwerte reichen, außer du willst eine bestimmte Spielversion anvisieren.",
-    "suggest.packIdHintSemantic":
-      "Eindeutiger Name für diese Einreichung (wie ein Ticket). Nur Kleinbuchstaben, Zahlen, Unterstriche. Verhindert doppelte offene Einträge mit derselben ID.",
     "suggest.semanticMetaHint":
-      "Tags proposal_race bzw. proposal_mechanics werden automatisch ergänzt (Filter auf der Review-Seite).",
-    "suggest.stepMeta": "Pack-Metadaten",
-    "suggest.packId": "Pack-ID (snake_case)",
+      "proposal_race bzw. proposal_mechanics wird für die Review-Liste automatisch ergänzt. Tags musst du nicht eintragen.",
+    "suggest.stepMeta": "Zu deiner Einreichung",
     "suggest.metaTitle": "Titel",
     "suggest.author": "Autor",
     "suggest.version": "Version",
@@ -664,7 +647,6 @@ export const messages: Record<Locale, Record<string, string>> = {
     "suggest.targetGameVersion": "Ziel-Spielversion",
     "suggest.tags": "Tags (kommagetrennt)",
     "suggest.notes": "Notizen (optional)",
-    "suggest.packIdHint": "Nur Kleinbuchstaben, Zahlen und Unterstriche (z. B. mein_faction_pack).",
     "suggest.stepUnits": "Units",
     "suggest.unitPortraitIntro":
       "Die Portrait-Vorschau steht in einer Spalte neben dem Formular (auf schmalen Screens oben), damit die Karte größer wirkt. Rahmen sind nur kosmetisch zum Vergleichen; der Live-Shop nutzt weiter den Standard-Tier-Rand, bis es eine Spieler- oder Content-Option gibt. Regler nur für die Vorschau; im Live-Spiel bleibt center-top, bis wir Framing in den Daten speichern.",
@@ -715,7 +697,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "suggest.back": "Zurück",
     "suggest.next": "Weiter",
     "suggest.stepCounter": "Schritt {current} / {total}",
-    "suggest.errorForm": "Prüfe Pack-ID (snake_case), Metadaten und mindestens ein Tag.",
+    "suggest.errorForm": "Prüfe Titel, Autor, Beschreibung und Tags (oder versuche es erneut).",
     "suggest.errorNeedUnit": "Mindestens eine gültige Unit-Zeile hinzufügen.",
     "suggest.errorNeedHero": "Mindestens eine gültige Helden-Zeile hinzufügen.",
     "suggest.errorDuplicatePack": "Ein Pack mit dieser ID ist bereits in Review.",

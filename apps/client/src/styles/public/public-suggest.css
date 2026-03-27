@@ -119,23 +119,9 @@
   color: var(--rb-text-muted);
 }
 
-.suggest-meta-advanced {
-  margin: 0.75rem 0 0;
-  padding: 0.5rem 0.65rem;
-  border-radius: 8px;
-  border: 1px solid var(--rb-border);
-  background: rgba(0, 0, 0, 0.12);
-}
-
-.suggest-meta-advanced summary {
-  cursor: pointer;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--rb-text-muted);
-}
-
-.suggest-meta-advanced-grid {
-  margin-top: 0.65rem;
+.suggest-grid--semantic {
+  max-width: 36rem;
+  margin: 0 auto;
 }
 
 .suggest-card {
@@ -303,25 +289,6 @@
   gap: 0.65rem;
 }
 
-.suggest-frame-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.82rem;
-  color: var(--rb-text-muted);
-}
-
-.suggest-frame-picker select {
-  width: 100%;
-  max-width: 100%;
-  font: inherit;
-  padding: 0.35rem 0.5rem;
-  border-radius: 6px;
-  border: 1px solid var(--rb-border);
-  background: var(--rb-surface-2);
-  color: var(--rb-text);
-}
-
 .suggest-portrait-shop-preview {
   width: 100%;
   max-width: 100%;
@@ -330,6 +297,23 @@
 
 .suggest-preview-shop-card.shop-card {
   margin: 0;
+  display: flex;
+  justify-content: center;
+  padding: 6px;
+}
+
+/* Match live tavern card geometry (avoid stretched full-width preview cards). */
+.suggest-preview-shop-card .unit-card-chrome {
+  width: min(100%, 210px);
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: var(--rb-unit-card-aspect-shop);
+  margin: 0 auto;
+}
+
+.suggest-preview-shop-card .unit-card-chrome__content {
+  padding: 6px 7px 7px;
+  gap: 4px;
 }
 
 .suggest-portrait-shop-preview .shop-card:hover {
@@ -337,8 +321,17 @@
 }
 
 .suggest-preview-portrait-slot.portrait-slot-unit {
-  height: clamp(120px, 28vw, 220px);
-  margin-bottom: 6px;
+  aspect-ratio: 4 / 3;
+  height: 58%;
+  flex: 0 0 58%;
+  min-height: 0;
+  max-height: none;
+  margin-bottom: 4px;
+}
+
+.suggest-preview-portrait-slot .portrait-frame-stack__art {
+  object-fit: contain;
+  object-position: center center;
 }
 
 .suggest-preview-empty-ph {
