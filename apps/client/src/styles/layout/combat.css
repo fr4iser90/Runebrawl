@@ -95,6 +95,61 @@
   flex-shrink: 0;
 }
 
+.combat-nextup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 6px;
+  flex-shrink: 0;
+}
+
+.nextup-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid #41527f;
+  background: rgba(27, 39, 66, 0.82);
+  font-size: 11px;
+  color: #dbe6ff;
+}
+
+.nextup-chip.current {
+  border-color: #7fc0ff;
+  box-shadow: 0 0 0 2px rgba(127, 192, 255, 0.25);
+  background: rgba(31, 55, 92, 0.9);
+}
+
+.combat-winner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 0 0 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #7aa85a;
+  background: rgba(33, 61, 42, 0.86);
+  box-shadow: 0 0 0 2px rgba(122, 168, 90, 0.22);
+  flex-shrink: 0;
+}
+
+.combat-winner__badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #c8f4b2;
+}
+
+.combat-winner__name {
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .combat-screen .combat-side {
   display: flex;
   flex-direction: column;
@@ -172,6 +227,42 @@
   overflow: hidden;
 }
 
+.combat-screen .slot.slot--filled.slot--active-attacker .slot-card-chrome {
+  box-shadow: 0 0 0 2px rgba(98, 196, 255, 0.62), 0 0 0 5px rgba(98, 196, 255, 0.2);
+}
+
+.combat-screen .slot.slot--filled.slot--active-target .slot-card-chrome {
+  box-shadow: 0 0 0 2px rgba(255, 168, 120, 0.58), 0 0 0 5px rgba(255, 168, 120, 0.18);
+}
+
+.combat-screen .slot.slot--filled.slot--target-hit .slot-card-chrome {
+  box-shadow: 0 0 0 2px rgba(255, 120, 120, 0.7), 0 0 0 6px rgba(255, 120, 120, 0.22);
+}
+
+.combat-focus-badge {
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  z-index: 4;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(18, 25, 44, 0.88);
+}
+
+.combat-focus-badge--attacker {
+  color: #9fdaff;
+  border-color: rgba(127, 192, 255, 0.7);
+}
+
+.combat-focus-badge--target {
+  color: #ffd0b5;
+  border-color: rgba(255, 168, 120, 0.7);
+}
+
 /* Move pulse outlines from stretched slot → actual card box. */
 .combat-screen .slot.slot--filled.pulse-attack .slot-card-chrome {
   box-shadow: 0 0 0 2px rgba(98, 196, 255, 0.35);
@@ -217,7 +308,7 @@
   line-height: 1.1;
 }
 
-.combat-screen .slot.slot--filled .hp-track,
+.combat-screen .slot.slot--filled .tempo-track,
 .combat-screen .slot.slot--filled .damage-pop {
   flex-shrink: 0;
 }
@@ -428,20 +519,20 @@
   }
 }
 
-.hp-track {
+.tempo-track {
   width: 100%;
   height: 8px;
   border-radius: 999px;
-  background: #151b2b;
-  border: 1px solid #2c3658;
+  background: #141b2b;
+  border: 1px solid #2d3558;
   overflow: hidden;
   margin-top: 6px;
 }
 
-.hp-fill {
+.tempo-fill {
   height: 100%;
-  background: linear-gradient(90deg, #73dd9f, #49c57f);
-  transition: width 0.22s ease;
+  background: linear-gradient(90deg, #6ec6ff, #54a6ff);
+  transition: width 0.18s linear;
 }
 
 .damage-pop {

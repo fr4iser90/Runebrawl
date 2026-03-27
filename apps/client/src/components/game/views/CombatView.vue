@@ -25,6 +25,24 @@ interface TargetLineView {
   isHit: boolean;
 }
 
+interface ActiveAttackCueView {
+  attackerSide: "me" | "enemy";
+  attackerSlot: number;
+  targetSide: "me" | "enemy";
+  targetSlot: number;
+  isHit: boolean;
+}
+
+interface NextAttackCueView {
+  source: string;
+  target: string;
+  attackerSide: "me" | "enemy";
+  attackerSlot: number;
+  targetSide: "me" | "enemy";
+  targetSlot: number;
+  isCurrent: boolean;
+}
+
 interface ReplayUnit extends UnitInstance {
   isDead?: boolean;
 }
@@ -45,6 +63,8 @@ const props = defineProps<{
   myDuelMeta: DuelMetaView | null;
   hasNoDuelThisRound: boolean;
   activeTargetLine: TargetLineView | null;
+  activeAttackCue: ActiveAttackCueView | null;
+  nextAttackQueue: NextAttackCueView[];
   activeCombatLine: string;
   replayMyBoard: (ReplayUnit | null)[];
   replayEnemyBoard: (ReplayUnit | null)[];
@@ -52,7 +72,7 @@ const props = defineProps<{
   unitPortraitPath: (unitId: string) => string;
   unitBackplatePath: (unitId: string) => string | null;
   unitLabelReplay: (unit: ReplayUnit | null) => string;
-  unitHpPercent: (unit: ReplayUnit | null) => number;
+  tempoPercent: (side: "me" | "enemy", slotIndex: number) => number;
   unitPulseClass: (unit: UnitInstance | null, side: "me" | "enemy", slotIndex: number) => string;
   attackFxOverlayId: (side: "me" | "enemy", idx: number) => CombatFxOverlayId | null;
   rangedProjectileFlight: RangedProjectileFlight | null;
@@ -166,6 +186,27 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
   if (level <= 4) return "tier-mid";
   return "tier-high";
 }
+
+function isAttackerSlot(side: "me" | "enemy", idx: number): boolean {
+  return !!props.activeAttackCue && props.activeAttackCue.attackerSide === side && props.activeAttackCue.attackerSlot === idx;
+}
+
+function isTargetSlot(side: "me" | "enemy", idx: number): boolean {
+  return !!props.activeAttackCue && props.activeAttackCue.targetSide === side && props.activeAttackCue.targetSlot === idx;
+}
+
+function countAlive(units: (ReplayUnit | null)[]): number {
+  return units.filter((u) => !!u && !u.isDead && u.hp > 0).length;
+}
+
+function winnerName(): string {
+  const myAlive = countAlive(props.replayMyBoard);
+  const enemyAlive = countAlive(props.replayEnemyBoard);
+  if (myAlive === 0 && enemyAlive === 0) return "";
+  if (myAlive > 0 && enemyAlive === 0) return props.me.name;
+  if (enemyAlive > 0 && myAlive === 0) return props.myCombatOpponent?.name ?? "";
+  return "";
+}
 </script>
 
 <template>
@@ -183,6 +224,20 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
         <span class="target-name">{{ props.activeTargetLine.target }}</span>
       </div>
     </div>
+    <div v-if="props.nextAttackQueue.length" class="combat-nextup">
+      <span
+        v-for="(item, idx) in props.nextAttackQueue"
+        :key="`${item.attackerSide}-${item.attackerSlot}-${item.targetSide}-${item.targetSlot}-${idx}`"
+        class="nextup-chip"
+        :class="{ current: item.isCurrent }"
+      >
+        {{ item.source }} → {{ item.target }}
+      </span>
+    </div>
+    <div v-if="winnerName()" class="combat-winner">
+      <span class="combat-winner__badge">WINNER</span>
+      <span class="combat-winner__name">{{ winnerName() }}</span>
+    </div>
     <div class="combat-arena" v-if="props.myCombatOpponent">
       <div class="combat-side">
         <h3>{{ props.me.name }}</h3>
@@ -194,6 +249,9 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
             :ref="(el) => setSlotRef('me', idx, el)"
             :class="[
               { 'slot--filled': !!props.replayMyBoard[idx] },
+              { 'slot--active-attacker': isAttackerSlot('me', idx) },
+              { 'slot--active-target': isTargetSlot('me', idx) },
+              { 'slot--target-hit': isTargetSlot('me', idx) && !!props.activeAttackCue?.isHit },
               props.unitPulseClass(unit, 'me', idx),
               props.slotAnimationClass('me', idx),
               props.slotHitClass('me', idx)
@@ -201,6 +259,8 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
           >
             <div class="slot-title">{{ t("game.slot", { index: idx + 1 }) }}</div>
             <div v-if="props.replayMyBoard[idx]" class="unit-card-chrome slot-card-chrome" :class="{ 'dead-fade': !!props.replayMyBoard[idx]?.isDead }">
+              <div v-if="isAttackerSlot('me', idx)" class="combat-focus-badge combat-focus-badge--attacker">ATK</div>
+              <div v-else-if="isTargetSlot('me', idx)" class="combat-focus-badge combat-focus-badge--target">TGT</div>
               <div class="unit-card-chrome__content slot-card-content">
                 <div
                   class="portrait-slot portrait-slot-mini portrait-slot--svg-frame"
@@ -248,8 +308,8 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
                 />
               </svg>
             </div>
-            <div class="hp-track" v-if="props.replayMyBoard[idx]">
-              <div class="hp-fill" :style="{ width: `${props.unitHpPercent(props.replayMyBoard[idx])}%` }"></div>
+            <div class="tempo-track" v-if="props.replayMyBoard[idx]">
+              <div class="tempo-fill" :style="{ width: `${props.tempoPercent('me', idx)}%` }"></div>
             </div>
             <div class="damage-pop" v-if="props.recentDamageBySlot[props.slotKey('me', idx)]">
               {{ props.recentDamageBySlot[props.slotKey("me", idx)] }}
@@ -267,6 +327,9 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
             :ref="(el) => setSlotRef('enemy', idx, el)"
             :class="[
               { 'slot--filled': !!props.replayEnemyBoard[idx] },
+              { 'slot--active-attacker': isAttackerSlot('enemy', idx) },
+              { 'slot--active-target': isTargetSlot('enemy', idx) },
+              { 'slot--target-hit': isTargetSlot('enemy', idx) && !!props.activeAttackCue?.isHit },
               props.unitPulseClass(unit, 'enemy', idx),
               props.slotAnimationClass('enemy', idx),
               props.slotHitClass('enemy', idx)
@@ -274,6 +337,8 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
           >
             <div class="slot-title">{{ t("game.slot", { index: idx + 1 }) }}</div>
             <div v-if="props.replayEnemyBoard[idx]" class="unit-card-chrome slot-card-chrome" :class="{ 'dead-fade': !!props.replayEnemyBoard[idx]?.isDead }">
+              <div v-if="isAttackerSlot('enemy', idx)" class="combat-focus-badge combat-focus-badge--attacker">ATK</div>
+              <div v-else-if="isTargetSlot('enemy', idx)" class="combat-focus-badge combat-focus-badge--target">TGT</div>
               <div class="unit-card-chrome__content slot-card-content">
                 <div
                   class="portrait-slot portrait-slot-mini portrait-slot--svg-frame"
@@ -321,8 +386,8 @@ function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tie
                 />
               </svg>
             </div>
-            <div class="hp-track" v-if="props.replayEnemyBoard[idx]">
-              <div class="hp-fill" :style="{ width: `${props.unitHpPercent(props.replayEnemyBoard[idx])}%` }"></div>
+            <div class="tempo-track" v-if="props.replayEnemyBoard[idx]">
+              <div class="tempo-fill" :style="{ width: `${props.tempoPercent('enemy', idx)}%` }"></div>
             </div>
             <div class="damage-pop" v-if="props.recentDamageBySlot[props.slotKey('enemy', idx)]">
               {{ props.recentDamageBySlot[props.slotKey("enemy", idx)] }}

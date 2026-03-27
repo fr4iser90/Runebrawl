@@ -475,6 +475,83 @@ const activeTargetLine = computed(() => {
   };
 });
 
+interface ActiveAttackCue {
+  attackerSide: "me" | "enemy";
+  attackerSlot: number;
+  targetSide: "me" | "enemy";
+  targetSlot: number;
+  isHit: boolean;
+}
+
+interface NextAttackCue {
+  source: string;
+  target: string;
+  attackerSide: "me" | "enemy";
+  attackerSlot: number;
+  targetSide: "me" | "enemy";
+  targetSlot: number;
+  isCurrent: boolean;
+}
+
+const activeAttackCue = computed<ActiveAttackCue | null>(() => {
+  const event = activeCombatEvent.value;
+  if (!event || event.type !== "ATTACK") return null;
+  if (replayAnimationPhase.value !== "WINDUP" && replayAnimationPhase.value !== "HIT") return null;
+  if (
+    event.sourceOwnerId === undefined ||
+    event.targetOwnerId === undefined ||
+    event.sourceSlotIndex === undefined ||
+    event.targetSlotIndex === undefined
+  ) {
+    return null;
+  }
+  return {
+    attackerSide: sideFromOwner(event.sourceOwnerId),
+    attackerSlot: event.sourceSlotIndex,
+    targetSide: sideFromOwner(event.targetOwnerId),
+    targetSlot: event.targetSlotIndex,
+    isHit: replayAnimationPhase.value === "HIT"
+  };
+});
+
+const nextAttackQueue = computed<NextAttackCue[]>(() => {
+  const out: NextAttackCue[] = [];
+  const maxItems = 5;
+  const pushAttack = (event: CombatReplayEvent, isCurrent: boolean): void => {
+    if (event.type !== "ATTACK") return;
+    if (
+      event.sourceOwnerId === undefined ||
+      event.targetOwnerId === undefined ||
+      event.sourceSlotIndex === undefined ||
+      event.targetSlotIndex === undefined
+    ) {
+      return;
+    }
+    out.push({
+      source: event.sourceUnitName ?? t("game.unknown"),
+      target: event.targetUnitName ?? t("game.unknown"),
+      attackerSide: sideFromOwner(event.sourceOwnerId),
+      attackerSlot: event.sourceSlotIndex,
+      targetSide: sideFromOwner(event.targetOwnerId),
+      targetSlot: event.targetSlotIndex,
+      isCurrent
+    });
+  };
+
+  if (activeCombatEvent.value?.type === "ATTACK" && out.length < maxItems) {
+    pushAttack(activeCombatEvent.value, true);
+  }
+
+  const startIdx = Math.max(0, combatReplayStep.value + 1);
+  for (let i = startIdx; i < myCombatEvents.value.length && out.length < maxItems; i += 1) {
+    const ev = myCombatEvents.value[i];
+    if (ev === activeCombatEvent.value) continue;
+    pushAttack(ev, false);
+  }
+
+  return out;
+});
+
 interface ReplayUnit extends UnitInstance {
   isDead?: boolean;
 }
@@ -1139,11 +1216,6 @@ function unitLabelReplay(unit: ReplayUnit | null): string {
   return `${unit.name} [${unit.attack}/${Math.max(0, unit.hp)}] L${unit.level}`;
 }
 
-function unitHpPercent(unit: ReplayUnit | null): number {
-  if (!unit || unit.maxHp <= 0) return 0;
-  return Math.max(0, Math.min(100, Math.round((Math.max(0, unit.hp) / unit.maxHp) * 100)));
-}
-
 function slotKey(side: "me" | "enemy", idx: number): string {
   return `${side}:${idx}`;
 }
@@ -1182,6 +1254,44 @@ function sideFromOwner(owner: "A" | "B"): "me" | "enemy" {
     return owner === "A" ? "me" : "enemy";
   }
   return owner === "B" ? "me" : "enemy";
+}
+
+function attackEventMatchesSourceSlot(event: CombatReplayEvent, side: "me" | "enemy", slotIndex: number): boolean {
+  if (event.type !== "ATTACK") return false;
+  if (event.sourceOwnerId === undefined || event.sourceSlotIndex === undefined) return false;
+  return sideFromOwner(event.sourceOwnerId) === side && event.sourceSlotIndex === slotIndex;
+}
+
+function tempoPercent(side: "me" | "enemy", slotIndex: number): number {
+  const board = side === "me" ? replayMyBoard.value : replayEnemyBoard.value;
+  const unit = board[slotIndex];
+  if (!unit || unit.isDead || unit.hp <= 0) return 0;
+
+  const event = activeCombatEvent.value;
+  if (event && attackEventMatchesSourceSlot(event, side, slotIndex)) {
+    if (replayAnimationPhase.value === "HIT") return 100;
+    if (replayAnimationPhase.value === "WINDUP") return 88;
+    if (replayAnimationPhase.value === "RECOVER") return 18;
+  }
+
+  const startIdx = Math.max(0, combatReplayStep.value + 1);
+  let seenAttackEvents = 0;
+  let sourceAttackDistance = Number.POSITIVE_INFINITY;
+
+  for (let i = startIdx; i < myCombatEvents.value.length; i += 1) {
+    const next = myCombatEvents.value[i];
+    if (next.type !== "ATTACK") continue;
+    seenAttackEvents += 1;
+    if (attackEventMatchesSourceSlot(next, side, slotIndex)) {
+      sourceAttackDistance = seenAttackEvents;
+      break;
+    }
+    if (seenAttackEvents >= 8) break;
+  }
+
+  if (!Number.isFinite(sourceAttackDistance)) return 8;
+  const clamped = Math.min(Math.max(1, sourceAttackDistance), 6);
+  return Math.max(10, Math.min(90, 100 - clamped * 14));
 }
 
 const rangedProjectileFlight = computed((): RangedProjectileFlight | null => {
@@ -1677,6 +1787,8 @@ onMounted(() => {
                     :my-duel-meta="myDuelMeta"
                     :has-no-duel-this-round="hasNoDuelThisRound"
                     :active-target-line="activeTargetLine"
+                    :active-attack-cue="activeAttackCue"
+                    :next-attack-queue="nextAttackQueue"
                     :active-combat-line="activeCombatLine"
                     :replay-my-board="replayMyBoard"
                     :replay-enemy-board="replayEnemyBoard"
@@ -1684,7 +1796,7 @@ onMounted(() => {
                     :unit-portrait-path="unitPortraitPath"
                     :unit-backplate-path="unitPortraitBackplatePath"
                     :unit-label-replay="unitLabelReplay"
-                    :unit-hp-percent="unitHpPercent"
+                    :tempo-percent="tempoPercent"
                     :unit-pulse-class="unitPulseClass"
                     :attack-fx-overlay-id="attackFxOverlayId"
                     :ranged-projectile-flight="rangedProjectileFlight"
