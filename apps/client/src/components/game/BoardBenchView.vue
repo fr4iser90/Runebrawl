@@ -73,8 +73,8 @@ function shortSynergyLabel(synergy: SynergyKey): string {
 }
 
 function frameTierClass(unit: UnitInstance): "tier-low" | "tier-mid" | "tier-high" {
-  if (unit.level <= 2) return "tier-low";
-  if (unit.level <= 4) return "tier-mid";
+  if (unit.tier <= 2) return "tier-low";
+  if (unit.tier <= 4) return "tier-mid";
   return "tier-high";
 }
 
@@ -153,6 +153,7 @@ onBeforeUnmount(() => {
             </div>
             <UnitCardFrameCorners
               :tier="card.tier"
+              :evolution-level="card.evolutionLevel"
               :atk="card.stats.atk"
               :hp="card.stats.hp"
               :ability-icon-url="props.abilityIconPath(card.ability)"
@@ -215,6 +216,7 @@ onBeforeUnmount(() => {
             </div>
             <UnitCardFrameCorners
               :tier="card.tier"
+              :evolution-level="card.evolutionLevel"
               :atk="card.stats.atk"
               :hp="card.stats.hp"
               :ability-icon-url="props.abilityIconPath(card.ability)"

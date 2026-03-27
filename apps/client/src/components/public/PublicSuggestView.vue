@@ -769,6 +769,7 @@ function resetWizard(): void {
                     </div>
                     <UnitCardFrameCorners
                       :tier="Math.round(Number(row.tier)) || 1"
+                      :evolution-level="1"
                       :atk="Math.round(Number(row.attack)) || 0"
                       :hp="Math.round(Number(row.hp)) || 1"
                       :ability-icon-url="abilityIconPath(row.ability)"

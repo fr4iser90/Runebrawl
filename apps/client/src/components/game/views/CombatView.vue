@@ -180,9 +180,9 @@ watch(
 );
 
 function frameTierClass(unit: ReplayUnit | null): "tier-low" | "tier-mid" | "tier-high" {
-  const level = unit?.level ?? 1;
-  if (level <= 2) return "tier-low";
-  if (level <= 4) return "tier-mid";
+  const tier = unit?.tier ?? 1;
+  if (tier <= 2) return "tier-low";
+  if (tier <= 4) return "tier-mid";
   return "tier-high";
 }
 
@@ -274,7 +274,8 @@ function winnerName(): string {
                 </div>
               </div>
               <UnitCardFrameCorners
-                :tier="(props.replayMyBoard[idx]?.level ?? 1)"
+                :tier="(props.replayMyBoard[idx]?.tier ?? 1)"
+                :evolution-level="(props.replayMyBoard[idx]?.level ?? 1)"
                 :atk="(props.replayMyBoard[idx]?.attack ?? 0)"
                 :hp="(props.replayMyBoard[idx]?.hp ?? 0)"
                 :ability-icon-url="props.abilityIconPath((props.replayMyBoard[idx]?.ability ?? 'NONE') as AbilityKey)"
@@ -348,7 +349,8 @@ function winnerName(): string {
                 </div>
               </div>
               <UnitCardFrameCorners
-                :tier="(props.replayEnemyBoard[idx]?.level ?? 1)"
+                :tier="(props.replayEnemyBoard[idx]?.tier ?? 1)"
+                :evolution-level="(props.replayEnemyBoard[idx]?.level ?? 1)"
                 :atk="(props.replayEnemyBoard[idx]?.attack ?? 0)"
                 :hp="(props.replayEnemyBoard[idx]?.hp ?? 0)"
                 :ability-icon-url="props.abilityIconPath((props.replayEnemyBoard[idx]?.ability ?? 'NONE') as AbilityKey)"

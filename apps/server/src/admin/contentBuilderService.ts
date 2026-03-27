@@ -357,6 +357,22 @@ export class ContentBuilderService {
       if (!Number.isFinite(unit.tier) || unit.tier < 1 || unit.tier > 6) errors.push(`Unit ${unit.id}: tier must be 1..6.`);
       if (!Number.isFinite(unit.attack) || unit.attack < 0) errors.push(`Unit ${unit.id}: attack must be >= 0.`);
       if (!Number.isFinite(unit.hp) || unit.hp <= 0) errors.push(`Unit ${unit.id}: hp must be > 0.`);
+      for (const [levelKey, stage] of Object.entries(unit.evolution ?? {})) {
+        if (levelKey !== "level2" && levelKey !== "level3") {
+          errors.push(`Unit ${unit.id}: invalid evolution stage ${levelKey}.`);
+          continue;
+        }
+        if (!stage) continue;
+        if (stage.attackBonus !== undefined && (!Number.isFinite(stage.attackBonus) || stage.attackBonus < 0)) {
+          errors.push(`Unit ${unit.id}: ${levelKey}.attackBonus must be >= 0.`);
+        }
+        if (stage.hpBonus !== undefined && (!Number.isFinite(stage.hpBonus) || stage.hpBonus < 1)) {
+          errors.push(`Unit ${unit.id}: ${levelKey}.hpBonus must be >= 1.`);
+        }
+        if (stage.ability !== undefined && !ALLOWED_ABILITIES.includes(stage.ability)) {
+          errors.push(`Unit ${unit.id}: invalid ${levelKey}.ability ${stage.ability}.`);
+        }
+      }
       if (unit.shopWeight !== undefined && (!Number.isFinite(unit.shopWeight) || unit.shopWeight <= 0)) {
         errors.push(`Unit ${unit.id}: shopWeight must be > 0.`);
       }

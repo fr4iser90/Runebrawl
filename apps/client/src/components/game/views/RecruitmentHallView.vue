@@ -307,6 +307,7 @@ function onShopDragStart(shopIndex: number, event: DragEvent): void {
           </div>
           <UnitCardFrameCorners
             :tier="card.tier"
+            :evolution-level="card.evolutionLevel"
             :atk="card.stats.atk"
             :hp="card.stats.hp"
             :ability-icon-url="props.abilityIconPath(card.ability)"

@@ -6,6 +6,7 @@ export interface UnitCardVM {
   id: string;
   name: string;
   tier: number;
+  evolutionLevel: number;
   cost?: number;
   portraitUnitId: string;
   role: UnitRole;
@@ -37,6 +38,7 @@ export function unitCardFromDefinition(
     id: unit.id,
     name: unit.name,
     tier: unit.tier,
+    evolutionLevel: 1,
     cost: opts?.cost,
     portraitUnitId: unit.id,
     role: unit.role,
@@ -64,7 +66,8 @@ export function unitCardFromInstance(
   return {
     id: unit.instanceId,
     name: unit.name,
-    tier: unit.level,
+    tier: unit.tier,
+    evolutionLevel: unit.level,
     portraitUnitId: unit.unitId,
     role: unit.role,
     race: unit.race,

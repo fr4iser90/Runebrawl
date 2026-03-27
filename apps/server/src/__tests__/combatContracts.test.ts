@@ -9,6 +9,7 @@ function unit(overrides: Partial<UnitInstance>): UnitInstance {
     name: "Unit",
     role: "Melee",
     level: 1,
+    tier: 1,
     attack: 3,
     hp: 5,
     maxHp: 5,

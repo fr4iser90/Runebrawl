@@ -14,6 +14,18 @@ export type UnitRace = (typeof UNIT_RACES)[number];
 export type HeroPowerType = "PASSIVE" | "ACTIVE";
 export type HeroPowerKey = "BONUS_GOLD" | "WAR_DRUM" | "RECRUITER" | "FORTIFY";
 export type BotDifficulty = "EASY" | "NORMAL" | "HARD";
+export type UnitEvolutionLevel = 1 | 2 | 3;
+
+export interface UnitEvolutionStage {
+  attackBonus?: number;
+  hpBonus?: number;
+  ability?: AbilityKey;
+}
+
+export interface UnitEvolutionDefinition {
+  level2?: UnitEvolutionStage;
+  level3?: UnitEvolutionStage;
+}
 
 export interface HeroDefinition {
   id: string;
@@ -35,6 +47,7 @@ export interface UnitDefinition {
   attack: number;
   hp: number;
   ability: AbilityKey;
+  evolution?: UnitEvolutionDefinition;
   /** Optional; when set must be one of `UNIT_RACES`. */
   race?: UnitRace;
   shopWeight?: number;
@@ -60,6 +73,7 @@ export interface UnitInstance {
   ability: AbilityKey;
   role: UnitRole;
   name: string;
+  tier: number;
   race?: UnitRace;
   tags?: SynergyKey[];
   // Copied from UnitDefinition at spawn time

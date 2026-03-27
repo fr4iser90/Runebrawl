@@ -15,6 +15,7 @@ function makeUnit(overrides: Partial<UnitInstance> = {}): UnitInstance {
     name: "Unit",
     role: "Melee",
     level: 1,
+    tier: 1,
     attack: 4,
     hp: 6,
     maxHp: 6,

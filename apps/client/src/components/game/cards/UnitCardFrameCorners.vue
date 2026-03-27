@@ -9,6 +9,7 @@ import {
 
 const props = defineProps<{
   tier: number;
+  evolutionLevel?: number;
   atk: number;
   hp: number;
   abilityIconUrl: string;
@@ -17,6 +18,7 @@ const props = defineProps<{
 }>();
 
 const tl = studByCorner("tl");
+const tr = studByCorner("tr");
 const bl = studByCorner("bl");
 const br = studByCorner("br");
 const bm = ORNATE_BOTTOM_CENTER_ABILITY;
@@ -29,6 +31,11 @@ const tierStyle = computed(() => ({
 const atkStyle = computed(() => ({
   ...studCenterStyle(bl.cx, bl.cy),
   ...studBadgeBoxStyle(bl.r)
+}));
+
+const evolutionStyle = computed(() => ({
+  ...studCenterStyle(tr.cx, tr.cy),
+  ...studBadgeBoxStyle(tr.r)
 }));
 
 const hpStyle = computed(() => ({
@@ -47,6 +54,10 @@ const abilityStyle = computed(() => ({
     <!-- TL: Tier -->
     <div class="unit-card-frame-corners__hitbox" :style="tierStyle">
       <span class="unit-card-frame-corners__tier" :aria-label="props.tierAriaLabel ?? `Tier ${props.tier}`">T{{ props.tier }}</span>
+    </div>
+    <!-- TR: Evolution -->
+    <div class="unit-card-frame-corners__hitbox" :style="evolutionStyle">
+      <span class="unit-card-frame-corners__evolution" :aria-label="`Evolution ${props.evolutionLevel ?? 1}`">E{{ props.evolutionLevel ?? 1 }}</span>
     </div>
     <!-- BL: Attack -->
     <div class="unit-card-frame-corners__hitbox" :style="atkStyle">
@@ -108,6 +119,15 @@ const abilityStyle = computed(() => ({
 
 .unit-card-frame-corners__tier {
   color: #1a1208;
+}
+
+.unit-card-frame-corners__evolution {
+  color: #ffd996;
+  text-shadow: 0 0 0.12em rgba(0, 0, 0, 0.95);
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  font-size: min(0.72rem, 86cqmin);
 }
 
 .unit-card-frame-corners__stat--atk {

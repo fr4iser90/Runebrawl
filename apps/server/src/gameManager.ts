@@ -12,7 +12,7 @@ import { nanoid } from "nanoid";
 import { simulateCombat } from "./engine/combat.js";
 import { SeededRng } from "./engine/rng.js";
 import { BALANCE, shopSlotsForTavernTier } from "./data/balance.js";
-import { unitsForTier } from "./data/units.js";
+import { UNIT_POOL, unitsForTier } from "./data/units.js";
 
 interface SocketLike {
   send: (data: string) => void;
@@ -62,6 +62,7 @@ function cloneUnitFromDef(def: UnitDefinition): UnitInstance {
     name: def.name,
     role: def.role,
     level: 1,
+    tier: def.tier,
     attack: def.attack,
     hp: def.hp,
     maxHp: def.hp,
@@ -526,43 +527,67 @@ export class GameManager {
   }
 
   private mergeDuplicates(player: PlayerInternal, unitId: string): void {
-    const all = [...player.board, ...player.bench];
-    const matches = all.filter((u): u is UnitInstance => !!u && u.unitId === unitId && u.level === 1);
-    if (matches.length < BALANCE.mergeCopiesRequired) return;
+    let merged = true;
+    while (merged) {
+      merged = false;
+      for (const fromLevel of [1, 2] as const) {
+        const all = [...player.board, ...player.bench];
+        const matches = all.filter((u): u is UnitInstance => !!u && u.unitId === unitId && u.level === fromLevel);
+        if (matches.length < BALANCE.mergeCopiesRequired) continue;
 
-    const consumedIds = matches.slice(0, BALANCE.mergeCopiesRequired).map((u) => u.instanceId);
-    const upgradedFrom = matches[0];
-    const upgraded: UnitInstance = {
-      ...upgradedFrom,
-      instanceId: nanoid(12),
-      level: 2,
-      attack: upgradedFrom.attack + 2,
-      hp: upgradedFrom.hp + 3,
-      maxHp: upgradedFrom.maxHp + 3
-    };
+        const consumedIds = matches.slice(0, BALANCE.mergeCopiesRequired).map((u) => u.instanceId);
+        const upgraded = this.evolveUnit(matches[0], (fromLevel + 1) as 2 | 3);
 
-    const zones: Array<{ zone: "board" | "bench"; arr: (UnitInstance | null)[] }> = [
-      { zone: "board", arr: player.board },
-      { zone: "bench", arr: player.bench }
-    ];
+        const zones: Array<{ zone: "board" | "bench"; arr: (UnitInstance | null)[] }> = [
+          { zone: "board", arr: player.board },
+          { zone: "bench", arr: player.bench }
+        ];
 
-    let placed = false;
-    for (const z of zones) {
-      for (let i = 0; i < z.arr.length; i += 1) {
-        const unit = z.arr[i];
-        if (unit && consumedIds.includes(unit.instanceId)) {
-          z.arr[i] = null;
+        let placed = false;
+        for (const z of zones) {
+          for (let i = 0; i < z.arr.length; i += 1) {
+            const unit = z.arr[i];
+            if (unit && consumedIds.includes(unit.instanceId)) {
+              z.arr[i] = null;
+            }
+          }
         }
-      }
-    }
 
-    for (const z of zones) {
-      const idx = firstEmpty(z.arr);
-      if (idx >= 0 && !placed) {
-        z.arr[idx] = upgraded;
-        placed = true;
+        for (const z of zones) {
+          const idx = firstEmpty(z.arr);
+          if (idx >= 0 && !placed) {
+            z.arr[idx] = upgraded;
+            placed = true;
+          }
+        }
+        merged = true;
+        break;
       }
     }
+  }
+
+  private evolutionStage(unitId: string, nextLevel: 2 | 3): { attackBonus: number; hpBonus: number; ability?: UnitInstance["ability"] } {
+    const def = UNIT_POOL.find((u) => u.id === unitId);
+    const stage = nextLevel === 2 ? def?.evolution?.level2 : def?.evolution?.level3;
+    return {
+      attackBonus: stage?.attackBonus ?? 2,
+      hpBonus: stage?.hpBonus ?? 3,
+      ability: stage?.ability
+    };
+  }
+
+  private evolveUnit(base: UnitInstance, nextLevel: 2 | 3): UnitInstance {
+    const stage = this.evolutionStage(base.unitId, nextLevel);
+    const hpGain = Math.max(1, stage.hpBonus);
+    return {
+      ...base,
+      instanceId: nanoid(12),
+      level: nextLevel,
+      attack: base.attack + stage.attackBonus,
+      hp: base.hp + hpGain,
+      maxHp: base.maxHp + hpGain,
+      ability: stage.ability ?? base.ability
+    };
   }
 
   private reroll(player: PlayerInternal): void {

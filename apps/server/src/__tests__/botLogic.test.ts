@@ -28,6 +28,7 @@ function makeInst(overrides: Partial<UnitInstance>): UnitInstance {
     name: "U",
     role: "Melee",
     level: 1,
+    tier: 1,
     attack: 2,
     hp: 2,
     maxHp: 2,

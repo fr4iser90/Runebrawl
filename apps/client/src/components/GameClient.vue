@@ -269,7 +269,24 @@ const isHeroSelection = computed(() => state.value?.phase === "HERO_SELECTION");
 const isRoundEnd = computed(() => state.value?.phase === "ROUND_END");
 const isFinished = computed(() => state.value?.phase === "FINISHED");
 const meEliminated = computed(() => (me.value?.health ?? 1) <= 0);
+type DuelMeta = {
+  meIsA: boolean;
+  meName: string;
+  opponentName: string;
+  opponentPlayerId: string;
+};
+type ReplaySideView = {
+  name: string;
+  board: (UnitInstance | null)[];
+};
+const replayEvents = ref<CombatReplayEvent[]>([]);
+const replayDuelMetaSnapshot = ref<DuelMeta | null>(null);
+const replayMeSnapshot = ref<ReplaySideView | null>(null);
+const replayOpponentSnapshot = ref<ReplaySideView | null>(null);
+const replayLockActive = ref(false);
+
 const isCombatView = computed(() => {
+  if (replayLockActive.value) return true;
   if (!state.value) return false;
   return state.value.phase === "COMBAT" || (state.value.phase === "ROUND_END" && state.value.combatEvents.length > 0);
 });
@@ -308,7 +325,7 @@ const myCombatEvents = computed<CombatReplayEvent[]>(() => {
   return forMe.filter((e) => e.duelId === duelId);
 });
 
-const myDuelMeta = computed(() => {
+const myDuelMeta = computed<DuelMeta | null>(() => {
   if (!me.value || myCombatEvents.value.length === 0) return null;
   const first = myCombatEvents.value[0];
   const meIsA = first.aPlayerId === me.value.playerId;
@@ -320,9 +337,23 @@ const myDuelMeta = computed(() => {
   };
 });
 
+const activeDuelMeta = computed<DuelMeta | null>(() => myDuelMeta.value ?? replayDuelMetaSnapshot.value);
+const activeReplayEvents = computed<CombatReplayEvent[]>(() => (myCombatEvents.value.length > 0 ? myCombatEvents.value : replayEvents.value));
+
 const myCombatOpponent = computed(() => {
   if (!state.value || !myDuelMeta.value) return null;
   return state.value.players.find((p) => p.playerId === myDuelMeta.value?.opponentPlayerId) ?? null;
+});
+
+const combatMeView = computed<ReplaySideView>(() => {
+  if (replayLockActive.value && replayMeSnapshot.value) return replayMeSnapshot.value;
+  return { name: me.value?.name ?? "", board: me.value?.board ?? [] };
+});
+
+const combatOpponentView = computed<ReplaySideView | null>(() => {
+  if (replayLockActive.value && replayOpponentSnapshot.value) return replayOpponentSnapshot.value;
+  if (!myCombatOpponent.value) return null;
+  return { name: myCombatOpponent.value.name, board: myCombatOpponent.value.board };
 });
 
 const hasNoDuelThisRound = computed(() => {
@@ -356,8 +387,8 @@ const showTutorialOverlay = computed(() => !!tutorialStepKey.value);
 const tutorialText = computed(() => (tutorialStepKey.value ? t(`game.tutorial.step.${tutorialStepKey.value}`) : ""));
 
 const myDuelResultEvent = computed<CombatReplayEvent | null>(() => {
-  for (let idx = myCombatEvents.value.length - 1; idx >= 0; idx -= 1) {
-    const event = myCombatEvents.value[idx];
+  for (let idx = activeReplayEvents.value.length - 1; idx >= 0; idx -= 1) {
+    const event = activeReplayEvents.value[idx];
     if (event.type === "DUEL_RESULT") return event;
   }
   return null;
@@ -543,8 +574,8 @@ const nextAttackQueue = computed<NextAttackCue[]>(() => {
   }
 
   const startIdx = Math.max(0, combatReplayStep.value + 1);
-  for (let i = startIdx; i < myCombatEvents.value.length && out.length < maxItems; i += 1) {
-    const ev = myCombatEvents.value[i];
+  for (let i = startIdx; i < activeReplayEvents.value.length && out.length < maxItems; i += 1) {
+    const ev = activeReplayEvents.value[i];
     if (ev === activeCombatEvent.value) continue;
     pushAttack(ev, false);
   }
@@ -576,6 +607,7 @@ function mockUnit(seed: number, name: string, role: UnitRole, ability: AbilityKe
     instanceId: `mock-${seed}`,
     unitId: `mock_unit_${seed}`,
     level: 1,
+    tier: 1,
     attack: 2 + (seed % 3),
     hp: 4 + (seed % 4),
     maxHp: 4 + (seed % 4),
@@ -1191,9 +1223,9 @@ function hintFromEvent(event: CombatReplayEvent): string {
 
 function ownerLabel(owner: "A" | "B" | undefined): string {
   if (!owner) return t("game.unknown");
-  if (!myDuelMeta.value) return owner;
+  if (!activeDuelMeta.value) return owner;
   const side = sideFromOwner(owner);
-  return side === "me" ? myDuelMeta.value.meName : myDuelMeta.value.opponentName;
+  return side === "me" ? activeDuelMeta.value.meName : activeDuelMeta.value.opponentName;
 }
 
 function eventLineWithContext(event: CombatReplayEvent): string {
@@ -1307,8 +1339,8 @@ function markDead(side: "me" | "enemy", idx: number): void {
 }
 
 function sideFromOwner(owner: "A" | "B"): "me" | "enemy" {
-  if (!myDuelMeta.value) return "me";
-  if (myDuelMeta.value.meIsA) {
+  if (!activeDuelMeta.value) return "me";
+  if (activeDuelMeta.value.meIsA) {
     return owner === "A" ? "me" : "enemy";
   }
   return owner === "B" ? "me" : "enemy";
@@ -1317,7 +1349,7 @@ function sideFromOwner(owner: "A" | "B"): "me" | "enemy" {
 const rangedProjectileFlight = computed((): RangedProjectileFlight | null => {
   if (reducedMotion.value) return null;
   const e = activeCombatEvent.value;
-  if (!e || e.type !== "ATTACK" || replayAnimationPhase.value !== "HIT" || !myDuelMeta.value) return null;
+  if (!e || e.type !== "ATTACK" || replayAnimationPhase.value !== "HIT" || !activeDuelMeta.value) return null;
   const si = e.sourceSlotIndex;
   const ti = e.targetSlotIndex;
   if (si === undefined || ti === undefined || e.sourceOwnerId === undefined || e.targetOwnerId === undefined) {
@@ -1336,7 +1368,7 @@ const rangedProjectileFlight = computed((): RangedProjectileFlight | null => {
 const magicProjectileFlight = computed((): MagicProjectileFlight | null => {
   if (reducedMotion.value) return null;
   const e = activeCombatEvent.value;
-  if (!e || e.type !== "ATTACK" || replayAnimationPhase.value !== "HIT" || !myDuelMeta.value) return null;
+  if (!e || e.type !== "ATTACK" || replayAnimationPhase.value !== "HIT" || !activeDuelMeta.value) return null;
   const si = e.sourceSlotIndex;
   const ti = e.targetSlotIndex;
   if (si === undefined || ti === undefined || e.sourceOwnerId === undefined || e.targetOwnerId === undefined) {
@@ -1414,8 +1446,8 @@ function initializeReplayBoards(): void {
 }
 
 function unitPulseClass(unit: UnitInstance | null, side: "me" | "enemy", slotIndex: number): string {
-  if (!unit || !activeCombatEvent.value || !myDuelMeta.value) return "";
-  const expectedOwner: "A" | "B" = side === "me" ? (myDuelMeta.value.meIsA ? "A" : "B") : myDuelMeta.value.meIsA ? "B" : "A";
+  if (!unit || !activeCombatEvent.value || !activeDuelMeta.value) return "";
+  const expectedOwner: "A" | "B" = side === "me" ? (activeDuelMeta.value.meIsA ? "A" : "B") : activeDuelMeta.value.meIsA ? "B" : "A";
   const ev = activeCombatEvent.value;
   if (ev.type === "ATTACK") {
     return resolveReplayAttackSlotClasses({
@@ -1451,8 +1483,8 @@ function unitPulseClass(unit: UnitInstance | null, side: "me" | "enemy", slotInd
 }
 
 function attackFxOverlayId(side: "me" | "enemy", slotIndex: number): CombatFxOverlayId | null {
-  if (!myDuelMeta.value) return null;
-  const expectedOwner: "A" | "B" = side === "me" ? (myDuelMeta.value.meIsA ? "A" : "B") : myDuelMeta.value.meIsA ? "B" : "A";
+  if (!activeDuelMeta.value) return null;
+  const expectedOwner: "A" | "B" = side === "me" ? (activeDuelMeta.value.meIsA ? "A" : "B") : activeDuelMeta.value.meIsA ? "B" : "A";
   const board = side === "me" ? replayMyBoard.value : replayEnemyBoard.value;
   const u = board[slotIndex] ?? null;
   return resolveReplayAttackOverlayId(
@@ -1488,6 +1520,11 @@ function stopCombatPlayback(): void {
   clearCombatPlaybackTimer();
   replayAnimationPhase.value = "IDLE";
   activeAnimatedEvent.value = null;
+  replayLockActive.value = false;
+  replayEvents.value = [];
+  replayDuelMetaSnapshot.value = null;
+  replayMeSnapshot.value = null;
+  replayOpponentSnapshot.value = null;
 }
 
 function playAnimationSteps(
@@ -1515,12 +1552,17 @@ function playAnimationSteps(
 function playCombatQueue(nextIndex: number, runId: number): void {
   if (runId !== combatPlaybackRunId) return;
   const next = nextIndex + 1;
-  if (next >= myCombatEvents.value.length) {
+  if (next >= activeReplayEvents.value.length) {
     replayAnimationPhase.value = "IDLE";
     clearCombatPlaybackTimer();
+    replayLockActive.value = false;
+    replayEvents.value = [];
+    replayDuelMetaSnapshot.value = null;
+    replayMeSnapshot.value = null;
+    replayOpponentSnapshot.value = null;
     return;
   }
-  const event = myCombatEvents.value[next];
+  const event = activeReplayEvents.value[next];
   combatReplayStep.value = next;
   activeAnimatedEvent.value = event;
   const steps = EVENT_ANIMATION_MAP[event.type] ?? [{ phase: "RESULT", durationMs: 200, applyEvent: true }];
@@ -1535,14 +1577,16 @@ function startCombatPlayback(): void {
 }
 
 const replaySignature = computed(() => {
-  if (!isCombatView.value || myCombatEvents.value.length === 0) return "";
+  if (!state.value) return "";
+  const inServerCombatPhase = state.value.phase === "COMBAT" || state.value.phase === "ROUND_END";
+  if (!inServerCombatPhase || myCombatEvents.value.length === 0) return "";
   const duelId = myCombatEvents.value[0].duelId;
   return `${duelId}:${myCombatEvents.value.length}`;
 });
 
 const combatReplayComplete = computed(() => {
-  if (myCombatEvents.value.length === 0) return true;
-  const lastIndex = myCombatEvents.value.length - 1;
+  if (activeReplayEvents.value.length === 0) return true;
+  const lastIndex = activeReplayEvents.value.length - 1;
   return combatReplayStep.value >= lastIndex && replayAnimationPhase.value === "IDLE";
 });
 
@@ -1550,11 +1594,18 @@ watch(
   () => replaySignature.value,
   (signature) => {
     if (!signature) {
-      stopCombatPlayback();
+      if (!replayLockActive.value) {
+        stopCombatPlayback();
+      }
       return;
     }
     const duelId = myCombatEvents.value[0]?.duelId;
-    if (!duelId) return;
+    if (!duelId || !myDuelMeta.value || !me.value || !myCombatOpponent.value) return;
+    replayLockActive.value = true;
+    replayEvents.value = myCombatEvents.value.map((event) => ({ ...event }));
+    replayDuelMetaSnapshot.value = { ...myDuelMeta.value };
+    replayMeSnapshot.value = { name: me.value.name, board: me.value.board.map((u) => (u ? { ...u } : null)) };
+    replayOpponentSnapshot.value = { name: myCombatOpponent.value.name, board: myCombatOpponent.value.board.map((u) => (u ? { ...u } : null)) };
     replayDuelId.value = duelId;
     initializeReplayBoards();
     startCombatPlayback();
@@ -1811,9 +1862,9 @@ onMounted(() => {
                 <section class="game-shell-center">
                   <CombatView
                     v-if="isCombatView"
-                    :me="me"
-                    :my-combat-opponent="myCombatOpponent"
-                    :my-duel-meta="myDuelMeta"
+                    :me="combatMeView"
+                    :my-combat-opponent="combatOpponentView"
+                    :my-duel-meta="activeDuelMeta"
                     :has-no-duel-this-round="hasNoDuelThisRound"
                     :active-target-line="activeTargetLine"
                     :active-attack-cue="activeAttackCue"
