@@ -46,6 +46,7 @@ interface NextAttackCueView {
 interface ReplayUnit extends UnitInstance {
   isDead?: boolean;
 }
+type StatTone = "neutral" | "up" | "down";
 
 interface OpponentView {
   name: string;
@@ -206,6 +207,31 @@ function winnerName(): string {
   if (enemyAlive > 0 && myAlive === 0) return props.myCombatOpponent?.name ?? "";
   return "";
 }
+
+function statTone(current: number | undefined, baseline: number | undefined): StatTone {
+  const now = Number(current ?? 0);
+  const base = Number(baseline ?? now);
+  if (!Number.isFinite(now) || !Number.isFinite(base)) return "neutral";
+  if (now > base) return "up";
+  if (now < base) return "down";
+  return "neutral";
+}
+
+function myAtkTone(idx: number): StatTone {
+  return statTone(props.replayMyBoard[idx]?.attack, props.me.board[idx]?.attack);
+}
+
+function myHpTone(idx: number): StatTone {
+  return statTone(props.replayMyBoard[idx]?.hp, props.me.board[idx]?.hp);
+}
+
+function enemyAtkTone(idx: number): StatTone {
+  return statTone(props.replayEnemyBoard[idx]?.attack, props.myCombatOpponent?.board[idx]?.attack);
+}
+
+function enemyHpTone(idx: number): StatTone {
+  return statTone(props.replayEnemyBoard[idx]?.hp, props.myCombatOpponent?.board[idx]?.hp);
+}
 </script>
 
 <template>
@@ -278,6 +304,8 @@ function winnerName(): string {
                 :evolution-level="(props.replayMyBoard[idx]?.level ?? 1)"
                 :atk="(props.replayMyBoard[idx]?.attack ?? 0)"
                 :hp="(props.replayMyBoard[idx]?.hp ?? 0)"
+                :atk-tone="myAtkTone(idx)"
+                :hp-tone="myHpTone(idx)"
                 :ability-icon-url="props.abilityIconPath((props.replayMyBoard[idx]?.ability ?? 'NONE') as AbilityKey)"
                 :ability-title="`${props.abilityLabel((props.replayMyBoard[idx]?.ability ?? 'NONE') as AbilityKey)}: ${props.abilityDescription((props.replayMyBoard[idx]?.ability ?? 'NONE') as AbilityKey)}`"
               />
@@ -353,6 +381,8 @@ function winnerName(): string {
                 :evolution-level="(props.replayEnemyBoard[idx]?.level ?? 1)"
                 :atk="(props.replayEnemyBoard[idx]?.attack ?? 0)"
                 :hp="(props.replayEnemyBoard[idx]?.hp ?? 0)"
+                :atk-tone="enemyAtkTone(idx)"
+                :hp-tone="enemyHpTone(idx)"
                 :ability-icon-url="props.abilityIconPath((props.replayEnemyBoard[idx]?.ability ?? 'NONE') as AbilityKey)"
                 :ability-title="`${props.abilityLabel((props.replayEnemyBoard[idx]?.ability ?? 'NONE') as AbilityKey)}: ${props.abilityDescription((props.replayEnemyBoard[idx]?.ability ?? 'NONE') as AbilityKey)}`"
               />

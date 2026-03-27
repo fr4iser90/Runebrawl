@@ -12,6 +12,8 @@ const props = defineProps<{
   evolutionLevel?: number;
   atk: number;
   hp: number;
+  atkTone?: "neutral" | "up" | "down";
+  hpTone?: "neutral" | "up" | "down";
   abilityIconUrl: string;
   abilityTitle?: string;
   tierAriaLabel?: string;
@@ -61,7 +63,16 @@ const abilityStyle = computed(() => ({
     </div>
     <!-- BL: Attack -->
     <div class="unit-card-frame-corners__hitbox" :style="atkStyle">
-      <span class="unit-card-frame-corners__stat unit-card-frame-corners__stat--atk" :aria-label="`Attack ${props.atk}`">{{ props.atk }}</span>
+      <span
+        class="unit-card-frame-corners__stat unit-card-frame-corners__stat--atk"
+        :class="{
+          'unit-card-frame-corners__stat--up': (props.atkTone ?? 'neutral') === 'up',
+          'unit-card-frame-corners__stat--down': (props.atkTone ?? 'neutral') === 'down'
+        }"
+        :aria-label="`Attack ${props.atk}`"
+      >
+        {{ props.atk }}
+      </span>
     </div>
     <!-- Bottom center: Ability -->
     <div class="unit-card-frame-corners__hitbox" :style="abilityStyle" aria-hidden="true">
@@ -74,7 +85,16 @@ const abilityStyle = computed(() => ({
     </div>
     <!-- BR: Health -->
     <div class="unit-card-frame-corners__hitbox" :style="hpStyle">
-      <span class="unit-card-frame-corners__stat unit-card-frame-corners__stat--hp" :aria-label="`Health ${props.hp}`">{{ props.hp }}</span>
+      <span
+        class="unit-card-frame-corners__stat unit-card-frame-corners__stat--hp"
+        :class="{
+          'unit-card-frame-corners__stat--up': (props.hpTone ?? 'neutral') === 'up',
+          'unit-card-frame-corners__stat--down': (props.hpTone ?? 'neutral') === 'down'
+        }"
+        :aria-label="`Health ${props.hp}`"
+      >
+        {{ props.hp }}
+      </span>
     </div>
   </div>
 </template>
@@ -122,8 +142,7 @@ const abilityStyle = computed(() => ({
 }
 
 .unit-card-frame-corners__evolution {
-  color: #ffd996;
-  text-shadow: 0 0 0.12em rgba(0, 0, 0, 0.95);
+  color: #1a1208;
   font-weight: 900;
   line-height: 1;
   text-align: center;
@@ -131,13 +150,21 @@ const abilityStyle = computed(() => ({
 }
 
 .unit-card-frame-corners__stat--atk {
-  color: #f0c8a8;
-  text-shadow: 0 0 0.12em rgba(0, 0, 0, 0.95);
+  color: #1a1208;
 }
 
 .unit-card-frame-corners__stat--hp {
-  color: #a8f0c0;
-  text-shadow: 0 0 0.12em rgba(0, 0, 0, 0.95);
+  color: #1a1208;
+}
+
+.unit-card-frame-corners__stat--up {
+  color: #2a6e1f;
+  text-shadow: 0 0 0.12em rgba(210, 255, 195, 0.65);
+}
+
+.unit-card-frame-corners__stat--down {
+  color: #8f1f1f;
+  text-shadow: 0 0 0.12em rgba(255, 188, 188, 0.65);
 }
 
 .unit-card-frame-corners__ability {
