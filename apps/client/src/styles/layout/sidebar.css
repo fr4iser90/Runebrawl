@@ -6,7 +6,7 @@
   border: 1px solid var(--scene-panel-border);
   border-radius: 12px;
   padding: 8px;
-  background: #1a2033;
+  background: rgba(18, 24, 44, 0.42);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -24,7 +24,7 @@
 .player-list li {
   border: 1px solid #384972;
   border-radius: 8px;
-  background: #1d2742;
+  background: rgba(29, 39, 66, 0.48);
   padding: 5px 6px;
   line-height: 1.2;
   font-size: 11px;
@@ -155,7 +155,7 @@
   border: 1px solid #374267;
   border-radius: 8px;
   padding: 6px;
-  background: #171d31;
+  background: rgba(23, 29, 49, 0.52);
   font-size: 11px;
   overflow-x: hidden;
   overscroll-behavior: contain;

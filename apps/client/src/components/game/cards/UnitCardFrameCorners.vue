@@ -49,10 +49,17 @@ const abilityStyle = computed(() => ({
   ...studCenterStyle(bm.cx, bm.cy),
   ...studBadgeBoxStyle(bm.r)
 }));
+
+const evolutionClass = computed(() => {
+  const evo = props.evolutionLevel ?? 1;
+  if (evo >= 3) return "unit-card-frame-corners--evo3";
+  if (evo >= 2) return "unit-card-frame-corners--evo2";
+  return "unit-card-frame-corners--evo1";
+});
 </script>
 
 <template>
-  <div class="unit-card-frame-corners">
+  <div class="unit-card-frame-corners" :class="evolutionClass">
     <!-- TL: Tier -->
     <div class="unit-card-frame-corners__hitbox" :style="tierStyle">
       <span class="unit-card-frame-corners__tier" :aria-label="props.tierAriaLabel ?? `Tier ${props.tier}`">T{{ props.tier }}</span>
@@ -172,5 +179,20 @@ const abilityStyle = computed(() => ({
   height: 78%;
   object-fit: contain;
   filter: drop-shadow(0 0 0.14em rgba(0, 0, 0, 0.9));
+}
+
+.unit-card-frame-corners--evo2 .unit-card-frame-corners__hitbox,
+.unit-card-frame-corners--evo3 .unit-card-frame-corners__hitbox {
+  box-shadow:
+    inset 0 0 0 0.1em rgba(40, 28, 8, 0.55),
+    0 0.06em 0.12em rgba(0, 0, 0, 0.45),
+    0 0 0.28em rgba(120, 191, 255, 0.25);
+}
+
+.unit-card-frame-corners--evo3 .unit-card-frame-corners__hitbox {
+  box-shadow:
+    inset 0 0 0 0.1em rgba(40, 28, 8, 0.55),
+    0 0.06em 0.12em rgba(0, 0, 0, 0.45),
+    0 0 0.34em rgba(163, 109, 255, 0.34);
 }
 </style>

@@ -6,7 +6,7 @@
   border: 1px solid var(--scene-panel-border);
   border-radius: 12px;
   padding: 12px;
-  background: #1a2033;
+  background: rgba(18, 24, 44, 0.38);
   min-height: 0;
   overflow: hidden;
 }
@@ -281,7 +281,7 @@
   pointer-events: auto;
   border: 1px solid rgba(212, 168, 90, 0.55);
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(15, 22, 39, 0.96), rgba(12, 18, 33, 0.96));
+  background: rgba(15, 22, 39, 0.72);
   box-shadow: 0 10px 24px rgba(5, 8, 16, 0.45);
   padding: 8px;
 }
@@ -308,7 +308,7 @@
   border: 1px solid rgba(125, 148, 204, 0.45);
   border-radius: 8px;
   overflow: hidden;
-  background: rgba(20, 28, 49, 0.75);
+  background: rgba(20, 28, 49, 0.44);
 }
 
 .shop-hover-preview-meta {
@@ -498,7 +498,7 @@
     padding: 10px;
     border: 1px solid var(--scene-panel-border);
     border-radius: 10px;
-    background: rgba(18, 27, 48, 0.94);
+    background: rgba(18, 27, 48, 0.58);
     box-shadow: 0 -8px 16px rgba(8, 12, 24, 0.35);
     backdrop-filter: blur(3px);
   }

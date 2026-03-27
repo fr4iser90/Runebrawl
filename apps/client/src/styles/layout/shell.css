@@ -18,7 +18,7 @@
   box-sizing: border-box;
   border: 1px solid var(--scene-panel-border);
   border-radius: 12px;
-  background: #1a2033;
+  background: rgba(18, 24, 44, 0.42);
 }
 
 .game-shell-top {
@@ -100,7 +100,7 @@
   padding: 4px 8px;
   border: 1px solid rgba(104, 126, 180, 0.6);
   border-radius: 10px;
-  background: rgba(26, 36, 61, 0.9);
+  background: rgba(20, 30, 52, 0.52);
   min-width: 0;
 }
 
@@ -111,7 +111,7 @@
   padding: 4px 8px;
   border: 1px solid rgba(104, 126, 180, 0.6);
   border-radius: 10px;
-  background: rgba(26, 36, 61, 0.9);
+  background: rgba(20, 30, 52, 0.52);
   min-width: 0;
   max-width: min(48vw, 560px);
 }
@@ -139,7 +139,7 @@
   padding: 1px 7px;
   border-radius: 999px;
   border: 1px solid rgba(108, 135, 196, 0.7);
-  background: rgba(30, 44, 77, 0.85);
+  background: rgba(30, 44, 77, 0.46);
   font-size: 10px;
   color: #dbe6ff;
   white-space: nowrap;
@@ -153,7 +153,7 @@
 
 .hero-ability-pill--active {
   border-color: rgba(212, 173, 99, 0.8);
-  background: rgba(48, 36, 20, 0.84);
+  background: rgba(48, 36, 20, 0.44);
 }
 
 .hero-ability-pill--disabled {

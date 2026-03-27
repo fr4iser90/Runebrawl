@@ -10,11 +10,11 @@
         "de": "Standard"
       },
       "assets": {
-        "recruitment": "recruitment-bg.svg",
-        "heroSelection": "hero-selection-bg.svg",
-        "lobby": "lobby-bg.svg",
-        "combat": "combat-bg.svg",
-        "finished": "finished-bg.svg"
+        "recruitment": "runes_menu.webp",
+        "heroSelection": "runes_menu.webp",
+        "lobby": "runes_menu.webp",
+        "combat": "runes_menu.webp",
+        "finished": "runes_menu.webp"
       }
     },
     "human_keep": {
@@ -24,11 +24,11 @@
         "de": "Menschen-Festung"
       },
       "assets": {
-        "recruitment": "recruitment-bg.svg",
-        "heroSelection": "hero-selection-bg.svg",
-        "lobby": "lobby-bg.svg",
-        "combat": "combat-bg.svg",
-        "finished": "finished-bg.svg"
+        "recruitment": "runes_menu.webp",
+        "heroSelection": "runes_menu.webp",
+        "lobby": "runes_menu.webp",
+        "combat": "runes_menu.webp",
+        "finished": "runes_menu.webp"
       }
     }
   }
