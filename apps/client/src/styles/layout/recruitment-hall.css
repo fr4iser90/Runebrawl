@@ -76,6 +76,8 @@
   align-self: start;
   padding: 6px;
   overflow: hidden;
+  background: rgba(16, 22, 40, 0.18);
+  backdrop-filter: blur(1.5px);
 }
 
 /* Prevent banner-wide cards: keep height, compute width via aspect-ratio and center. */
@@ -149,7 +151,8 @@
 .tavern.tavern-bottom-only.tavern-density-stacked .shop-card:hover {
   transform: translateY(-6px) scale(1.04);
   z-index: 20;
-  filter: brightness(1.06);
+  filter: brightness(1.1);
+  background: rgba(20, 28, 49, 0.26);
 }
 
 .tavern.tavern-bottom-only.tavern-density-stacked .portrait-slot-unit {
@@ -259,6 +262,15 @@
 
 .tavern.tavern-bottom-only .unit-card-chrome__content {
   justify-content: flex-start;
+}
+
+/* Keep shop cards airy so the scene backdrop remains visible. */
+.tavern.tavern-bottom-only .shop-card .unit-card-chrome::before {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.tavern.tavern-bottom-only .shop-card .portrait-slot.portrait-slot--svg-frame {
+  background: rgba(10, 15, 28, 0.38);
 }
 
 .tavern.tavern-bottom-only .actions.hall-actions {
