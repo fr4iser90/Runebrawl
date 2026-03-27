@@ -1,0 +1,59 @@
+.public-codex {
+  max-width: 980px;
+  margin: 0 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.codex-hero {
+  margin-bottom: 1rem;
+}
+
+.codex-hero h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+}
+
+.codex-intro {
+  margin: 0;
+  color: var(--rb-text-muted);
+}
+
+.codex-disclaimer {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  color: var(--rb-text-muted);
+  border-left: 3px solid var(--rb-border-strong);
+  padding-left: 0.75rem;
+}
+
+.codex-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.codex-card {
+  background: rgba(22, 28, 46, 0.82);
+  border: 1px solid rgba(74, 92, 150, 0.45);
+  border-radius: var(--rb-radius);
+  padding: 0.9rem 1rem;
+  box-shadow: 0 8px 28px rgba(4, 8, 20, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.codex-card h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+}
+
+.codex-card p {
+  margin: 0;
+  line-height: 1.45;
+  color: var(--rb-text-muted);
+}
+
+@media (max-width: 860px) {
+  .codex-grid {
+    grid-template-columns: 1fr;
+  }
+}

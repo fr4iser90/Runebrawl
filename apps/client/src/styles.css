@@ -588,7 +588,14 @@ body {
   gap: 6px;
 }
 
-.menu-suggest-link {
+.menu-public-links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 8px;
+}
+
+.menu-public-link {
   font-size: 12px;
   font-weight: 600;
   color: rgba(180, 200, 245, 0.85);
@@ -597,7 +604,7 @@ body {
   border-radius: 6px;
 }
 
-.menu-suggest-link:hover {
+.menu-public-link:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.06);
   text-decoration: underline;
@@ -1378,7 +1385,7 @@ textarea:focus-visible {
     width: 100%;
   }
 
-  .menu-suggest-link {
+  .menu-public-links {
     text-align: right;
   }
 

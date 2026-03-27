@@ -117,7 +117,10 @@ function playerSummary(lobby: LobbySummary): string {
                 <span class="menu-btn-icon-text">{{ t("game.settings.open") }}</span>
               </button>
             </div>
-            <a href="/suggest" class="menu-suggest-link">{{ t("nav.suggest") }}</a>
+            <div class="menu-public-links">
+              <a href="/suggest" class="menu-public-link">{{ t("nav.suggest") }}</a>
+              <a href="/codex" class="menu-public-link">{{ t("nav.codex") }}</a>
+            </div>
           </div>
         </header>
 

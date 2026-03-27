@@ -3,6 +3,7 @@ import { computed } from "vue";
 import AdminPanel from "./components/admin/AdminPanel.vue";
 import GameClient from "./components/GameClient.vue";
 import PlayerAccountStubView from "./components/public/PlayerAccountStubView.vue";
+import PublicCodexView from "./components/public/PublicCodexView.vue";
 import PublicReviewView from "./components/public/PublicReviewView.vue";
 import PublicSuggestView from "./components/public/PublicSuggestView.vue";
 import { useI18n } from "./i18n/useI18n";
@@ -12,6 +13,7 @@ const normalizedPath = computed(() => pathname.value.replace(/\/$/, "") || "/");
 const isAdminRoute = computed(() => pathname.value.startsWith("/admin"));
 const isReviewRoute = computed(() => normalizedPath.value === "/review");
 const isSuggestRoute = computed(() => normalizedPath.value === "/suggest");
+const isCodexRoute = computed(() => normalizedPath.value === "/codex");
 const isLoginRoute = computed(() => normalizedPath.value === "/login");
 const isRegisterRoute = computed(() => normalizedPath.value === "/register");
 const isGameRoute = computed(
@@ -19,13 +21,19 @@ const isGameRoute = computed(
     !isAdminRoute.value &&
     !isReviewRoute.value &&
     !isSuggestRoute.value &&
+    !isCodexRoute.value &&
     !isLoginRoute.value &&
     !isRegisterRoute.value
 );
 
 /** Slim chrome only on public pages (game menu has its own branding + links). */
 const showPublicMiniBar = computed(
-  () => isSuggestRoute.value || isReviewRoute.value || isLoginRoute.value || isRegisterRoute.value
+  () =>
+    isSuggestRoute.value ||
+    isCodexRoute.value ||
+    isReviewRoute.value ||
+    isLoginRoute.value ||
+    isRegisterRoute.value
 );
 
 const { locale, setLocale, t } = useI18n();
@@ -38,6 +46,7 @@ const { locale, setLocale, t } = useI18n();
       <span class="public-app-bar-brand">Runebrawl</span>
       <div class="public-app-bar-actions">
         <a href="/suggest" class="public-app-bar-link">{{ t("nav.suggest") }}</a>
+        <a href="/codex" class="public-app-bar-link">{{ t("nav.codex") }}</a>
         <a href="/review" class="public-app-bar-link">{{ t("nav.review") }}</a>
         <a href="/admin" class="public-app-bar-link">{{ t("nav.admin") }}</a>
         <label class="public-app-bar-lang">
@@ -50,6 +59,7 @@ const { locale, setLocale, t } = useI18n();
     </div>
     <AdminPanel v-if="isAdminRoute" />
     <PublicSuggestView v-else-if="isSuggestRoute" />
+    <PublicCodexView v-else-if="isCodexRoute" />
     <PublicReviewView v-else-if="isReviewRoute" />
     <PlayerAccountStubView v-else-if="isLoginRoute" variant="login" />
     <PlayerAccountStubView v-else-if="isRegisterRoute" variant="register" />
